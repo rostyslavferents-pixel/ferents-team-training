@@ -1,0 +1,119 @@
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Ferents Team">
+  <title>Ferents Team Training</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 28px 20px;
+      border-bottom: 4px solid #d1a84b;
+    }
+
+    header p { color: #d1d5db; margin-bottom: 0; }
+    header h1 { margin: 10px 0; font-size: 30px; }
+
+    main {
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+    }
+
+    .card {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border: 0;
+      border-radius: 14px;
+      background: white;
+      padding: 20px;
+      margin: 12px 0;
+      color: #111827;
+      font: inherit;
+      box-shadow: 0 2px 8px #0000000d;
+      cursor: pointer;
+    }
+
+    .card strong { display: block; font-size: 18px; }
+
+    .card span {
+      display: block;
+      color: #6b7280;
+      margin-top: 7px;
+      font-size: 14px;
+    }
+
+    .card:active { background: #e5e7eb; }
+
+    footer {
+      text-align: center;
+      color: #6b7280;
+      padding: 25px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <p>FERENTS TEAM</p>
+    <h1>Training</h1>
+    <p>Дисципліна. Праця. Результат.</p>
+  </header>
+
+  <main>
+    <h2>Особистий кабінет</h2>
+
+    <button class="card" onclick="alert('Профілі спортсменів підключимо наступним етапом.')">
+      <strong>Мої спортсмени</strong>
+      <span>Профілі та групи</span>
+    </button>
+
+    <button class="card" onclick="alert('Розклад тренувань підключимо наступним етапом.')">
+      <strong>Розклад тренувань</strong>
+      <span>Молодша · Середня · Старша</span>
+    </button>
+
+    <button class="card" onclick="alert('Відвідування підключимо наступним етапом.')">
+      <strong>Відвідування</strong>
+      <span>Історія тренувань</span>
+    </button>
+
+    <button class="card" onclick="alert('Оплати підключимо наступним етапом.')">
+      <strong>Оплати</strong>
+      <span>Статус та історія платежів</span>
+    </button>
+
+    <button class="card" onclick="alert('Календар подій підключимо наступним етапом.')">
+      <strong>Календар подій</strong>
+      <span>Усі майбутні події команди</span>
+    </button>
+
+    <button class="card" onclick="alert('Матеріали підключимо наступним етапом.')">
+      <strong>Матеріали</strong>
+      <span>Відео, посилання та корисна інформація</span>
+    </button>
+  </main>
+
+  <footer>
+    FERENTS TEAM TRAINING · 2026
+  </footer>
+</body>
+</html>
