@@ -160,6 +160,7 @@ const supabaseClient = window.supabase.createClient(
 );
 
 console.log('Supabase client initialized');
+    window.openAthletes = openAthletes;
 async function openAthletes() {
   document.getElementById('athletesPanel').hidden = false;
   await loadAthletes();
