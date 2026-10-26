@@ -81,10 +81,44 @@
   <main>
     <h2>Особистий кабінет</h2>
 
-    <button class="card" onclick="alert('Профілі спортсменів підключимо наступним етапом.')">
-      <strong>Мої спортсмени</strong>
-      <span>Профілі та групи</span>
-    </button>
+    <button class="card" onclick="openAthletes()">
+  <strong>Мої спортсмени</strong>
+  <span>Перегляд і додавання спортсменів</span>
+</button>
+
+<section id="athletesPanel" hidden>
+  <h2>Мої спортсмени</h2>
+
+  <form id="athleteForm">
+    <input
+      id="athleteName"
+      type="text"
+      placeholder="Ім'я та прізвище спортсмена"
+      required
+    >
+
+    <select id="athleteGroup" required>
+      <option value="">Оберіть групу</option>
+      <option value="Молодша">Молодша</option>
+      <option value="Середня">Середня</option>
+      <option value="Старша">Старша</option>
+    </select>
+
+    <input
+      id="athleteYear"
+      type="number"
+      placeholder="Рік народження"
+      min="2000"
+      max="2026"
+    >
+
+    <button type="submit">Додати спортсмена</button>
+  </form>
+
+  <p id="athleteMessage"></p>
+  <ul id="athletesList"></ul>
+  <button type="button" onclick="closeAthletes()">Назад</button>
+</section>
 
     <button class="card" onclick="alert('Розклад тренувань підключимо наступним етапом.')">
       <strong>Розклад тренувань</strong>
@@ -126,6 +160,67 @@ const supabaseClient = window.supabase.createClient(
 );
 
 console.log('Supabase client initialized');
-</script>
-</body>
-</html>
+async function openAthletes() {
+  document.getElementById('athletesPanel').hidden = false;
+  await loadAthletes();
+}
+
+function closeAthletes() {
+  document.getElementById('athletesPanel').hidden = true;
+}
+
+async function loadAthletes() {
+  const message = document.getElementById('athleteMessage');
+  const list = document.getElementById('athletesList');
+
+  message.textContent = 'Завантаження...';
+  list.replaceChildren();
+
+  const { data, error } = await supabaseClient
+    .from('athletes')
+    .select('id, full_name, group_name, birth_year')
+    .order('full_name');
+
+  if (error) {
+    message.textContent = 'Помилка завантаження: ' + error.message;
+    return;
+  }
+
+  message.textContent = data.length
+    ? 'Спортсменів у базі: ' + data.length
+    : 'Список поки порожній';
+
+  data.forEach((athlete) => {
+    const item = document.createElement('li');
+    item.textContent =
+      athlete.full_name + ' — ' +
+      (athlete.group_name || 'Група не вказана') +
+      (athlete.birth_year ? ', ' + athlete.birth_year : '');
+    list.appendChild(item);
+  });
+}
+
+document.getElementById('athleteForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  const message = document.getElementById('athleteMessage');
+  const full_name = document.getElementById('athleteName').value.trim();
+  const group_name = document.getElementById('athleteGroup').value;
+  const yearValue = document.getElementById('athleteYear').value;
+  const birth_year = yearValue ? Number(yearValue) : null;
+
+  message.textContent = 'Збереження...';
+
+  const { error } = await supabaseClient
+    .from('athletes')
+    .insert([{ full_name, group_name, birth_year }]);
+
+  if (error) {
+    message.textContent = 'Не вдалося зберегти: ' + error.message;
+    return;
+  }
+
+  document.getElementById('athleteForm').reset();
+  message.textContent = 'Спортсмена успішно додано!';
+  await loadAthletes();
+});
