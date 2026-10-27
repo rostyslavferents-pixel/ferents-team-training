@@ -91,6 +91,7 @@ create table if not exists public.events (
   place       text,
   description text
 );
+alter table public.events add column if not exists participants jsonb not null default '[]'::jsonb;  -- id спортсменів-учасників
 
 create table if not exists public.materials (
   id          bigint generated always as identity primary key,
