@@ -402,6 +402,24 @@
     .rbtn.tg { background: #229ed9; color: #fff; box-shadow: none; }
     .rbtn.sms { background: var(--ok-bg); color: var(--ok); box-shadow: none; }
     /* «Нагадано» в списку оплат */
+    .seg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 12px; border-radius: 12px; background: var(--line); }
+    .seg2 a { text-align: center; padding: 9px; border-radius: 9px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 15px; }
+    .seg2 a.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 4px #0000001a; }
+    .rank { flex: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 14px; background: var(--line); color: var(--muted); }
+    .rank.r1 { background: #f5c542; color: #3d2c00; } .rank.r2 { background: #cfd5dd; color: #2b3138; } .rank.r3 { background: #d9935a; color: #3a1d06; }
+    .rating .row { align-items: flex-start; }
+    .rating .rank, .rating .av { margin-top: 2px; }
+    .merits { white-space: pre-line; font-size: 13px; line-height: 1.45; color: var(--ink); margin-top: 6px;
+      display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    .row div.merits { display: -webkit-box; }
+    .rank-tools { display: flex; flex-direction: column; gap: 4px; flex: none; }
+    .rank-tools button { width: 36px; height: 32px; border: 0; border-radius: 9px; background: var(--bg); color: var(--ink);
+      box-shadow: inset 0 0 0 1px var(--line); font-size: 16px; cursor: pointer; }
+    .rank-tools button.x { color: var(--bad); }
+    .rank-tools button:disabled { opacity: .3; }
+    .hero .merits-full { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.5; white-space: pre-line; }
+    .hero .merits-full b { display: block; font-size: 13px; letter-spacing: .04em; color: var(--gold-ink); margin-bottom: 4px; }
     .badge .belt { width: 18px; height: 7px; margin-right: 5px; top: -1px; }
     :root[data-theme="dark"] .now:not(.soon) { background: var(--gold); color: #111827; }
     :root[data-theme="dark"] .now:not(.soon) .dot { background: #111827; }
@@ -522,7 +540,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.0';
+  const APP_VERSION = 'v3.1';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -601,7 +619,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -642,7 +660,25 @@
   state.section = (() => { try { return localStorage.getItem('ft_section') || 'Усі'; } catch (e) { return 'Усі'; } })();
   state.hasSection = null; // чи є в базі колонка athletes.section
   function noteSection(list) {
-    if (list && list.length) { state.hasSection = 'section' in list[0]; state.hasPhoto = 'photo' in list[0]; }
+    if (list && list.length) {
+      state.hasSection = 'section' in list[0]; state.hasPhoto = 'photo' in list[0];
+      state.hasMerits = 'achievements' in list[0] && 'rating_place' in list[0];
+    }
+  }
+  const MERITS_SQL = `alter table public.athletes add column if not exists achievements text;
+alter table public.athletes add column if not exists rating_place integer;`;
+  function sqlCard(title, sql) {
+    return `<div class="info"><b>${esc(title)}</b><br>Щоб увімкнути, один раз виконайте в Supabase → SQL Editor:
+      <code style="display:block;margin:8px 0;padding:8px;background:var(--card);border-radius:8px;font-size:12px;white-space:pre-wrap;word-break:break-all">${esc(sql)}</code>
+      <button type="button" class="btn sm light" data-copy-sql="${esc(sql)}">Скопіювати</button></div>`;
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-copy-sql]');
+    if (b) copyText(b.dataset.copySql, 'SQL скопійовано — вставте в Supabase → SQL Editor');
+  });
+  // Перемикач «Список | Рейтинг» у розділі Спортсмени
+  function athTabs(cur) {
+    return `<div class="seg2"><a href="#athletes" class="${cur === 'list' ? 'on' : ''}">Список</a><a href="#rating" class="${cur === 'rating' ? 'on' : ''}">🏆 Рейтинг</a></div>`;
   }
 
   // ===== Фото спортсменів: приватне сховище Supabase «athlete-photos» =====
@@ -658,7 +694,8 @@
   }
   function initialsOf(name) { return String(name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
   function avatarHtml(a, url, cls = 'av') {
-    return `<span class="${cls}">${url ? `<img src="${esc(url)}" alt="" loading="lazy">` : esc(initialsOf(a.full_name))}</span>`;
+    const ini = esc(initialsOf(a.full_name));
+    return `<span class="${cls}">${url ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode('${ini}'))">` : ini}</span>`;
   }
   // Квадрат 480×480, JPEG ≈ 40–80 КБ
   async function compressPhoto(file) {
@@ -1127,6 +1164,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       ${state.hasSection === false ? sectionSetupCard() : ''}
       ${noSec.length ? `<div class="info">У <b>${noSec.length}</b> спортсменів не вказана секція — їх не видно у фільтрі Наварія / Сихів.
         <button type="button" class="btn sm" id="assignBtn" style="margin-top:8px">Розподілити по секціях</button></div>` : ''}
+      ${athTabs('list')}
       <input class="search" id="search" type="search" placeholder="Пошук за імʼям" value="${esc(state.search)}">
       ${chips(true)}
       <p class="muted small" id="count"></p>
@@ -1154,6 +1192,104 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     const ab = $('#assignBtn');
     if (ab) ab.onclick = () => assignSections(noSec);
     draw();
+  }
+
+  // ----- Рейтинг: тренер сам додає спортсменів і розставляє місця -----
+  // Місця завжди 1, 2, 3… без пропусків
+  async function renumberRating(list) {
+    const rated = list || await q(db.from('athletes').select('id, rating_place').not('rating_place', 'is', null).order('rating_place'));
+    for (let i = 0; i < rated.length; i++) {
+      if (rated[i].rating_place !== i + 1) await q(db.from('athletes').update({ rating_place: i + 1 }).eq('id', rated[i].id));
+    }
+  }
+  async function ratingView() {
+    const ath = await q(db.from('athletes').select('*').order('full_name'));
+    noteSection(ath);
+    if (!state.hasMerits) {
+      setActions('');
+      $('#view').innerHTML = athTabs('rating') + sqlCard('Рейтинг і заслуги спортсменів', MERITS_SQL);
+      return;
+    }
+    const edit = !!state.ratingEdit;
+    setActions(`<button class="btn ${edit ? '' : 'light'}" id="editRating">${edit ? 'Готово' : 'Редагувати'}</button>`);
+    $('#editRating').onclick = () => { state.ratingEdit = !edit; render(); };
+    const rated = ath.filter(a => a.rating_place).sort((x, y) => x.rating_place - y.rating_place);
+    const urlOf = state.hasPhoto ? await photoUrls(rated.map(a => a.photo)).catch(() => () => '') : () => '';
+    $('#view').innerHTML = `
+      ${athTabs('rating')}
+      ${edit ? '<button type="button" class="btn wide" id="addRated" style="margin:0 0 12px">+ Додати спортсмена до рейтингу</button>' : ''}
+      <div class="list rating">${rated.map((a, i) => {
+        const body = `<span class="rank ${i < 3 ? 'r' + (i + 1) : ''}">${i + 1}</span>
+          ${avatarHtml(a, urlOf(a.photo))}
+          <div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong>
+            <span>${esc([groupLabel(a), beltShort(a.belt)].filter(Boolean).join(' · '))}</span>
+            ${a.achievements ? `<div class="merits">${esc(a.achievements)}</div>` : '<span class="muted">Заслуги ще не вписані</span>'}</div>`;
+        return edit
+          ? `<div class="row" style="cursor:default">${body}
+              <div class="rank-tools"><button type="button" data-up="${i}" ${i ? '' : 'disabled'} aria-label="Вище">↑</button>
+                <button type="button" data-down="${i}" ${i < rated.length - 1 ? '' : 'disabled'} aria-label="Нижче">↓</button>
+                <button type="button" class="x" data-out="${i}" aria-label="Прибрати">✕</button></div></div>`
+          : `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">${body}<span class="chev">›</span></a>`;
+      }).join('') || `<div class="empty">У рейтингу ще нікого немає. Натисніть «Редагувати» → «+ Додати спортсмена», або відкрийте картку спортсмена → «🏆 Додати до рейтингу».</div>`}</div>
+      ${!edit && rated.length ? '<p class="muted small" style="margin:12px 4px 0">Щоб змінити порядок, натисніть «Редагувати». Заслуги вписуються в анкеті спортсмена.</p>' : ''}`;
+
+    const move = async (i, j) => {
+      [rated[i], rated[j]] = [rated[j], rated[i]];
+      await renumberRating(rated); render();
+    };
+    $('#view').onclick = async e => {
+      const up = e.target.closest('[data-up]'), down = e.target.closest('[data-down]'), out = e.target.closest('[data-out]');
+      if (up) return move(Number(up.dataset.up), Number(up.dataset.up) - 1);
+      if (down) return move(Number(down.dataset.down), Number(down.dataset.down) + 1);
+      if (out) {
+        const a = rated[Number(out.dataset.out)];
+        await q(db.from('athletes').update({ rating_place: null }).eq('id', a.id));
+        await renumberRating(rated.filter(x => x !== a));
+        toast('Прибрано з рейтингу', false, { label: 'Скасувати', fn: async () => {
+          await q(db.from('athletes').update({ rating_place: rated.length + 1 }).eq('id', a.id)); await renumberRating(); render(); } });
+        render();
+      }
+      if (e.target.closest('#addRated')) addToRating(ath.filter(a => !a.rating_place && isActive(a)), rated.length);
+    };
+  }
+  // Вибір спортсменів, яких додати в кінець рейтингу
+  function addToRating(people, count) {
+    const dlg = $('#dlg');
+    const chosen = [];
+    let search = '';
+    dlg.innerHTML = `<form><h3>Додати до рейтингу</h3>
+      <input type="search" id="rSearch" placeholder="Пошук за імʼям" style="margin-top:10px">
+      <div class="pick-tools"><span class="muted small" id="rCount">Вибрано: 0</span></div>
+      <div class="list pick-list" id="rList"></div>
+      <div class="dlg-actions"><span class="spacer"></span>
+        <button type="button" class="btn light" data-act="cancel">Скасувати</button>
+        <button type="submit" class="btn">Додати</button></div></form>`;
+    const draw = () => {
+      $('#rList').innerHTML = people.filter(a => !search || a.full_name.toLowerCase().includes(search.toLowerCase())).map(a => `<label class="row tick">
+          <span><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([a.section, a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}${a.achievements ? ' · 🏆 є заслуги' : ''}</span></span>
+          <input type="checkbox" data-rid="${esc(a.id)}" ${chosen.includes(String(a.id)) ? 'checked' : ''}></label>`).join('') || '<div class="empty">Нікого не знайдено</div>';
+    };
+    const form = dlg.querySelector('form');
+    form.onchange = e => {
+      const b = e.target.closest('[data-rid]'); if (!b) return;
+      const i = chosen.indexOf(b.dataset.rid);
+      if (b.checked && i < 0) chosen.push(b.dataset.rid); else if (!b.checked && i >= 0) chosen.splice(i, 1);
+      $('#rCount').textContent = `Вибрано: ${chosen.length}`;
+    };
+    form.onclick = e => { if (e.target.closest('[data-act=cancel]')) dlg.close(); };
+    $('#rSearch').oninput = e => { search = e.target.value; draw(); };
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const btn = form.querySelector('[type=submit]'); btn.disabled = true;
+      try {
+        for (let i = 0; i < chosen.length; i++) {
+          await q(db.from('athletes').update({ rating_place: count + i + 1 }).eq('id', people.find(a => String(a.id) === chosen[i]).id));
+        }
+        dlg.close(); toast(`Додано: ${chosen.length}`); render();
+      } catch (err) { btn.disabled = false; }
+    };
+    draw();
+    dlg.showModal();
   }
 
   // Картка-підказка, якщо в базі ще немає колонки «секція»
@@ -1226,6 +1362,8 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
         { name: 'belt', label: 'Пояс / кю', type: 'select', options: beltOptions(a && a.belt) },
         { name: 'parent_name', label: 'Батьки (імʼя)' },
         { name: 'phone', label: 'Телефон', type: 'tel' },
+        ...(state.hasMerits ? [{ name: 'achievements', label: '🏆 Заслуги (медалі, турніри, досягнення)', type: 'textarea', rows: 4,
+            attrs: 'placeholder="напр. 🥇 Чемпіонат області 2026, куміте\n🥈 Кубок України 2025, ката"' }] : []),
         { name: 'notes', label: 'Нотатки', type: 'textarea' },
         { name: 'active', label: 'Активний (ходить на тренування)', type: 'checkbox' },
       ],
@@ -1363,6 +1501,11 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
         <div class="hero-w">⚖️ ${lastW ? `<b>${fmtKg(lastW.kg)}</b> <span class="muted small">· ${fmtDate(lastW.date)}${lastW.date.slice(0, 4) !== t.slice(0, 4) ? ' ' + lastW.date.slice(0, 4) : ''}</span>` : '<span class="muted">Вага не вказана</span>'}</div>
         ${a.parent_name ? `<div class="note">Батьки: ${esc(a.parent_name)}${a.phone ? ' · ' + esc(a.phone) : ''}</div>` : ''}
         ${a.notes ? `<div class="note">${esc(a.notes)}</div>` : ''}
+        ${a.achievements ? `<div class="merits-full"><b>🏆 ЗАСЛУГИ</b>${esc(a.achievements)}</div>` : ''}
+        ${state.hasMerits ? `<div style="margin-top:12px">${a.rating_place
+            ? `<a class="badge gold" href="#rating" style="text-decoration:none">🏆 ${a.rating_place} місце в рейтингу</a>
+               <button type="button" class="linkbtn" id="rateOut" style="margin-left:8px">Прибрати з рейтингу</button>`
+            : '<button type="button" class="btn light sm" id="rateIn">🏆 Додати до рейтингу</button>'}</div>` : ''}
         ${phone ? `<a class="btn light wide" href="tel:${esc(phone)}">📞 Подзвонити${a.parent_name ? ' батькам' : ''}</a>` : ''}
       </div>
       <div class="stats">
@@ -1389,6 +1532,16 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       <div class="list">${grHtml}</div>`;
 
     $('#addW').onclick = () => weightForm(a);
+    const rIn = $('#rateIn'), rOut = $('#rateOut');
+    if (rIn) rIn.onclick = async () => {
+      const top = await q(db.from('athletes').select('rating_place').not('rating_place', 'is', null).order('rating_place', { ascending: false }).limit(1));
+      await q(db.from('athletes').update({ rating_place: (top[0]?.rating_place || 0) + 1 }).eq('id', a.id));
+      toast('Додано до рейтингу — порядок можна змінити у вкладці «Рейтинг»'); render();
+    };
+    if (rOut) rOut.onclick = async () => {
+      await q(db.from('athletes').update({ rating_place: null }).eq('id', a.id));
+      await renumberRating(); toast('Прибрано з рейтингу'); render();
+    };
     $('#addG').onclick = () => gradingForm([a]);
     $('#view').onclick = e => {
       const m = e.target.closest('[data-month]');
@@ -2332,7 +2485,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   //  НАВІГАЦІЯ ТА ВХІД
   // =====================================================================
   const VIEWS = {
-    home: homeView, athletes: athletesView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
+    home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
     links: linksView, chat: chatView, members: membersView, settings: settingsView,
@@ -2342,7 +2495,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   const PARENT_ROUTE = { athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
-  const TAB_OF = { athlete: 'athletes' };
+  const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
   function drawTabbar(route) {
     const bar = $('#tabbar'), on = isCoach();
     bar.hidden = !on;
@@ -2374,7 +2527,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     document.body.classList.toggle('inner', route !== 'home');
     document.body.dataset.route = route;
     drawTabbar(route);
-    const isTab = isCoach() && TABS.some(([r]) => r === route);
+    const isTab = isCoach() && (TABS.some(([r]) => r === route) || route === 'rating');
     $('#backLink').hidden = route === 'home' || isTab;
     const parent = isCoach() ? PARENT_ROUTE[route] : (['links', 'chat'].includes(route) ? 'home' : null);
     $('#backLink').href = '#' + (parent || 'home');

@@ -40,6 +40,8 @@ alter table public.athletes add column if not exists notes       text;
 alter table public.athletes add column if not exists active      boolean not null default true;
 alter table public.athletes add column if not exists created_at  timestamptz not null default now();
 alter table public.athletes add column if not exists section     text;  -- секція: Наварія / Сихів
+alter table public.athletes add column if not exists achievements text;     -- заслуги (вписує тренер)
+alter table public.athletes add column if not exists rating_place integer; -- місце в рейтингу (null — не в рейтингу)
 
 
 -- 3. Відвідування та оплати (тип athlete_id підлаштовується під тип athletes.id)
