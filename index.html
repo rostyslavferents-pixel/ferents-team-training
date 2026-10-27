@@ -30,12 +30,18 @@
       --ok: #4ade80; --ok-bg: #12301f; --bad: #f87171; --bad-bg: #3a1515;
       color-scheme: dark;
     }
+    @font-face {
+      font-family: 'Manrope'; src: url('fonts/manrope.woff') format('woff');
+      font-weight: 200 800; font-style: normal; font-display: swap;
+    }
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     html { -webkit-text-size-adjust: 100%; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg); color: var(--ink);
+      overscroll-behavior-y: contain;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -314,6 +320,88 @@
     .pick-tools span { margin-left: auto; }
     .pick-list { max-height: 46vh; overflow-y: auto; box-shadow: inset 0 0 0 1px var(--line); }
     .hero > h2 + .note { color: var(--ink); }
+    /* Форми знизу екрана (шторки) */
+    dialog.sheet[open] { animation: sheetUp .3s cubic-bezier(.2, .8, .2, 1); }
+    dialog.sheet.closing { animation: sheetDown .2s ease-in forwards; }
+    dialog.sheet::backdrop { animation: fadeIn .25s ease-out; }
+    dialog.sheet.closing::backdrop { animation: fadeOut .2s ease-in forwards; }
+    dialog.sheet::before { content: ''; display: block; width: 40px; height: 5px; border-radius: 3px; background: var(--border); margin: 10px auto 0; }
+    dialog.sheet .dlg-actions { position: sticky; bottom: 0; z-index: 1; background: var(--card); margin: 16px -20px -20px; padding: 12px 20px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+    @media (max-width: 700px) {
+      dialog.sheet { margin: auto 0 0; width: 100%; max-width: 100%; max-height: 92dvh; border-radius: 22px 22px 0 0; }
+    }
+    @media (min-width: 701px) {
+      dialog.sheet[open] { animation-name: popIn; }
+      dialog.sheet.closing { animation-name: popOut; }
+      dialog.sheet::before { display: none; }
+    }
+    @keyframes sheetUp { from { transform: translateY(100%); } }
+    @keyframes sheetDown { to { transform: translateY(100%); } }
+    @keyframes popIn { from { transform: scale(.96); opacity: 0; } }
+    @keyframes popOut { to { transform: scale(.96); opacity: 0; } }
+    @keyframes fadeIn { from { opacity: 0; } }
+    @keyframes fadeOut { to { opacity: 0; } }
+    .confirm-body { padding: 18px 20px 20px; }
+    .confirm-body h3 { margin: 4px 0 6px; font-size: 19px; }
+    .confirm-body p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; white-space: pre-line; }
+    .confirm-body .btns { display: grid; gap: 8px; margin-top: 18px; padding-bottom: env(safe-area-inset-bottom); }
+    .confirm-body .btn { width: 100%; padding: 14px; }
+    .confirm-body textarea { margin-top: 10px; font-size: 14px; }
+    .toast { display: flex; align-items: center; gap: 14px; }
+    .toast .act { background: none; border: 0; color: var(--gold); font: inherit; font-weight: 700; padding: 2px 0; cursor: pointer; white-space: nowrap; }
+
+    /* Скелетон під час завантаження */
+    .sk { border-radius: 14px; margin-bottom: 10px;
+      background: linear-gradient(90deg, var(--line) 0, color-mix(in srgb, var(--line) 45%, var(--card)) 40%, var(--line) 80%);
+      background-size: 300% 100%; animation: shimmer 1.3s linear infinite; }
+    .sk.t { height: 22px; width: 45%; } .sk.c { height: 92px; } .sk.r { height: 58px; }
+    .sk.g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: none; animation: none; }
+    .sk.g i { height: 84px; border-radius: 14px; background: inherit; }
+    @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -50% 0; } }
+    #view.enter { animation: viewIn .28s ease-out; }
+    @keyframes viewIn { from { opacity: 0; transform: translateY(8px); } }
+    @media (prefers-reduced-motion: reduce) { #view.enter, dialog.sheet[open], dialog.sheet.closing, .sk { animation: none !important; } }
+
+    /* Потягни, щоб оновити */
+    .ptr { position: fixed; top: 0; left: 50%; z-index: 7; width: 38px; height: 38px; border-radius: 50%; opacity: 0;
+      transform: translate(-50%, -44px); background: var(--card); color: var(--gold-ink); box-shadow: 0 4px 14px #0003;
+      display: flex; align-items: center; justify-content: center; pointer-events: none; }
+    .ptr svg { width: 20px; height: 20px; }
+    .ptr.ready { color: var(--ok); }
+    .ptr.spin svg { animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Нова версія */
+    .update { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 9;
+      width: min(560px, calc(100% - 24px)); display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px;
+      background: var(--head); color: #fff; border-radius: 14px; box-shadow: 0 10px 30px #0004; font-size: 14px; animation: sheetUp .3s ease-out; }
+    .update div { flex: 1; } .update b { color: var(--gold); }
+    .update .btn { background: var(--gold); color: #111827; padding: 9px 14px; }
+    body.has-tabs .update { bottom: calc(74px + env(safe-area-inset-bottom)); }
+    body:has(#update:not([hidden])) .toast { bottom: calc(150px + env(safe-area-inset-bottom)); }
+    /* Фото спортсменів */
+    .av { flex: none; width: 42px; height: 42px; border-radius: 50%; overflow: hidden; background: var(--gold-soft); color: var(--gold-ink);
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+    .av img, .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .avatar { overflow: hidden; }
+    .row .grow { flex: 1; min-width: 0; }
+    .photo-edit { display: flex; align-items: center; gap: 16px; margin: 14px 0 4px; }
+    .photo-edit .avatar { width: 84px; height: 84px; font-size: 28px; }
+    .photo-edit .acts { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+    .photo-edit label.btn { margin: 0; color: var(--ink); font-size: 14px; }
+    .photo-note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+    .rem-list { margin-top: 14px; border-top: 1px solid var(--line); }
+    .rem-row { padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .rem-who b { display: block; font-size: 15px; }
+    .rem-who span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .rem-done { font-style: normal; color: var(--ok); font-weight: 600; }
+    .rem-btns { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .rbtn { border: 0; border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+      background: var(--bg); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+    .rbtn.viber { background: #7360f2; color: #fff; box-shadow: none; }
+    .rbtn.tg { background: #229ed9; color: #fff; box-shadow: none; }
+    .rbtn.sms { background: var(--ok-bg); color: var(--ok); box-shadow: none; }
+    /* «Нагадано» в списку оплат */
     .badge .belt { width: 18px; height: 7px; margin-right: 5px; top: -1px; }
     :root[data-theme="dark"] .now:not(.soon) { background: var(--gold); color: #111827; }
     :root[data-theme="dark"] .now:not(.soon) .dot { background: #111827; }
@@ -420,7 +508,10 @@
 
   <nav id="tabbar" class="tabbar" hidden aria-label="Розділи"><div class="tabs"></div></nav>
 
-  <dialog id="dlg"></dialog>
+  <dialog id="dlg" class="sheet"></dialog>
+  <dialog id="confirm" class="sheet"></dialog>
+  <div id="update" class="update" hidden><div>Доступна нова версія <b></b></div><button type="button" class="btn" id="updateBtn">Оновити</button></div>
+  <div id="ptr" class="ptr"><svg class="ic-svg" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></div>
   <dialog id="menu"></dialog>
   <div id="toast" class="toast" hidden></div>
 
@@ -431,7 +522,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v2.9';
+  const APP_VERSION = 'v3.0';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -550,7 +641,45 @@
   // Секція (Наварія / Сихів): фільтр для спортсменів, оплат, відміток, атестацій
   state.section = (() => { try { return localStorage.getItem('ft_section') || 'Усі'; } catch (e) { return 'Усі'; } })();
   state.hasSection = null; // чи є в базі колонка athletes.section
-  function noteSection(list) { if (list && list.length) state.hasSection = 'section' in list[0]; }
+  function noteSection(list) {
+    if (list && list.length) { state.hasSection = 'section' in list[0]; state.hasPhoto = 'photo' in list[0]; }
+  }
+
+  // ===== Фото спортсменів: приватне сховище Supabase «athlete-photos» =====
+  const PHOTO_BUCKET = 'athlete-photos';
+  const photoCache = new Map(); // шлях → { url, until }
+  async function photoUrls(paths) {
+    const need = [...new Set(paths.filter(Boolean))].filter(p => !(photoCache.get(p)?.until > Date.now()));
+    if (need.length && navigator.onLine) {
+      const { data } = await db.storage.from(PHOTO_BUCKET).createSignedUrls(need, 60 * 60 * 24);
+      (data || []).forEach(x => { if (x.signedUrl) photoCache.set(x.path, { url: x.signedUrl, until: Date.now() + 20 * 3600e3 }); });
+    }
+    return p => photoCache.get(p)?.url || '';
+  }
+  function initialsOf(name) { return String(name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
+  function avatarHtml(a, url, cls = 'av') {
+    return `<span class="${cls}">${url ? `<img src="${esc(url)}" alt="" loading="lazy">` : esc(initialsOf(a.full_name))}</span>`;
+  }
+  // Квадрат 480×480, JPEG ≈ 40–80 КБ
+  async function compressPhoto(file) {
+    let img;
+    try { img = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch (e) {
+      img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); });
+    }
+    const w = img.width, h = img.height, side = Math.min(w, h), size = Math.min(480, side);
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    c.getContext('2d').drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, size, size);
+    return new Promise(res => c.toBlob(res, 'image/jpeg', 0.82));
+  }
+  const PHOTO_SQL = `alter table public.athletes add column if not exists photo text;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('athlete-photos', 'athlete-photos', false, 1048576, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+drop policy if exists "coach athlete photos" on storage.objects;
+create policy "coach athlete photos" on storage.objects for all to authenticated
+  using (bucket_id = 'athlete-photos' and public.is_coach())
+  with check (bucket_id = 'athlete-photos' and public.is_coach());`;
   function inSection(a) { return !state.hasSection || state.section === 'Усі' || a.section === state.section; }
   function inFilter(a) { return inGroup(a) && inSection(a); }
   // Розклад: тренування без секції показуємо в обох
@@ -564,10 +693,75 @@
   function isActive(a) { return a.active !== false; }
 
   let toastTimer;
-  function toast(msg, bad = false) {
+  // toast('Видалено', false, { label: 'Скасувати', fn: async () => … })
+  function toast(msg, bad = false, action = null) {
     const t = $('#toast');
-    t.textContent = msg; t.className = 'toast' + (bad ? ' bad' : ''); t.hidden = false;
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), bad ? 5000 : 2200);
+    t.innerHTML = `<span>${esc(msg)}</span>${action ? `<button type="button" class="act">${esc(action.label)}</button>` : ''}`;
+    t.className = 'toast' + (bad ? ' bad' : ''); t.hidden = false;
+    if (action) t.querySelector('.act').onclick = async () => { t.hidden = true; await action.fn(); };
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), action ? 6000 : bad ? 5000 : 2200);
+  }
+
+  // ===== Шторки знизу: анімація закриття і свайп униз =====
+  function sheetify(d) {
+    const nativeClose = HTMLDialogElement.prototype.close;
+    d.close = function (v) {
+      if (!this.open || this.classList.contains('closing')) return;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) { nativeClose.call(this, v); return; }
+      this.classList.add('closing');
+      setTimeout(() => { this.classList.remove('closing'); this.style.transform = ''; nativeClose.call(this, v); }, 190);
+    };
+    d.addEventListener('cancel', e => { e.preventDefault(); d.close(); });
+    d.addEventListener('click', e => { if (e.target === d) d.close(); }); // тап по затемненню
+    let y0 = null, dy = 0;
+    d.addEventListener('touchstart', e => {
+      if (d.scrollTop > 0 || e.target.closest('input, textarea, select, .pick-list, .chips')) { y0 = null; return; }
+      y0 = e.touches[0].clientY; dy = 0;
+    }, { passive: true });
+    d.addEventListener('touchmove', e => {
+      if (y0 === null) return;
+      dy = Math.max(0, e.touches[0].clientY - y0);
+      d.style.transition = 'none';
+      d.style.transform = dy ? `translateY(${dy}px)` : '';
+    }, { passive: true });
+    d.addEventListener('touchend', () => {
+      if (y0 === null) return;
+      d.style.transition = 'transform .2s';
+      if (dy > 110) d.close(); else d.style.transform = '';
+      y0 = null;
+    });
+  }
+
+  // ===== Свої вікна замість confirm() і prompt() браузера =====
+  function confirmSheet({ title, text = '', ok = 'Видалити', danger = true }) {
+    const d = $('#confirm');
+    d.innerHTML = `<div class="confirm-body"><h3>${esc(title)}</h3>${text ? `<p>${esc(text)}</p>` : ''}
+      <div class="btns"><button type="button" class="btn ${danger ? 'danger' : ''}" data-ok>${esc(ok)}</button>
+      <button type="button" class="btn light" data-no>Скасувати</button></div></div>`;
+    return new Promise(res => {
+      let done = false;
+      const finish = v => { if (done) return; done = true; d.close(); res(v); };
+      d.querySelector('[data-ok]').onclick = () => finish(true);
+      d.querySelector('[data-no]').onclick = () => finish(false);
+      d.addEventListener('close', () => finish(false), { once: true });
+      d.showModal();
+    });
+  }
+  // Копіювання тексту: спершу в буфер, а якщо телефон не дозволив — показуємо текст, щоб виділити вручну
+  async function copyText(text, okMsg = 'Скопійовано') {
+    try { await navigator.clipboard.writeText(text); toast(okMsg); return; } catch (e) {}
+    const d = $('#confirm');
+    d.innerHTML = `<div class="confirm-body"><h3>Скопіюйте текст</h3><p>Натисніть на текст і утримуйте, щоб скопіювати.</p>
+      <textarea rows="8" readonly>${esc(text)}</textarea>
+      <div class="btns"><button type="button" class="btn" data-no>Готово</button></div></div>`;
+    d.querySelector('[data-no]').onclick = () => d.close();
+    d.showModal();
+    const ta = d.querySelector('textarea'); ta.focus(); ta.select();
+  }
+
+  function skeleton() {
+    return `<div class="sk t"></div><div class="sk g"><i></i><i></i><i></i></div><div class="sk c"></div>
+      <div class="sk r"></div><div class="sk r"></div><div class="sk r"></div>`;
   }
 
   // Виконує запит до Supabase і показує помилку, якщо щось пішло не так
@@ -657,7 +851,7 @@
   }
 
   // ===== Універсальна форма у спливаючому вікні =====
-  function openForm({ title, fields, values = {}, onSave, onDelete, deleteText, extra = '' }) {
+  function openForm({ title, fields, values = {}, onSave, onDelete, deleteText, onUndo, extra = '', top = '' }) {
     const dlg = $('#dlg');
     const field = f => {
       const v = values[f.name];
@@ -675,6 +869,7 @@
 
     dlg.innerHTML = `<form>
         <h3>${esc(title)}</h3>
+        ${top}
         ${fields.map(field).join('')}
         ${extra ? `<div class="dlg-extra">${extra}</div>` : ''}
         <div class="dlg-actions">
@@ -714,9 +909,15 @@
     form.querySelector('[data-act=cancel]').onclick = () => dlg.close();
     const del = form.querySelector('[data-act=delete]');
     if (del) del.onclick = async () => {
-      if (!confirm(deleteText || 'Точно видалити?')) return;
+      // Якщо видалення можна відмінити — видаляємо одразу з кнопкою «Скасувати», інакше питаємо
+      if (!onUndo && !(await confirmSheet({ title: 'Видалити?', text: deleteText || 'Цю дію не можна буде скасувати.' }))) return;
       state.queued = false;
-      try { await onDelete(); dlg.close(); toast(state.queued ? '⏳ Видалено на телефоні — відправлю, коли буде інтернет' : 'Видалено'); render(); } catch (err) {}
+      try {
+        await onDelete(); dlg.close();
+        const msg = state.queued ? '⏳ Видалено на телефоні — відправлю, коли буде інтернет' : 'Видалено';
+        toast(msg, false, onUndo ? { label: 'Скасувати', fn: async () => { try { await onUndo(); toast('Повернуто'); render(); } catch (e) {} } } : null);
+        render();
+      } catch (err) {}
     };
     dlg.showModal();
   }
@@ -919,6 +1120,7 @@
       lastWeights(),
     ]);
     noteSection(list);
+    const urlOf = state.hasPhoto ? await photoUrls(list.map(a => a.photo)).catch(() => () => '') : () => '';
     const noSec = state.hasSection ? list.filter(a => isActive(a) && !a.section) : [];
 
     $('#view').innerHTML = `
@@ -939,7 +1141,8 @@
         const info = [groupLabel(a), birthLabel(a), w ? fmtKg(w.weight) : '',
                       beltShort(a.belt), isActive(a) ? '' : 'неактивний'].filter(Boolean);
         return `<a class="row ${isActive(a) ? '' : 'dim'}" href="#athlete/${encodeURIComponent(a.id)}">
-          <div><strong>${beltTag(a.belt)}${esc(a.full_name)}${bdayMark(a)}</strong><span>${esc(info.join(' · '))}${(() => {
+          ${avatarHtml(a, urlOf(a.photo))}
+          <div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}${bdayMark(a)}</strong><span>${esc(info.join(' · '))}${(() => {
             const b = nextBirthday(a);
             return b && b.days > 0 && b.days <= 7 ? ` · ДН ${fmtDate(b.date)}` : '';
           })()}</span></div>
@@ -999,7 +1202,18 @@
       const { data } = await db.from('weights').select('weight').eq('athlete_id', a.id).order('date', { ascending: false }).limit(1);
       lastWeight = data && data[0] ? Number(data[0].weight) : null;
     }
+    // Фото: нове (blob), «прибрати» або без змін
+    let photoNew = null, photoRemove = false;
+    const curUrl = a && a.photo ? (await photoUrls([a.photo]).catch(() => () => ''))(a.photo) : '';
+    const top = state.hasPhoto === false
+      ? `<div class="photo-note">📷 Щоб додавати фото, один раз увімкніть їх у Supabase.
+           <button type="button" class="linkbtn" id="phSql">Скопіювати SQL</button></div>`
+      : `<div class="photo-edit">${avatarHtml(a || { full_name: '?' }, curUrl, 'avatar')}
+          <div class="acts"><label class="btn light sm">📷 ${a && a.photo ? 'Змінити фото' : 'Додати фото'}
+            <input type="file" accept="image/*" id="phFile" hidden></label>
+          ${a && a.photo ? '<button type="button" class="linkbtn" id="phDel">Прибрати фото</button>' : ''}</div></div>`;
     openForm({
+      top,
       title: a ? a.full_name + (ageOf(a) !== null ? `, ${birthLabel(a)}` : '') : 'Новий спортсмен',
       values: a ? { ...a, weight: lastWeight } : { group_name: state.group !== 'Усі' ? state.group : '',
                                                      section: state.section !== 'Усі' ? state.section : '', active: true },
@@ -1025,10 +1239,36 @@
         if (weight !== null && weight !== lastWeight) {
           await write('weights', 'upsert', [{ athlete_id: id, date: today(), weight }]);
         }
+        // Фото зберігаємо окремо: якщо не вийде, решта анкети вже збережена
+        if (photoNew || photoRemove) {
+          try {
+            let path = null;
+            if (photoNew) {
+              path = `${id}/${Date.now()}.jpg`;
+              const { error } = await db.storage.from(PHOTO_BUCKET).upload(path, photoNew, { contentType: 'image/jpeg' });
+              if (error) throw error;
+            }
+            await q(db.from('athletes').update({ photo: path }).eq('id', id));
+            if (a && a.photo) db.storage.from(PHOTO_BUCKET).remove([a.photo]);
+          } catch (err) { toast('Анкету збережено, але фото — ні: ' + (err.message || err), true); }
+        }
       },
       onDelete: a ? async () => { await q(db.from('athletes').delete().eq('id', a.id)); location.hash = '#athletes'; } : null,
       deleteText: 'Видалити спортсмена разом з усією історією відвідувань, оплат і ваги?\n\nЯкщо він просто перестав ходити — краще зніміть галочку «Активний».',
     });
+    const fileIn = $('#phFile');
+    if (fileIn) fileIn.onchange = async () => {
+      const f = fileIn.files[0];
+      if (!f) return;
+      try {
+        photoNew = await compressPhoto(f); photoRemove = false;
+        $('#dlg .photo-edit .avatar').innerHTML = `<img src="${URL.createObjectURL(photoNew)}" alt="">`;
+      } catch (e) { toast('Не вдалося відкрити фото', true); }
+    };
+    const delPh = $('#phDel');
+    if (delPh) delPh.onclick = () => { photoRemove = true; photoNew = null; $('#dlg .photo-edit .avatar').textContent = initialsOf(a.full_name); };
+    const sqlBtn = $('#phSql');
+    if (sqlBtn) sqlBtn.onclick = () => copyText(PHOTO_SQL, 'SQL скопійовано — вставте в Supabase → SQL Editor');
   }
 
   // ----- Сторінка спортсмена -----
@@ -1070,7 +1310,7 @@
     const paidNow = payOf.has(ym);
 
     // Шапка
-    const initials = a.full_name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+    const photoUrl = a.photo ? (await photoUrls([a.photo]).catch(() => () => ''))(a.photo) : '';
     const nb = nextBirthday(a);
     const bdayLine = nb && nb.days <= 7 ? (nb.days === 0 ? ' · 🎉 сьогодні ДН!' : ` · 🎂 ${fmtDate(nb.date)}`) : '';
     const sub = [a.section, a.group_name || 'Без групи', birthLabel(a), isActive(a) ? '' : 'неактивний'].filter(Boolean).join(' · ');
@@ -1117,7 +1357,7 @@
 
     $('#view').innerHTML = `
       <div class="hero">
-        <div class="hero-top"><div class="avatar">${esc(initials)}</div>
+        <div class="hero-top">${avatarHtml(a, photoUrl, 'avatar')}
           <div><h2>${esc(a.full_name)}</h2><span>${esc(sub)}${bdayLine}</span></div></div>
         <div class="hero-belt">${a.belt ? beltTag(a.belt, true) + esc(a.belt) : '<span class="muted">Пояс не вказано</span>'}</div>
         <div class="hero-w">⚖️ ${lastW ? `<b>${fmtKg(lastW.kg)}</b> <span class="muted small">· ${fmtDate(lastW.date)}${lastW.date.slice(0, 4) !== t.slice(0, 4) ? ' ' + lastW.date.slice(0, 4) : ''}</span>` : '<span class="muted">Вага не вказана</span>'}</div>
@@ -1183,6 +1423,7 @@
         if (w && w.date !== obj.date) await write('weights', 'delete', { athlete_id: a.id, date: w.date });
       },
       onDelete: w ? () => write('weights', 'delete', { athlete_id: a.id, date: w.date }) : null,
+      onUndo: w ? () => write('weights', 'upsert', [{ athlete_id: a.id, date: w.date, weight: w.kg }]) : null,
       deleteText: 'Видалити це зважування?',
     });
   }
@@ -1217,6 +1458,7 @@
         }
       },
       onDelete: g ? () => q(db.from('gradings').delete().eq('id', g.id)) : null,
+      onUndo: g ? () => { const { id, ...rest } = g; return q(db.from('gradings').insert(rest)); } : null,
     });
     // Для нової атестації: при виборі спортсмена одразу підставляємо наступний пояс
     if (!g) {
@@ -1320,6 +1562,8 @@
     setActions('');
     const monthStart = state.month + '-01';
     const waitPay = pendingKeys('payments');
+    let reminded = {};
+    try { reminded = JSON.parse(localStorage.getItem(remindedKey(state.month)) || '{}'); } catch (e) {}
     const [ath, pays] = await Promise.all([
       q(db.from('athletes').select('*').order('full_name')),
       q(db.from('payments').select('*').eq('month', monthStart)),
@@ -1352,14 +1596,17 @@
         ${[...debtors, ...paidRows].map(a => {
           const p = payOf.get(String(a.id));
           return `<button class="row" data-id="${esc(a.id)}">
-            <div><strong>${esc(a.full_name)}</strong><span>${esc(groupLabel(a))}${p && p.note ? ' · ' + esc(p.note) : ''}</span></div>
+            <div><strong>${esc(a.full_name)}</strong><span>${esc(groupLabel(a))}${p && p.note ? ' · ' + esc(p.note) : ''}${!p && reminded[a.id] ? ` · <i class="rem-done">📨 нагадано ${esc(reminded[a.id])}</i>` : ''}</span></div>
             ${waitPay.has(opKey('payments', { athlete_id: a.id, month: monthStart })) ? '<span class="badge gold">⏳</span>' : ''}
             ${p ? `<span class="badge ok">✓ ${fmtMoney(p.amount)} · ${fmtDate(p.paid_at, { day: '2-digit', month: '2-digit' })}</span>`
                 : '<span class="badge bad">Не оплачено</span>'}
           </button>`;
         }).join('') || '<div class="empty">У цій групі немає активних спортсменів</div>'}
       </div>
-      ${debtors.length ? '<button class="btn light wide" id="copyDebtors">Скопіювати список боржників</button>' : ''}`;
+      ${debtors.length ? `<button class="btn wide" id="remindBtn">📨 Нагадати батькам (${debtors.length})</button>
+        <button class="btn light wide" id="copyDebtors" style="margin-top:8px">Скопіювати список боржників</button>` : ''}`;
+    const rb = $('#remindBtn');
+    if (rb) rb.onclick = () => remindSheet(debtors, state.month);
 
     $('#payList').onclick = e => {
       const r = e.target.closest('[data-id]');
@@ -1381,6 +1628,7 @@
           await write('payments', 'upsert', [{ ...obj, athlete_id: a.id, month: monthStart }]);
         },
         onDelete: p ? () => write('payments', 'delete', { athlete_id: a.id, month: monthStart }) : null,
+        onUndo: p ? () => write('payments', 'upsert', [{ athlete_id: a.id, month: monthStart, amount: p.amount, paid_at: p.paid_at, note: p.note ?? null }]) : null,
         deleteText: 'Скасувати цю оплату?',
       });
     };
@@ -1389,11 +1637,83 @@
     if (copyBtn) copyBtn.onclick = async () => {
       const text = `${secTitle}Не оплачено за ${fmtMonth(state.month).toLowerCase()}:\n` +
         debtors.map(a => `• ${a.full_name}${a.phone ? ' — ' + a.phone : ''}`).join('\n');
-      try { await navigator.clipboard.writeText(text); toast('Список скопійовано'); }
-      catch (err) { prompt('Скопіюйте список:', text); }
+      copyText(text, 'Список скопійовано');
     };
     document.querySelectorAll('[data-mshift]').forEach(b =>
       b.onclick = () => { state.month = shiftMonth(state.month, Number(b.dataset.mshift)); render(); });
+  }
+
+  // ===== Нагадування батькам про оплату: Viber / Telegram / SMS =====
+  const REMIND_TPL = 'Добрий день, {батьки}! Нагадуємо про оплату тренувань з карате за {місяць}: {дитина}. Сума: {сума} грн. Дякуємо! Ferents Team';
+  function normPhone(p) {
+    let d = String(p || '').replace(/[^\d+]/g, '');
+    if (/^0\d{9}$/.test(d)) d = '+38' + d;
+    else if (/^380\d{9}$/.test(d)) d = '+' + d;
+    return d;
+  }
+  function remindedKey(ym) { return 'ft_reminded_' + ym; }
+  function remindSheet(debtors, ym) {
+    const dlg = $('#dlg');
+    let tpl = REMIND_TPL, amount = '', marks = {};
+    try {
+      tpl = (localStorage.getItem('ft_remind_tpl') || REMIND_TPL).replace('{, батьки}', ', {батьки}');
+      amount = localStorage.getItem('ft_last_amount') || '';
+      marks = JSON.parse(localStorage.getItem(remindedKey(ym)) || '{}');
+    } catch (e) {}
+    const monthWord = fmtMonth(ym).split(' ')[0].toLowerCase();
+    const textFor = a => tpl
+      .replace(/,\s*\{батьки\}/g, a.parent_name ? ', ' + a.parent_name : '')
+      .replace(/\{батьки\}/g, a.parent_name || '')
+      .replace(/\{дитина\}/g, a.full_name)
+      .replace(/\{місяць\}/g, monthWord)
+      .replace(/\{секція\}/g, a.section || '')
+      .replace(/\{сума\}/g, amount || '…');
+    const rowHtml = a => {
+      const ph = normPhone(a.phone), done = marks[a.id];
+      return `<div class="rem-row" data-rid="${esc(a.id)}">
+        <div class="rem-who"><b>${esc(a.full_name)}</b>
+          <span>${esc([a.parent_name, a.phone].filter(Boolean).join(' · ') || 'телефон не вказано')}${done ? ` · <i class="rem-done">✓ нагадано ${esc(done)}</i>` : ''}</span></div>
+        <div class="rem-btns">
+          <button type="button" class="rbtn viber" data-via="viber">Viber</button>
+          <button type="button" class="rbtn tg" data-via="tg">Telegram</button>
+          ${ph ? '<button type="button" class="rbtn sms" data-via="sms">SMS</button>' : ''}
+          <button type="button" class="rbtn" data-via="copy" aria-label="Скопіювати">📋</button>
+        </div></div>`;
+    };
+    dlg.innerHTML = `<form><h3>📨 Нагадати про оплату</h3>
+      <p class="muted small" style="margin:4px 0 0">${esc(fmtMonth(ym))} · не оплатили ${debtors.length}</p>
+      <label>Текст повідомлення<textarea id="remTpl" rows="4">${esc(tpl)}</textarea></label>
+      <p class="muted small" style="margin:6px 0 0">Підставляється автоматично: {батьки} {дитина} {місяць} {сума} {секція}</p>
+      <label>Сума, грн<input id="remAmount" type="number" inputmode="numeric" min="0" value="${esc(amount)}"></label>
+      <div class="rem-list">${debtors.map(rowHtml).join('')}</div>
+      <p class="muted small" style="margin:10px 0 0">Текст копіюється автоматично. Якщо месенджер не вставив його сам — утримуйте поле вводу і натисніть «Вставити».</p>
+      <div class="dlg-actions"><span class="spacer"></span><button type="button" class="btn" data-act="cancel">Готово</button></div></form>`;
+    const form = dlg.querySelector('form');
+    $('#remTpl').oninput = e => { tpl = e.target.value; try { localStorage.setItem('ft_remind_tpl', tpl); } catch (err) {} };
+    $('#remAmount').oninput = e => { amount = e.target.value; try { localStorage.setItem('ft_last_amount', amount); } catch (err) {} };
+    form.onsubmit = e => e.preventDefault();
+    form.onclick = async e => {
+      if (e.target.closest('[data-act=cancel]')) { dlg.close(); return; }
+      const b = e.target.closest('[data-via]');
+      if (!b) return;
+      const row = b.closest('[data-rid]');
+      const a = debtors.find(x => String(x.id) === row.dataset.rid);
+      const text = textFor(a), ph = normPhone(a.phone), enc = encodeURIComponent(text);
+      try { await navigator.clipboard.writeText(text); } catch (err) {}
+      if (b.dataset.via === 'copy') { copyText(text, 'Текст скопійовано'); }
+      else if (b.dataset.via === 'viber') {
+        location.href = ph ? `viber://chat?number=${encodeURIComponent(ph)}&draft=${enc}` : `viber://forward?text=${enc}`;
+      } else if (b.dataset.via === 'tg') {
+        window.open(ph ? `https://t.me/${ph}` : `https://t.me/share/url?url=%20&text=${enc}`, '_blank');
+      } else if (b.dataset.via === 'sms') {
+        location.href = `sms:${ph}?&body=${enc}`;
+      }
+      // Позначка «нагадано» на цей місяць
+      marks[a.id] = new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+      try { localStorage.setItem(remindedKey(ym), JSON.stringify(marks)); } catch (err) {}
+      row.outerHTML = rowHtml(a);
+    };
+    dlg.showModal();
   }
 
   // ----- Розклад -----
@@ -1439,6 +1759,7 @@
       ],
       onSave: obj => s ? q(db.from('schedule').update(obj).eq('id', s.id)) : q(db.from('schedule').insert(obj)),
       onDelete: s ? () => q(db.from('schedule').delete().eq('id', s.id)) : null,
+      onUndo: s ? () => { const { id, ...rest } = s; return q(db.from('schedule').insert(rest)); } : null,
     });
   }
 
@@ -1586,8 +1907,7 @@
     if (cb) cb.onclick = async () => {
       const text = `${ev.title}, ${fmtDate(ev.date, { day: 'numeric', month: 'long', year: 'numeric' })}${ev.place ? ', ' + ev.place : ''}\n` +
         people.map((a, i) => `${i + 1}. ${line(a)}`).join('\n');
-      try { await navigator.clipboard.writeText(text); toast('Список скопійовано'); }
-      catch (err) { prompt('Скопіюйте список:', text); }
+      copyText(text, 'Список скопійовано');
     };
   }
 
@@ -1661,6 +1981,7 @@
       ],
       onSave: obj => ev ? q(db.from('events').update(obj).eq('id', ev.id)) : q(db.from('events').insert(obj)),
       onDelete: ev ? async () => { await q(db.from('events').delete().eq('id', ev.id)); location.hash = '#events'; } : null,
+      onUndo: ev ? () => { const { id, ...rest } = ev; return q(db.from('events').insert(rest)); } : null,
     });
   }
 
@@ -1708,6 +2029,7 @@
       ],
       onSave: obj => m ? q(db.from('materials').update(obj).eq('id', m.id)) : q(db.from('materials').insert(obj)),
       onDelete: m ? () => q(db.from('materials').delete().eq('id', m.id)) : null,
+      onUndo: m ? () => { const { id, ...rest } = m; return q(db.from('materials').insert(rest)); } : null,
     });
   }
 
@@ -1776,7 +2098,7 @@
     };
     box.onclick = async e => {
       const el = e.target.closest('.msg.can-del');
-      if (!el || !confirm('Видалити це повідомлення?')) return;
+      if (!el || !(await confirmSheet({ title: 'Видалити повідомлення?', text: 'Його не побачить ніхто з команди.' }))) return;
       const { error } = await db.from('chat_messages').delete().eq('id', el.dataset.id);
       if (error) toast('Помилка: ' + error.message, true); else el.remove();
     };
@@ -1950,6 +2272,61 @@
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
+  sheetify($('#dlg'));
+  sheetify($('#confirm'));
+
+  // Нова версія: перевіряємо при поверненні в додаток (не частіше, ніж раз на 5 хв)
+  let lastCheck = 0;
+  async function checkUpdate(force = false) {
+    if (!navigator.onLine || (!force && Date.now() - lastCheck < 5 * 60e3)) return;
+    lastCheck = Date.now();
+    try {
+      const html = await (await fetch('index.html?check=' + Date.now(), { cache: 'no-store' })).text();
+      const m = html.match(/const APP_VERSION = '([^']+)'/);
+      if (m && m[1] !== APP_VERSION) {
+        $('#update b').textContent = m[1];
+        $('#update').hidden = false;
+      }
+    } catch (e) {}
+  }
+  $('#updateBtn').onclick = async () => {
+    $('#updateBtn').disabled = true;
+    try { const r = await navigator.serviceWorker?.getRegistration(); if (r) await r.update(); } catch (e) {}
+    location.reload();
+  };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+  setTimeout(() => checkUpdate(true), 8000);
+  setInterval(checkUpdate, 30 * 60e3);
+
+  // Потягни сторінку вниз, щоб оновити
+  (function pullToRefresh() {
+    const ind = $('#ptr');
+    let y0 = null, dy = 0;
+    const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('ready', 'spin'); };
+    addEventListener('touchstart', e => {
+      if (window.scrollY > 0 || !signedIn || document.querySelector('dialog[open]') || e.target.closest('.chat, .pick-list, input, textarea')) { y0 = null; return; }
+      y0 = e.touches[0].clientY; dy = 0;
+    }, { passive: true });
+    addEventListener('touchmove', e => {
+      if (y0 === null) return;
+      dy = (e.touches[0].clientY - y0) * 0.5;
+      if (dy <= 0) { reset(); return; }
+      const d = Math.min(dy, 90);
+      ind.style.transform = `translate(-50%, ${d - 44}px) rotate(${d * 4}deg)`;
+      ind.style.opacity = Math.min(1, d / 50);
+      ind.classList.toggle('ready', dy > 70);
+    }, { passive: true });
+    addEventListener('touchend', async () => {
+      if (y0 === null) return;
+      y0 = null;
+      if (dy > 70) {
+        ind.classList.add('spin');
+        ind.style.transform = 'translate(-50%, 20px)';
+        try { await flushQueue(); await render(); } catch (e) {}
+      }
+      reset();
+    });
+  })();
 
   // =====================================================================
   //  НАВІГАЦІЯ ТА ВХІД
@@ -2002,15 +2379,17 @@
     const parent = isCoach() ? PARENT_ROUTE[route] : (['links', 'chat'].includes(route) ? 'home' : null);
     $('#backLink').href = '#' + (parent || 'home');
     $('#view').onclick = null;
-    if (!$('#view').innerHTML.trim() || $('#view').dataset.route !== route) {
-      $('#view').innerHTML = '<p class="muted">Завантаження…</p>';
-    }
+    const viewKey = location.hash;
+    const fresh = !$('#view').innerHTML.trim() || $('#view').dataset.key !== viewKey;
+    if (fresh) { $('#view').classList.remove('enter'); $('#view').innerHTML = skeleton(); }
     $('#view').dataset.route = route;
+    $('#view').dataset.key = viewKey;
     try {
       await VIEWS[route]();
     } catch (err) {
       if (id === renderId) $('#view').innerHTML = `<p class="err">Не вдалося завантажити: ${esc(err.message)}</p>`;
     }
+    if (fresh && id === renderId) { void $('#view').offsetWidth; $('#view').classList.add('enter'); }
   }
 
   // Клік по фільтру групи
@@ -2052,7 +2431,7 @@
     $('#menuBtn').hidden = !on;
     if (on) {
       state.email = (session.user.email || '').toLowerCase();
-      $('#view').innerHTML = '<p class="muted">Завантаження…</p>';
+      $('#view').innerHTML = skeleton();
       state.role = await detectRole();
       render();
       flushQueue();

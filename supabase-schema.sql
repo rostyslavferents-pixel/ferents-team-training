@@ -282,3 +282,15 @@ exception when duplicate_object then null;
 end $$;
 
 notify pgrst, 'reload schema';
+
+-- =====================================================================
+-- Фото спортсменів (приватне сховище, бачить лише тренер)
+-- =====================================================================
+alter table public.athletes add column if not exists photo text;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('athlete-photos', 'athlete-photos', false, 1048576, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+drop policy if exists "coach athlete photos" on storage.objects;
+create policy "coach athlete photos" on storage.objects for all to authenticated
+  using (bucket_id = 'athlete-photos' and public.is_coach())
+  with check (bucket_id = 'athlete-photos' and public.is_coach());
