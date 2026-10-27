@@ -363,7 +363,7 @@
 </head>
 
 <body>
-  <div id="offline" class="offline" hidden>Немає інтернету — показано збережені дані. Зміни не збережуться.</div>
+  <div id="offline" class="offline sync" hidden></div>
   <header>
     <div class="hwrap">
       <div>
@@ -419,7 +419,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v2.5';
+  const APP_VERSION = 'v2.5.1';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -1745,15 +1745,12 @@
   });
   window.addEventListener('appinstalled', () => { installEvent = null; const c = $('#installCard'); if (c) c.remove(); toast('Додаток встановлено'); });
 
+  // Смужка зверху з'являється лише тоді, коли є зміни, що чекають відправки
   function updateOnline() {
     const bar = $('#offline'), n = loadQueue().length;
-    if (!navigator.onLine) {
-      bar.className = 'offline'; bar.hidden = false;
-      bar.textContent = n ? `Немає інтернету · ⏳ чекають відправки: ${n}` : 'Немає інтернету — показано збережені дані';
-    } else if (n) {
-      bar.className = 'offline sync'; bar.hidden = false;
-      bar.textContent = flushing ? `⏳ Відправляю зміни: ${n}…` : `⏳ Чекають відправки: ${n}`;
-    } else bar.hidden = true;
+    bar.className = 'offline sync';
+    bar.hidden = !n;
+    if (n) bar.textContent = navigator.onLine && flushing ? `⏳ Відправляю зміни: ${n}…` : `⏳ Чекають відправки: ${n}`;
   }
   window.addEventListener('online', () => { updateOnline(); flushQueue().then(() => { if (signedIn) render(); }); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') flushQueue(); });
