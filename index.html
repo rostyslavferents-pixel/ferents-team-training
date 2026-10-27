@@ -402,24 +402,6 @@
     .rbtn.tg { background: #229ed9; color: #fff; box-shadow: none; }
     .rbtn.sms { background: var(--ok-bg); color: var(--ok); box-shadow: none; }
     /* «Нагадано» в списку оплат */
-    .seg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 12px; border-radius: 12px; background: var(--line); }
-    .seg2 a { text-align: center; padding: 9px; border-radius: 9px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 15px; }
-    .seg2 a.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 4px #0000001a; }
-    .rank { flex: none; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 14px; background: var(--line); color: var(--muted); }
-    .rank.r1 { background: #f5c542; color: #3d2c00; } .rank.r2 { background: #cfd5dd; color: #2b3138; } .rank.r3 { background: #d9935a; color: #3a1d06; }
-    .pts { flex: none; text-align: right; font-weight: 800; font-size: 17px; }
-    .pts small { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
-    .medals { font-size: 13px; color: var(--ink); }
-    .row .res-chip, .row .medals { display: inline-block; margin-top: 4px; }
-    .row .medals { margin: 0; }
-    .res-chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--gold-soft); color: var(--gold-ink); margin: 4px 4px 0 0; }
-    .places { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-    .places .chip { font-size: 15px; }
-    .res-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
-    .medal-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
-    .medal-sum div { background: var(--card); border-radius: 12px; padding: 10px 4px; box-shadow: 0 2px 8px #0000000d; font-size: 12px; color: var(--muted); }
-    .medal-sum b { display: block; font-size: 20px; color: var(--ink); }
     .badge .belt { width: 18px; height: 7px; margin-right: 5px; top: -1px; }
     :root[data-theme="dark"] .now:not(.soon) { background: var(--gold); color: #111827; }
     :root[data-theme="dark"] .now:not(.soon) .dot { background: #111827; }
@@ -540,7 +522,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.1';
+  const APP_VERSION = 'v3.0';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -569,30 +551,6 @@
 
   const GROUPS = ['Молодша', 'Середня', 'Старша'];
   const SECTIONS = ['Наварія', 'Сихів'];
-  // Змагання: рівень (коефіцієнт) і бали за місце. 0 = участь без призового місця
-  const LEVELS = [['club', 'Клубні', 0.5], ['city', 'Міські', 1], ['region', 'Обласні', 1.5], ['national', 'Всеукраїнські', 2], ['intl', 'Міжнародні', 3]];
-  const PLACE_PTS = { 1: 10, 2: 7, 3: 5, 4: 3, 5: 2, 0: 1 };
-  const DISCIPLINES = ['Куміте', 'Ката', 'Кіхон', 'Інше'];
-  const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
-  function levelOf(ev) { return LEVELS.find(l => l[0] === ev.level) || null; }
-  function resultPoints(r, ev) { return Math.round((PLACE_PTS[r.place] ?? 1) * (levelOf(ev)?.[2] ?? 1) * 10) / 10; }
-  function placeLabel(p) { return p >= 1 && p <= 3 ? `${MEDAL[p]} ${p} місце` : p ? `${p} місце` : 'Участь'; }
-  function placeShort(p) { return MEDAL[p] || (p ? p + ' м.' : 'уч.'); }
-  const RESULTS_SQL = `alter table public.events add column if not exists level text;
-alter table public.events add column if not exists results jsonb not null default '[]'::jsonb;`;
-  function sqlCard(title, sql) {
-    return `<div class="info"><b>${esc(title)}</b><br>Щоб увімкнути, один раз виконайте в Supabase → SQL Editor:
-      <code style="display:block;margin:8px 0;padding:8px;background:var(--card);border-radius:8px;font-size:12px;white-space:pre-wrap;word-break:break-all">${esc(sql)}</code>
-      <button type="button" class="btn sm light" data-copy-sql="${esc(sql)}">Скопіювати</button></div>`;
-  }
-  document.addEventListener('click', e => {
-    const b = e.target.closest('[data-copy-sql]');
-    if (b) copyText(b.dataset.copySql, 'SQL скопійовано — вставте в Supabase → SQL Editor');
-  });
-  // Перемикач «Список | Рейтинг» у розділі Спортсмени
-  function athTabs(cur) {
-    return `<div class="seg2"><a href="#athletes" class="${cur === 'list' ? 'on' : ''}">Список</a><a href="#rating" class="${cur === 'rating' ? 'on' : ''}">🏆 Рейтинг</a></div>`;
-  }
   // Пояси від найнижчого до найвищого
   const BELTS = [
     '0 кю — білий', '10 кю — помаранчевий', '9 кю — помаранчевий зі смужкою',
@@ -643,7 +601,7 @@ alter table public.events add column if not exists results jsonb not null defaul
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
+    athlete: 'Спортсмен', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -700,8 +658,7 @@ alter table public.events add column if not exists results jsonb not null defaul
   }
   function initialsOf(name) { return String(name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
   function avatarHtml(a, url, cls = 'av') {
-    const ini = esc(initialsOf(a.full_name));
-    return `<span class="${cls}">${url ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode('${ini}'))">` : ini}</span>`;
+    return `<span class="${cls}">${url ? `<img src="${esc(url)}" alt="" loading="lazy">` : esc(initialsOf(a.full_name))}</span>`;
   }
   // Квадрат 480×480, JPEG ≈ 40–80 КБ
   async function compressPhoto(file) {
@@ -1170,7 +1127,6 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       ${state.hasSection === false ? sectionSetupCard() : ''}
       ${noSec.length ? `<div class="info">У <b>${noSec.length}</b> спортсменів не вказана секція — їх не видно у фільтрі Наварія / Сихів.
         <button type="button" class="btn sm" id="assignBtn" style="margin-top:8px">Розподілити по секціях</button></div>` : ''}
-      ${athTabs('list')}
       <input class="search" id="search" type="search" placeholder="Пошук за імʼям" value="${esc(state.search)}">
       ${chips(true)}
       <p class="muted small" id="count"></p>
@@ -1337,17 +1293,8 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       q(db.from('weights').select('athlete_id, date, weight').eq('athlete_id', a.id).order('date', { ascending: false }).limit(20)),
       q(db.from('schedule').select('weekday, group_name')),
     ]);
-    const allEv = (await db.from('events').select('*').order('date', { ascending: false })).data || [];
-    const evs = allEv.filter(e => e.date >= today() && Array.isArray(e.participants) && e.participants.map(String).includes(String(a.id))).reverse();
-    const myRes = allEv.flatMap(e => (Array.isArray(e.results) ? e.results : [])
-      .filter(r => String(r.athlete_id) === String(a.id)).map(r => ({ r, e })));
-    const cnt = p => myRes.filter(x => x.r.place === p).length;
-    const resHtml = myRes.length ? `<h3>Змагання</h3>
-      <div class="medal-sum"><div><b>🥇 ${cnt(1)}</b>золото</div><div><b>🥈 ${cnt(2)}</b>срібло</div><div><b>🥉 ${cnt(3)}</b>бронза</div>
-        <div><b>${String(Math.round(myRes.reduce((t, x) => t + resultPoints(x.r, x.e), 0) * 10) / 10).replace('.', ',')}</b>балів</div></div>
-      <div class="list" style="margin-top:10px">${myRes.map(x => `<a class="row" href="#event/${encodeURIComponent(x.e.id)}">
-          <div class="grow"><strong>${placeLabel(x.r.place)}</strong><span>${esc(x.e.title)} · ${fmtDate(x.e.date)} ${x.e.date.slice(0, 4)} · ${esc([x.r.discipline, x.r.category].filter(Boolean).join(' · '))}</span></div>
-          <span class="chev">›</span></a>`).join('')}</div>` : '';
+    const evs = ((await db.from('events').select('*').gte('date', today()).order('date')).data || [])
+      .filter(e => Array.isArray(e.participants) && e.participants.map(String).includes(String(a.id)));
     const mine = r => String(r.athlete_id) === String(a.id);
     const att = withPending('attendance', att0, r => mine(r) && r.date >= firstMonth + '-01').filter(r => r.present !== false);
     const pays = withPending('payments', pays0, r => mine(r) && r.month >= firstMonth + '-01');
@@ -1438,7 +1385,6 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       ${evs.length ? `<h3>Найближчі події</h3><div class="list">${evs.map(e => `<a class="row" href="#event/${encodeURIComponent(e.id)}">
           <div><strong>${esc(e.title)}</strong><span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long' })}${e.place ? ' · ' + esc(e.place) : ''}</span></div>
           <span class="chev">›</span></a>`).join('')}</div>` : ''}
-      ${resHtml}
       <div class="sec"><h3>Атестації</h3><button type="button" class="btn light sm" id="addG">+ Атестація</button></div>
       <div class="list">${grHtml}</div>`;
 
@@ -1885,7 +1831,6 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     setActions(isCoach() ? '<button class="btn" id="addBtn">+ Додати</button>' : '');
     if (isCoach()) $('#addBtn').onclick = () => eventForm();
     const all = await q(db.from('events').select('*').order('date'));
-    if (all.length) state.hasEvLevel = 'level' in all[0];
     const t = today();
     const upcoming = all.filter(e => e.date >= t);
     const past = all.filter(e => e.date < t).reverse().slice(0, 10);
@@ -1919,10 +1864,6 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     noteSection(ath);
     const ev = found[0];
     if (!ev) { $('#view').innerHTML = '<div class="empty">Подію не знайдено. <a class="link" href="#events">До календаря</a></div>'; return; }
-    state.hasEvLevel = 'level' in ev;
-    const hasRes = 'results' in ev;
-    const results = Array.isArray(ev.results) ? ev.results : [];
-    const resOf = a => results.filter(r => String(r.athlete_id) === String(a.id));
     setActions('<button class="btn light" id="editBtn">Змінити</button>');
     $('#editBtn').onclick = () => eventForm(ev);
 
@@ -1947,20 +1888,12 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
           ${days === 0 ? ' · <b>сьогодні</b>' : days > 0 ? ` · через ${days} дн.` : ''}</div>
         ${ev.place ? `<div class="note">📍 ${esc(ev.place)}</div>` : ''}
         ${ev.description ? `<div class="note">${esc(ev.description)}</div>` : ''}
-        ${levelOf(ev) ? `<div class="note">🏆 ${esc(levelOf(ev)[1])} змагання · бали ×${String(levelOf(ev)[2]).replace('.', ',')}</div>` : ''}
       </div>
-      ${hasCol && !hasRes && people.length ? sqlCard('Результати змагань і рейтинг', RESULTS_SQL) : ''}
       ${hasCol ? `
         <div class="sec"><h3>Учасники · ${people.length}</h3><button type="button" class="btn sm" id="pickBtn">${people.length ? 'Змінити список' : '+ Вибрати'}</button></div>
-        ${hasRes && people.length ? '<p class="muted small" style="margin:-2px 2px 8px">Натисніть на учасника, щоб записати результат.</p>' : ''}
-        <div class="list">${people.map(a => {
-          const rs = resOf(a);
-          const inner = `<div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc(line(a).split(' — ').slice(1).join(' · '))}</span>
-              ${rs.length ? `<div>${rs.map(r => `<span class="res-chip">${placeShort(r.place)} ${esc(r.discipline || '')}${r.category ? ' · ' + esc(r.category) : ''}</span>`).join('')}</div>` : ''}</div>
-            <span class="chev">›</span>`;
-          return hasRes ? `<button type="button" class="row" data-res="${esc(a.id)}">${inner}</button>`
-                        : `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">${inner}</a>`;
-        }).join('') || '<div class="empty">Учасників ще не вибрано</div>'}</div>
+        <div class="list">${people.map(a => `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">
+            <div><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc(line(a).split(' — ').slice(1).join(' · '))}</span></div>
+            <span class="chev">›</span></a>`).join('') || '<div class="empty">Учасників ще не вибрано</div>'}</div>
         ${people.length ? '<button type="button" class="btn light wide" id="copyBtn">📋 Скопіювати список для заявки</button>' : ''}`
       : `<div class="info"><b>Учасники подій</b><br>Щоб додавати учасників, один раз виконайте в Supabase → SQL Editor:
           <code style="display:block;margin:8px 0;padding:8px;background:var(--card);border-radius:8px;font-size:12px;word-break:break-all">${esc(sql)}</code>
@@ -1970,117 +1903,11 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     if (sb) sb.onclick = () => navigator.clipboard.writeText(sql).then(() => toast('Скопійовано'));
     const pb = $('#pickBtn');
     if (pb) pb.onclick = () => pickParticipants(ev, ath, ids);
-    $('#view').onclick = e => {
-      const r = e.target.closest('[data-res]');
-      if (r) resultSheet(ev, ath.find(a => String(a.id) === r.dataset.res));
-    };
     const cb = $('#copyBtn');
     if (cb) cb.onclick = async () => {
       const text = `${ev.title}, ${fmtDate(ev.date, { day: 'numeric', month: 'long', year: 'numeric' })}${ev.place ? ', ' + ev.place : ''}\n` +
         people.map((a, i) => `${i + 1}. ${line(a)}`).join('\n');
       copyText(text, 'Список скопійовано');
-    };
-  }
-
-  // Результати одного учасника на події: дисципліна, категорія, місце
-  function resultSheet(ev, a) {
-    const dlg = $('#dlg');
-    let place = 1;
-    const all = Array.isArray(ev.results) ? ev.results.slice() : [];
-    const mine = () => all.filter(r => String(r.athlete_id) === String(a.id));
-    const draw = () => {
-      dlg.innerHTML = `<form><h3>${esc(a.full_name)}</h3>
-        <p class="muted small" style="margin:4px 0 0">${esc(ev.title)} · ${fmtDate(ev.date)}</p>
-        ${mine().length ? `<div style="margin-top:12px">${mine().map(r => `<div class="res-item">
-            <span><b>${placeLabel(r.place)}</b> · ${esc(r.discipline || '')}${r.category ? ' · ' + esc(r.category) : ''}
-              <span class="muted small"> · ${resultPoints(r, ev)} б.</span></span>
-            <button type="button" class="linkbtn" data-del="${all.indexOf(r)}" style="color:var(--bad)">Видалити</button></div>`).join('')}</div>` : ''}
-        <h3 style="font-size:16px;margin-top:18px">+ Новий результат</h3>
-        <label>Дисципліна<select name="discipline">${DISCIPLINES.map(d => `<option>${d}</option>`).join('')}</select></label>
-        <label>Категорія (вік, вага)<input name="category" placeholder="напр. 10–11 р., −35 кг"></label>
-        <label>Місце</label>
-        <div class="places">${[1, 2, 3, 4, 5, 0].map(p => `<button type="button" class="chip ${p === place ? 'on' : ''}" data-place="${p}">${p >= 1 && p <= 3 ? MEDAL[p] + ' ' + p : p ? p : 'Участь'}</button>`).join('')}</div>
-        <div class="dlg-actions"><a class="linkbtn" href="#athlete/${encodeURIComponent(a.id)}" data-act="card">Картка спортсмена</a><span class="spacer"></span>
-          <button type="button" class="btn light" data-act="cancel">Закрити</button>
-          <button type="submit" class="btn">Додати</button></div></form>`;
-    };
-    const save = async () => {
-      await q(db.from('events').update({ results: all }).eq('id', ev.id));
-      ev.results = all;
-    };
-    draw();
-    dlg.onclick = async e => {
-      const pl = e.target.closest('[data-place]');
-      if (pl) { place = Number(pl.dataset.place); dlg.querySelectorAll('[data-place]').forEach(c => c.classList.toggle('on', c === pl)); return; }
-      if (e.target.closest('[data-act=cancel]')) { dlg.close(); render(); return; }
-      if (e.target.closest('[data-act=card]')) { dlg.close(); return; }
-      const del = e.target.closest('[data-del]');
-      if (del) {
-        const removed = all.splice(Number(del.dataset.del), 1);
-        try { await save(); draw(); toast('Видалено', false, { label: 'Скасувати', fn: async () => { all.push(...removed); await save(); render(); } }); }
-        catch (err) { all.push(...removed); }
-      }
-    };
-    dlg.onsubmit = async e => {
-      e.preventDefault();
-      const f = dlg.querySelector('form');
-      const r = { athlete_id: a.id, discipline: f.discipline.value, category: f.category.value.trim() || null, place };
-      all.push(r);
-      try { await save(); toast(`Записано: ${placeLabel(place)}`); place = 1; draw(); }
-      catch (err) { all.pop(); }
-    };
-    dlg.addEventListener('close', () => { dlg.onclick = null; dlg.onsubmit = null; render(); }, { once: true });
-    dlg.showModal();
-  }
-
-  // ----- Рейтинг спортсменів за результатами змагань -----
-  async function ratingView() {
-    setActions('');
-    const [ath, evs] = await Promise.all([
-      q(db.from('athletes').select('*').order('full_name')),
-      q(db.from('events').select('*').order('date')),
-    ]);
-    noteSection(ath);
-    const hasRes = !evs.length || 'results' in evs[0];
-    const y = Number(today().slice(0, 4));
-    const per = state.ratingPeriod || 'year';
-    const inPer = ev => per === 'all' || (per === 'year' ? ev.date.startsWith(String(y)) : ev.date.startsWith(String(y - 1)));
-    const stats = new Map();
-    evs.filter(inPer).forEach(ev => (Array.isArray(ev.results) ? ev.results : []).forEach(r => {
-      const k = String(r.athlete_id);
-      const s0 = stats.get(k) || { pts: 0, g: 0, s: 0, b: 0, starts: new Set() };
-      s0.pts += resultPoints(r, ev);
-      if (r.place === 1) s0.g++; if (r.place === 2) s0.s++; if (r.place === 3) s0.b++;
-      s0.starts.add(ev.id);
-      stats.set(k, s0);
-    }));
-    const rows = ath.filter(a => inFilter(a) && stats.has(String(a.id)))
-      .map(a => ({ a, st: stats.get(String(a.id)) }))
-      .sort((x, z) => z.st.pts - x.st.pts || z.st.g - x.st.g || z.st.s - x.st.s || z.st.b - x.st.b);
-    const urlOf = state.hasPhoto ? await photoUrls(rows.map(x => x.a.photo)).catch(() => () => '') : () => '';
-    const perChip = (v, l) => `<button type="button" class="chip ${per === v ? 'on' : ''}" data-per="${v}">${l}</button>`;
-    let rank = 0, prev = null;
-    $('#view').innerHTML = `
-      ${athTabs('rating')}
-      ${hasRes ? '' : sqlCard('Результати змагань і рейтинг', RESULTS_SQL)}
-      <div class="chips">${perChip('year', y + ' рік')}${perChip('prev', (y - 1) + ' рік')}${perChip('all', 'За весь час')}</div>
-      ${chips(true)}
-      <div class="list">${rows.map((x, i) => {
-        if (!prev || x.st.pts !== prev.pts) rank = i + 1;
-        prev = x.st;
-        const m = [x.st.g ? `🥇${x.st.g}` : '', x.st.s ? `🥈${x.st.s}` : '', x.st.b ? `🥉${x.st.b}` : ''].filter(Boolean).join('  ');
-        return `<a class="row" href="#athlete/${encodeURIComponent(x.a.id)}">
-          <span class="rank ${rank <= 3 ? 'r' + rank : ''}">${rank}</span>
-          ${avatarHtml(x.a, urlOf(x.a.photo))}
-          <div class="grow"><strong>${beltTag(x.a.belt)}${esc(x.a.full_name)}</strong>
-            <span><b class="medals">${m || 'без медалей'}</b> · ${x.st.starts.size} ${x.st.starts.size === 1 ? 'старт' : x.st.starts.size < 5 ? 'старти' : 'стартів'}</span></div>
-          <span class="pts">${String(Math.round(x.st.pts * 10) / 10).replace('.', ',')}<small>балів</small></span></a>`;
-      }).join('') || `<div class="empty">Ще немає результатів за цей період. Відкрийте змагання в «Календарі подій» і запишіть місця учасників.</div>`}</div>
-      <p class="muted small" style="margin:14px 4px 0;line-height:1.5">Бали: 🥇 10 · 🥈 7 · 🥉 5 · 4 місце 3 · 5 місце 2 · участь 1, помножені на рівень змагань:
-        ${LEVELS.map(([, l, k]) => `${l.toLowerCase()} ×${String(k).replace('.', ',')}`).join(', ')}.</p>`;
-    $('#view').onclick = e => {
-      const c = e.target.closest('[data-per]');
-      if (c) { state.ratingPeriod = c.dataset.per; render(); }
     };
   }
 
@@ -2150,8 +1977,6 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
         { name: 'title', label: 'Назва (змагання, атестація, збори…)', required: true },
         { name: 'date', label: 'Дата', type: 'date', required: true },
         { name: 'place', label: 'Місце' },
-        ...(state.hasEvLevel ? [{ name: 'level', label: 'Рівень змагань (для рейтингу)', type: 'select',
-            options: LEVELS.map(([v, l, k]) => [v, `${l} · бали ×${String(k).replace('.', ',')}`]) }] : []),
         { name: 'description', label: 'Опис', type: 'textarea' },
       ],
       onSave: obj => ev ? q(db.from('events').update(obj).eq('id', ev.id)) : q(db.from('events').insert(obj)),
@@ -2507,7 +2332,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   //  НАВІГАЦІЯ ТА ВХІД
   // =====================================================================
   const VIEWS = {
-    home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
+    home: homeView, athletes: athletesView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
     links: linksView, chat: chatView, members: membersView, settings: settingsView,
@@ -2517,7 +2342,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   const PARENT_ROUTE = { athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
-  const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
+  const TAB_OF = { athlete: 'athletes' };
   function drawTabbar(route) {
     const bar = $('#tabbar'), on = isCoach();
     bar.hidden = !on;
@@ -2549,7 +2374,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     document.body.classList.toggle('inner', route !== 'home');
     document.body.dataset.route = route;
     drawTabbar(route);
-    const isTab = isCoach() && (TABS.some(([r]) => r === route) || route === 'rating');
+    const isTab = isCoach() && TABS.some(([r]) => r === route);
     $('#backLink').hidden = route === 'home' || isTab;
     const parent = isCoach() ? PARENT_ROUTE[route] : (['links', 'chat'].includes(route) ? 'home' : null);
     $('#backLink').href = '#' + (parent || 'home');

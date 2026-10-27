@@ -92,8 +92,6 @@ create table if not exists public.events (
   description text
 );
 alter table public.events add column if not exists participants jsonb not null default '[]'::jsonb;  -- id спортсменів-учасників
-alter table public.events add column if not exists level text;  -- рівень змагань: club / city / region / national / intl
-alter table public.events add column if not exists results jsonb not null default '[]'::jsonb;  -- [{athlete_id, discipline, category, place}]
 
 create table if not exists public.materials (
   id          bigint generated always as identity primary key,
