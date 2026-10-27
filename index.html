@@ -427,7 +427,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v2.6';
+  const APP_VERSION = 'v2.7';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -549,6 +549,11 @@
   function noteSection(list) { if (list && list.length) state.hasSection = 'section' in list[0]; }
   function inSection(a) { return !state.hasSection || state.section === 'Усі' || a.section === state.section; }
   function inFilter(a) { return inGroup(a) && inSection(a); }
+  // Розклад: тренування без секції показуємо в обох
+  function inSectionS(s) { return !s.section || state.section === 'Усі' || s.section === state.section; }
+  function schedLabel(s, withSection = true) {
+    return [withSection && state.section === 'Усі' ? s.section : '', s.group_name, s.place].filter(Boolean).join(' · ');
+  }
   function groupLabel(a) {
     return [state.hasSection && state.section === 'Усі' ? a.section : '', a.group_name || 'Без групи'].filter(Boolean).join(' · ');
   }
@@ -728,7 +733,7 @@
 
     const t = today();
     const [ath, att, pay, sch, ev, pl] = await Promise.all([
-      q(db.from('athletes').select('id, full_name, active, birth_date, group_name')),
+      q(db.from('athletes').select('*')),
       q(db.from('attendance').select('athlete_id, date').eq('date', t).eq('present', true)),
       q(db.from('payments').select('athlete_id, month').eq('month', t.slice(0, 7) + '-01')),
       q(db.from('schedule').select('*').eq('weekday', weekdayOf(t)).order('start_time')),
@@ -752,28 +757,28 @@
     });
     const current = slots.find(x => nowM >= x.st - 30 && nowM <= x.en + 30);
     const next = !current && slots.find(x => x.st > nowM);
-    const groupCount = g => {
-      const inG = active.filter(a => !g || a.group_name === g);
+    const groupCount = (g, sec) => {
+      const inG = active.filter(a => (!g || a.group_name === g) && (!sec || !('section' in a) || a.section === sec));
       return [inG.filter(a => presentIds.has(String(a.id))).length, inG.length];
     };
     let nowBlock = '';
     if (current) {
-      const [n, total] = groupCount(current.s.group_name);
-      nowBlock = `<a class="now" href="#attendance" data-now-group="${esc(current.s.group_name || '')}">
+      const [n, total] = groupCount(current.s.group_name, current.s.section);
+      nowBlock = `<a class="now" href="#attendance" data-now-group="${esc(current.s.group_name || '')}" data-now-section="${esc(current.s.section || '')}">
         <i class="dot"></i>
-        <div><b>Відмітити присутніх</b><span>${esc(current.s.group_name)} · ${hhmm(current.s.start_time)}${current.s.place ? ' · ' + esc(current.s.place) : ''} · відмічено ${n} з ${total}</span></div>
+        <div><b>Відмітити присутніх</b><span>${esc([current.s.section, current.s.group_name].filter(Boolean).join(' · '))} · ${hhmm(current.s.start_time)}${current.s.place ? ' · ' + esc(current.s.place) : ''} · відмічено ${n} з ${total}</span></div>
         <i class="go">›</i></a>`;
     } else if (next) {
       const left = next.st - nowM;
       const inTxt = left >= 60 ? `через ${Math.floor(left / 60)} год ${left % 60 ? (left % 60) + ' хв' : ''}` : `через ${left} хв`;
-      nowBlock = `<a class="now soon" href="#attendance" data-now-group="${esc(next.s.group_name || '')}">
+      nowBlock = `<a class="now soon" href="#attendance" data-now-group="${esc(next.s.group_name || '')}" data-now-section="${esc(next.s.section || '')}">
         <i class="dot"></i>
-        <div><b>Наступне: ${hhmm(next.s.start_time)} — ${esc(next.s.group_name)}</b><span>${inTxt}${next.s.place ? ' · ' + esc(next.s.place) : ''}</span></div>
+        <div><b>Наступне: ${hhmm(next.s.start_time)} — ${esc([next.s.section, next.s.group_name].filter(Boolean).join(' · '))}</b><span>${inTxt}${next.s.place ? ' · ' + esc(next.s.place) : ''}</span></div>
         <i class="go">›</i></a>`;
     }
 
     const todayText = sch.length
-      ? sch.map(s => `${hhmm(s.start_time)} — ${esc(s.group_name)}${s.place ? ' · ' + esc(s.place) : ''}`).join('<br>')
+      ? sch.map(s => `${hhmm(s.start_time)} — ${esc(schedLabel(s))}`).join('<br>')
       : 'Тренувань за розкладом немає';
     const plansText = plansToday.length
       ? '<br><br><b>Завдання:</b> ' + plansToday.map(p => `${esc(p.group_name || 'всі групи')} — ${esc(p.title)}`).join('; ') +
@@ -819,7 +824,10 @@
     $('#view').onclick = e => {
       const nowLink = e.target.closest('[data-now-group]');
       const reset = e.target.closest('[data-reset]');
-      if (nowLink) { state.date = today(); state.group = GROUPS.includes(nowLink.dataset.nowGroup) ? nowLink.dataset.nowGroup : 'Усі'; }
+      if (nowLink) {
+        state.date = today(); state.group = GROUPS.includes(nowLink.dataset.nowGroup) ? nowLink.dataset.nowGroup : 'Усі';
+        if (SECTIONS.includes(nowLink.dataset.nowSection)) state.section = nowLink.dataset.nowSection;
+      }
       if (reset) { state.group = 'Усі'; state.search = ''; state.date = today(); state.month = today().slice(0, 7); }
     };
   }
@@ -832,7 +840,7 @@
       q(db.from('events').select('title, date, place').gte('date', t).order('date').limit(3)),
     ]);
     const todayText = sch.length
-      ? sch.map(s => `${hhmm(s.start_time)} — ${esc(s.group_name)}${s.place ? ' · ' + esc(s.place) : ''}`).join('<br>')
+      ? sch.map(s => `${hhmm(s.start_time)} — ${esc(schedLabel(s, true))}`).join('<br>')
       : 'Тренувань за розкладом немає';
     const events = ev.length
       ? '<br><br><b>Найближчі події:</b><br>' + ev.map(e => `${fmtDate(e.date)} — ${esc(e.title)}`).join('<br>') : '';
@@ -1415,16 +1423,17 @@
     setActions(isCoach() ? '<button class="btn" id="addBtn">+ Додати</button>' : '');
     if (isCoach()) $('#addBtn').onclick = () => scheduleForm();
     const all = await q(db.from('schedule').select('*').order('weekday').order('start_time'));
-    const rows = all.filter(inGroup);
+    if (all.length) state.schedSection = 'section' in all[0];
+    const rows = all.filter(s => inGroup(s) && inSectionS(s));
 
-    let html = chips();
+    let html = chips(state.schedSection);
     for (let d = 1; d <= 7; d++) {
       const items = rows.filter(s => s.weekday === d);
       if (!items.length) continue;
       html += `<div class="day-title">${WEEKDAYS[d]}</div><div class="list">${items.map(s => `
         <button class="row" data-id="${esc(s.id)}">
           <div><strong>${hhmm(s.start_time)}${s.end_time ? '–' + hhmm(s.end_time) : ''}</strong>
-          <span>${esc(s.group_name)}${s.place ? ' · ' + esc(s.place) : ''}</span></div>
+          <span>${esc(schedLabel(s))}</span></div>
           <span class="chev">›</span>
         </button>`).join('')}</div>`;
     }
@@ -1440,8 +1449,9 @@
     openForm({
       title: s ? 'Редагувати тренування' : 'Нове тренування',
       values: s ? { ...s, start_time: hhmm(s.start_time), end_time: hhmm(s.end_time) }
-                : { group_name: state.group !== 'Усі' ? state.group : '' },
+                : { group_name: state.group !== 'Усі' ? state.group : '', section: state.section !== 'Усі' ? state.section : '' },
       fields: [
+        ...(state.schedSection ? [{ name: 'section', label: 'Секція', type: 'select', options: SECTIONS, required: true }] : []),
         { name: 'group_name', label: 'Група', type: 'select', options: GROUPS, required: true },
         { name: 'weekday', label: 'День тижня', type: 'select', cast: 'number', required: true,
           options: WEEKDAYS.slice(1).map((w, i) => [i + 1, w]) },

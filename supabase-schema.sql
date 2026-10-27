@@ -82,6 +82,7 @@ create table if not exists public.schedule (
   end_time    time,
   place       text
 );
+alter table public.schedule add column if not exists section text;  -- секція: Наварія / Сихів
 
 create table if not exists public.events (
   id          bigint generated always as identity primary key,
