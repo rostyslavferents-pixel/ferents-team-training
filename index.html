@@ -332,6 +332,11 @@
     .wchart .pt.on { fill: var(--gold-ink); }
     .wchart .hit { fill: transparent; cursor: pointer; }
     .wchart .lbl { fill: var(--ink); font-size: 12px; font-weight: 700; }
+    .tile.wide { grid-column: span 2; flex-direction: row; align-items: center; min-height: 0; }
+    .sec { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 24px 0 8px; }
+    .sec h3 { margin: 0; }
+    .btn.sm { padding: 7px 12px; font-size: 14px; border-radius: 10px; }
+    .hero-w { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 15px; }
     .wcap { font-size: 13px; color: var(--muted); margin-top: 6px; min-height: 18px; }
     .months { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
     .mcell { border-radius: 10px; padding: 8px 2px; text-align: center; font-size: 12px; text-decoration: none; }
@@ -397,7 +402,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v2.1.1';
+  const APP_VERSION = 'v2.2';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -465,7 +470,6 @@
     athletes: '<circle cx="9" cy="8" r="4"/><path d="M2 21v-1a7 7 0 0 1 14 0v1M16 4a4 4 0 0 1 0 8M22 21v-1a7 7 0 0 0-4-6.3"/>',
     chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/>',
     gradings: '<path d="M2 9h20v4H2z"/><path d="M10 13l-3 8M14 13l3 8"/>',
-    weights: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9a6 6 0 0 1 8 0l-2.5 3h-3z"/>',
     training: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     events: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
     links: '<rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/>',
@@ -475,7 +479,7 @@
 
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
-    home: 'Особистий кабінет', athletes: 'Мої спортсмени', weights: 'Зважування', gradings: 'Атестації', attendance: 'Відвідування',
+    home: 'Особистий кабінет', athletes: 'Мої спортсмени', gradings: 'Атестації', attendance: 'Відвідування',
     athlete: 'Спортсмен', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
   };
 
@@ -675,8 +679,8 @@
       ? `<br><br><b>Найближча подія:</b> ${esc(ev[0].title)}, ${fmtDate(ev[0].date)}`
       : '';
 
-    const tile = (route, ic, title, sub) =>
-      `<a class="tile" href="#${route}"><span class="ic">${icon(ic)}</span><span><strong>${title}</strong><small>${sub}</small></span></a>`;
+    const tile = (route, ic, title, sub, cls = '') =>
+      `<a class="tile ${cls}" href="#${route}"><span class="ic">${icon(ic)}</span><span><strong>${title}</strong><small>${sub}</small></span></a>`;
 
     $('#view').innerHTML = `
       ${nowBlock}
@@ -689,11 +693,10 @@
       ${settings.showBdays ? bdayBlock : ''}
       <div class="tiles">
         ${tile('gradings', 'gradings', 'Атестації', 'Пояси і здачі на кю')}
-        ${tile('weights', 'weights', 'Зважування', 'Вага всієї групи')}
         ${tile('training', 'training', 'Тренування', 'Розклад, завдання, тести')}
         ${tile('events', 'events', 'Календар подій', 'Змагання, збори')}
         ${tile('links', 'links', 'Відео', 'Ката, техніка, посилання')}
-        ${tile('members', 'members', 'Учасники', 'Доступ для батьків')}
+        ${tile('members', 'members', 'Учасники та доступ', 'Хто з батьків і спортсменів бачить сайт', 'wide')}
       </div>`;
 
     // Перед переходом готуємо фільтри: сьогоднішня дата, поточний місяць, потрібна група
@@ -792,8 +795,7 @@
       <input class="search" id="search" type="search" placeholder="Пошук за імʼям" value="${esc(state.search)}">
       ${chips()}
       <p class="muted small" id="count"></p>
-      <div class="list" id="athList"></div>
-      <a class="btn light wide" href="#weights">⚖️ Зважування групи</a>`;
+      <div class="list" id="athList"></div>`;
 
     const draw = () => {
       const s = state.search.toLowerCase();
@@ -898,8 +900,10 @@
 
     // Графік ваги (від старих до нових)
     const wl = wts.slice().reverse().map(w => ({ date: w.date, kg: Number(w.weight) }));
-    let weightHtml = '<div class="empty" style="padding:0">Зважувань ще немає</div>';
-    if (wl.length === 1) weightHtml = `<p style="margin:0"><b>${fmtKg(wl[0].kg)}</b> <span class="muted small">· ${fmtDate(wl[0].date)}</span></p>`;
+    const lastW = wl[wl.length - 1];
+    let weightHtml = '<div class="empty" style="padding:0">Зважувань ще немає. Натисніть «+ Записати вагу».</div>';
+    if (wl.length === 1) weightHtml = `<p style="margin:0"><b>${fmtKg(wl[0].kg)}</b> <span class="muted small">· ${fmtDate(wl[0].date)}</span>
+      <button type="button" class="linkbtn" data-wedit="0" style="margin-left:6px">змінити</button></p>`;
     if (wl.length > 1) {
       const W = 320, H = 150, L = 34, R = 14, T = 22, B = 24;
       let lo = Math.min(...wl.map(w => w.kg)), hi = Math.max(...wl.map(w => w.kg));
@@ -919,7 +923,7 @@
           <text class="lbl" x="${x(wl.length - 1)}" y="${y(last.kg) - 10}" text-anchor="end">${kgTxt(last.kg)} кг</text>
           ${wl.map((w, i) => `<rect class="hit" x="${x(i) - 14}" y="0" width="28" height="${H}" data-i="${i}"/>`).join('')}
         </svg>
-        <div class="wcap" id="wcap">Натисніть на точку, щоб побачити дату й вагу</div>`;
+        <div class="wcap" id="wcap">Натисніть на точку, щоб побачити дату й вагу або виправити її</div>`;
     }
 
     const grHtml = grs.length ? grs.map(g => `<div class="row" style="cursor:default">
@@ -932,6 +936,7 @@
         <div class="hero-top"><div class="avatar">${esc(initials)}</div>
           <div><h2>${esc(a.full_name)}</h2><span>${esc(sub)}${bdayLine}</span></div></div>
         <div class="hero-belt">${a.belt ? beltTag(a.belt, true) + esc(a.belt) : '<span class="muted">Пояс не вказано</span>'}</div>
+        <div class="hero-w">⚖️ ${lastW ? `<b>${fmtKg(lastW.kg)}</b> <span class="muted small">· ${fmtDate(lastW.date)}${lastW.date.slice(0, 4) !== t.slice(0, 4) ? ' ' + lastW.date.slice(0, 4) : ''}</span>` : '<span class="muted">Вага не вказана</span>'}</div>
         ${a.parent_name ? `<div class="note">Батьки: ${esc(a.parent_name)}${a.phone ? ' · ' + esc(a.phone) : ''}</div>` : ''}
         ${a.notes ? `<div class="note">${esc(a.notes)}</div>` : ''}
         ${phone ? `<a class="btn light wide" href="tel:${esc(phone)}">📞 Подзвонити${a.parent_name ? ' батькам' : ''}</a>` : ''}
@@ -946,7 +951,7 @@
         <div class="bars">${perMonth.map(n => `<div class="bcol ${n ? '' : 'zero'}"><span class="bval">${n}</span><div class="bbar" style="height:${n / maxV * 100}%"></div></div>`).join('')}</div>
         <div class="blabs">${months.map(m => `<span>${short(m)}</span>`).join('')}</div>
       </div>
-      <h3>Вага</h3>
+      <div class="sec"><h3>Вага</h3><button type="button" class="btn light sm" id="addW">+ Записати вагу</button></div>
       <div class="panel">${weightHtml}</div>
       <h3>Оплати</h3>
       <div class="months">${months.map(m => {
@@ -956,77 +961,40 @@
       <h3>Атестації</h3>
       <div class="list">${grHtml}</div>`;
 
+    $('#addW').onclick = () => weightForm(a);
     $('#view').onclick = e => {
       const m = e.target.closest('[data-month]');
       if (m) { state.month = m.dataset.month; state.group = a.group_name || 'Усі'; return; }
+      const we = e.target.closest('[data-wedit]');
+      if (we) { weightForm(a, wl[Number(we.dataset.wedit)]); return; }
       const pt = e.target.closest('[data-i]');
       if (pt && wl.length > 1) {
         const i = Number(pt.dataset.i), w = wl[i], prev = wl[i - 1];
         const diff = prev ? w.kg - prev.kg : 0;
         $('#wcap').innerHTML = `<b style="color:var(--ink)">${fmtKg(w.kg)}</b> · ${fmtDate(w.date)} ${w.date.slice(0, 4)}` +
-          (prev && diff ? ` · ${diff > 0 ? '+' : ''}${diff.toFixed(1).replace('.', ',')} кг` : '');
+          (prev && diff ? ` · ${diff > 0 ? '+' : ''}${diff.toFixed(1).replace('.', ',')} кг` : '') +
+          ` · <button type="button" class="linkbtn" data-wedit="${i}">змінити</button>`;
         document.querySelectorAll('.wchart .pt').forEach(c => c.classList.toggle('on', c.dataset.i === String(i)));
       }
     };
   }
 
-  // ----- Вага (зважування групи) -----
-  async function weightsView() {
-    setActions('');
-    const [ath, all] = await Promise.all([
-      q(db.from('athletes').select('id, full_name, group_name, active, birth_date, birth_year, belt').order('full_name')),
-      q(db.from('weights').select('athlete_id, date, weight').order('date', { ascending: false })),
-    ]);
-    const rows = ath.filter(a => isActive(a) && inGroup(a));
-    const byId = new Map(rows.map(a => [String(a.id), a]));
-    const onDate = new Map(), before = new Map();
-    all.forEach(w => {
-      const k = String(w.athlete_id);
-      if (w.date === state.date) onDate.set(k, w);
-      else if (w.date < state.date && !before.has(k)) before.set(k, w);
+  // Запис ваги спортсмена (нова або виправлення наявної)
+  function weightForm(a, w) {
+    openForm({
+      title: (w ? 'Виправити вагу: ' : 'Вага: ') + a.full_name,
+      values: w ? { weight: w.kg, date: w.date } : { date: today() },
+      fields: [
+        { name: 'weight', label: 'Вага, кг', type: 'number', required: true, attrs: 'min="10" max="200" step="0.1" inputmode="decimal" autofocus' },
+        { name: 'date', label: 'Дата зважування', type: 'date', required: true, attrs: 'max="' + today() + '"' },
+      ],
+      onSave: async obj => {
+        await q(db.from('weights').upsert({ athlete_id: a.id, date: obj.date, weight: obj.weight }, { onConflict: 'athlete_id,date' }));
+        if (w && w.date !== obj.date) await q(db.from('weights').delete().eq('athlete_id', a.id).eq('date', w.date));
+      },
+      onDelete: w ? () => q(db.from('weights').delete().eq('athlete_id', a.id).eq('date', w.date)) : null,
+      deleteText: 'Видалити це зважування?',
     });
-
-    $('#view').innerHTML = `
-      <div class="bar">
-        <button class="btn light sq" data-shift="-1" aria-label="Попередній день">‹</button>
-        <label class="picker"><span>${fmtDate(state.date, { weekday: 'short', day: 'numeric', month: 'long' })} ${state.date.slice(0, 4)}</span>
-          <input type="date" id="wDate" value="${state.date}" aria-label="Обрати дату"></label>
-        <button class="btn light sq" data-shift="1" aria-label="Наступний день">›</button>
-      </div>
-      ${chips()}
-      <p class="muted small">Впишіть вагу тим, кого зважили, і натисніть «Зберегти». Порожні поля пропускаються.</p>
-      <div class="list" id="wList">
-        ${rows.map(a => {
-          const k = String(a.id), cur = onDate.get(k), prev = before.get(k);
-          return `<div class="row" style="cursor:default">
-            <div><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong>
-            <span>${esc([a.group_name, birthLabel(a), prev ? 'було ' + fmtKg(prev.weight) + ' (' + fmtDate(prev.date, { day: '2-digit', month: '2-digit' }) + ')' : ''].filter(Boolean).join(' · '))}</span></div>
-            <input class="kg" type="number" step="0.1" min="10" max="200" inputmode="decimal" placeholder="кг"
-              data-id="${esc(a.id)}" value="${cur ? Number(cur.weight) : ''}">
-          </div>`;
-        }).join('') || '<div class="empty">У цій групі немає активних спортсменів</div>'}
-      </div>
-      ${rows.length ? '<button class="btn wide" id="wSave">Зберегти вагу</button>' : ''}`;
-
-    const saveBtn = $('#wSave');
-    if (saveBtn) saveBtn.onclick = async () => {
-      const toSave = [], toDelete = [];
-      document.querySelectorAll('#wList input.kg').forEach(inp => {
-        const k = inp.dataset.id, v = inp.value.trim();
-        if (v) toSave.push({ athlete_id: byId.get(k).id, date: state.date, weight: Number(v.replace(',', '.')) });
-        else if (onDate.has(k)) toDelete.push(byId.get(k).id);
-      });
-      saveBtn.disabled = true;
-      try {
-        if (toSave.length) await q(db.from('weights').upsert(toSave, { onConflict: 'athlete_id,date' }));
-        if (toDelete.length) await q(db.from('weights').delete().eq('date', state.date).in('athlete_id', toDelete));
-        toast(`Збережено: ${toSave.length}`);
-        render();
-      } catch (err) { saveBtn.disabled = false; }
-    };
-    $('#wDate').onchange = e => { if (e.target.value) { state.date = e.target.value; render(); } };
-    document.querySelectorAll('[data-shift]').forEach(b =>
-      b.onclick = () => { state.date = shiftDate(state.date, Number(b.dataset.shift)); render(); });
   }
 
   // ----- Атестації -----
@@ -1615,17 +1583,17 @@
   //  НАВІГАЦІЯ ТА ВХІД
   // =====================================================================
   const VIEWS = {
-    home: homeView, athletes: athletesView, athlete: athleteView, weights: weightsView, gradings: gradingsView, attendance: attendanceView, payments: paymentsView,
+    home: homeView, athletes: athletesView, athlete: athleteView, gradings: gradingsView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
     links: linksView, chat: chatView, members: membersView, settings: settingsView,
   };
   // Що бачать батьки і спортсмени
   const MEMBER_ROUTES = ['home', 'schedule', 'events', 'materials', 'links', 'chat', 'settings'];
-  const PARENT_ROUTE = { weights: 'athletes', athlete: 'athletes', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  const PARENT_ROUTE = { athlete: 'athletes', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
-  const TAB_OF = { weights: 'athletes', athlete: 'athletes' };
+  const TAB_OF = { athlete: 'athletes' };
   function drawTabbar(route) {
     const bar = $('#tabbar'), on = isCoach();
     bar.hidden = !on;
