@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="UTF-8"> 
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111827">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -11,220 +10,769 @@
   <title>Ferents Team Training</title>
 
   <style>
+    :root {
+      --bg: #f3f4f6; --ink: #111827; --muted: #6b7280; --line: #e5e7eb;
+      --card: #ffffff; --gold: #d1a84b; --gold-soft: #f6ecd4;
+      --ok: #15803d; --ok-bg: #dcfce7; --bad: #b91c1c; --bad-bg: #fee2e2;
+    }
     * { box-sizing: border-box; }
-
+    html { -webkit-text-size-adjust: 100%; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f3f4f6;
-      color: #111827;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--ink);
+      -webkit-tap-highlight-color: transparent;
     }
 
+    /* Шапка */
     header {
-      background: #111827;
-      color: white;
-      padding: 28px 20px;
-      border-bottom: 4px solid #d1a84b;
+      background: var(--ink); color: #fff;
+      padding: 22px 16px 18px;
+      padding-top: max(22px, env(safe-area-inset-top));
+      border-bottom: 4px solid var(--gold);
+    }
+    .hwrap { max-width: 640px; margin: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+    .brand { color: #d1d5db; font-size: 12px; letter-spacing: .15em; margin: 0; }
+    header h1 { margin: 6px 0 2px; font-size: 28px; }
+    .motto { color: #9ca3af; margin: 0; font-size: 13px; }
+    .ghost {
+      background: transparent; border: 1px solid #374151; color: #d1d5db;
+      border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 13px; cursor: pointer;
     }
 
-    header p { color: #d1d5db; margin-bottom: 0; }
-    header h1 { margin: 10px 0; font-size: 30px; }
+    main { padding: 16px; max-width: 640px; margin: auto; }
+    footer { text-align: center; color: var(--muted); padding: 25px; font-size: 12px; }
 
-    main {
-      padding: 20px;
-      max-width: 600px;
-      margin: auto;
-    }
+    /* Загальні елементи */
+    h2 { margin: 4px 0; font-size: 22px; }
+    h3 { margin: 24px 0 8px; font-size: 16px; }
+    .muted { color: var(--muted); }
+    .small { font-size: 13px; }
+    .err { color: var(--bad); }
 
-    .card {
-      display: block;
-      width: 100%;
-      text-align: left;
-      border: 0;
-      border-radius: 14px;
-      background: white;
-      padding: 20px;
-      margin: 12px 0;
-      color: #111827;
-      font: inherit;
-      box-shadow: 0 2px 8px #0000000d;
+    .topbar { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; min-height: 40px; }
+    .topbar h2 { flex: 1; }
+    .back { color: var(--ink); text-decoration: none; font-size: 15px; padding: 8px 10px 8px 0; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      border: 0; border-radius: 12px; padding: 11px 16px;
+      background: var(--ink); color: #fff; font: inherit; font-weight: 600; font-size: 15px;
       cursor: pointer;
     }
+    .btn:disabled { opacity: .5; }
+    .btn.light { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+    .btn.danger { background: var(--bad-bg); color: var(--bad); }
+    .btn.wide { width: 100%; margin-top: 12px; }
+    .btn.sq { width: 46px; padding: 11px 0; font-size: 20px; line-height: 1; }
 
+    input, select, textarea {
+      width: 100%; font: inherit; font-size: 16px; color: var(--ink);
+      padding: 11px 12px; border: 1px solid #d1d5db; border-radius: 12px; background: #fff;
+    }
+    input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); border-color: transparent; }
+    label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 0; }
+    label > input, label > select, label > textarea { margin-top: 5px; }
+    label.check { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--ink); }
+    label.check input { width: 22px; height: 22px; margin: 0; }
+
+    .search { margin-bottom: 10px; }
+    .bar { display: flex; gap: 8px; margin-bottom: 10px; }
+    .bar input { flex: 1; text-align: center; }
+
+    .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; }
+    .chip {
+      flex: none; border: 0; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 14px;
+      background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer;
+    }
+    .chip.on { background: var(--ink); color: #fff; box-shadow: none; }
+
+    /* Головний екран */
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 4px 0 12px; }
+    .stat { background: #fff; border-radius: 14px; padding: 14px 12px; box-shadow: 0 2px 8px #0000000d; }
+    .stat b { display: block; font-size: 26px; }
+    .stat span { font-size: 12px; color: var(--muted); }
+    .stat.warn b { color: var(--bad); }
+    .today { background: var(--gold-soft); border-radius: 14px; padding: 14px 16px; font-size: 14px; line-height: 1.5; }
+    .today strong { display: block; font-size: 13px; letter-spacing: .05em; color: #8a6a1f; margin-bottom: 2px; }
+
+    .card {
+      display: block; width: 100%; text-align: left; text-decoration: none;
+      border: 0; border-radius: 14px; background: #fff; padding: 18px 20px; margin: 12px 0;
+      color: var(--ink); font: inherit; box-shadow: 0 2px 8px #0000000d; cursor: pointer;
+    }
     .card strong { display: block; font-size: 18px; }
+    .card span { display: block; color: var(--muted); margin-top: 6px; font-size: 14px; }
+    .card:active, .row:active { background: #e5e7eb; }
 
-    .card span {
-      display: block;
-      color: #6b7280;
-      margin-top: 7px;
-      font-size: 14px;
+    /* Списки */
+    .list { background: #fff; border-radius: 14px; box-shadow: 0 2px 8px #0000000d; overflow: hidden; }
+    .row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      width: 100%; text-align: left; border: 0; background: #fff; color: var(--ink);
+      font: inherit; padding: 13px 16px; margin: 0; border-bottom: 1px solid var(--line); cursor: pointer;
     }
+    .row:last-child { border-bottom: 0; }
+    .row strong { display: block; font-size: 16px; font-weight: 600; }
+    .row span span, .row div span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .row.dim strong { color: var(--muted); }
+    .row.tick input { width: 26px; height: 26px; flex: none; accent-color: var(--ok); }
+    .chev { color: #9ca3af; font-size: 22px; }
+    .day-title { font-size: 13px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 18px 4px 6px; }
+    .empty { padding: 18px 16px; color: var(--muted); }
 
-    .card:active { background: #e5e7eb; }
+    .badge { flex: none; font-size: 13px; font-weight: 600; border-radius: 999px; padding: 5px 10px; white-space: nowrap; }
+    .badge.ok { background: var(--ok-bg); color: var(--ok); }
+    .badge.bad { background: var(--bad-bg); color: var(--bad); }
+    .badge.gold { background: var(--gold-soft); color: #8a6a1f; }
 
-    footer {
-      text-align: center;
-      color: #6b7280;
-      padding: 25px;
-      font-size: 12px;
+    .summary { font-size: 15px; margin: 6px 2px 10px; }
+    .summary b { font-size: 18px; }
+
+    a.link { color: #1d4ed8; word-break: break-all; }
+
+    /* Вхід */
+    .login { background: #fff; border-radius: 16px; padding: 22px 20px; box-shadow: 0 2px 8px #0000000d; margin-top: 10px; }
+    .login .btn { width: 100%; margin-top: 18px; }
+
+    /* Діалог */
+    dialog {
+      border: 0; border-radius: 18px; padding: 0; width: min(520px, calc(100% - 24px));
+      max-height: calc(100% - 40px); box-shadow: 0 20px 50px #0004;
     }
+    dialog::backdrop { background: #1118277a; }
+    dialog form { padding: 20px; }
+    dialog h3 { margin: 0 0 4px; font-size: 19px; }
+    .dlg-actions { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+    .dlg-actions .spacer { flex: 1; }
+    .dlg-extra { margin-top: 12px; font-size: 14px; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+      background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 12px; font-size: 14px;
+      max-width: calc(100% - 32px); box-shadow: 0 8px 24px #0003; z-index: 10;
+    }
+    .toast.bad { background: var(--bad); }
   </style>
 </head>
 
 <body>
   <header>
-    <p>FERENTS TEAM</p>
-    <h1>Training</h1>
-    <p>Дисципліна. Праця. Результат.</p>
+    <div class="hwrap">
+      <div>
+        <p class="brand">FERENTS TEAM</p>
+        <h1>Training</h1>
+        <p class="motto">Дисципліна. Праця. Результат.</p>
+      </div>
+      <button id="logoutBtn" class="ghost" hidden>Вийти</button>
+    </div>
   </header>
 
   <main>
-    <h2>Особистий кабінет</h2>
+    <!-- Вхід тренера -->
+    <section id="loginSection" hidden>
+      <form id="loginForm" class="login">
+        <h2>Вхід для тренера</h2>
+        <label>Email<input id="loginEmail" type="email" autocomplete="username" required></label>
+        <label>Пароль<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+        <button class="btn" type="submit">Увійти</button>
+        <p id="loginMessage" class="small err"></p>
+      </form>
+    </section>
 
-   <button class="card" onclick="window.openAthletes()">
-  <strong>Мої спортсмени</strong>
-  <span>Перегляд і додавання спортсменів</span>
-</button>
-
-<section id="athletesPanel" hidden>
-  <h2>Мої спортсмени</h2>
-
-  <form id="athleteForm">
-    <input
-      id="athleteName"
-      type="text"
-      placeholder="Ім'я та прізвище спортсмена"
-      required
-    >
-
-    <select id="athleteGroup" required>
-      <option value="">Оберіть групу</option>
-      <option value="Молодша">Молодша</option>
-      <option value="Середня">Середня</option>
-      <option value="Старша">Старша</option>
-    </select>
-
-    <input
-      id="athleteYear"
-      type="number"
-      placeholder="Рік народження"
-      min="2000"
-      max="2026"
-    >
-
-    <button type="submit">Додати спортсмена</button>
-  </form>
-
-  <p id="athleteMessage"></p>
-  <ul id="athletesList"></ul>
-  <button type="button" onclick="closeAthletes()">Назад</button>
-</section>
-
-    <button class="card" onclick="alert('Розклад тренувань підключимо наступним етапом.')">
-      <strong>Розклад тренувань</strong>
-      <span>Молодша · Середня · Старша</span>
-    </button>
-
-    <button class="card" onclick="alert('Відвідування підключимо наступним етапом.')">
-      <strong>Відвідування</strong>
-      <span>Історія тренувань</span>
-    </button>
-
-    <button class="card" onclick="alert('Оплати підключимо наступним етапом.')">
-      <strong>Оплати</strong>
-      <span>Статус та історія платежів</span>
-    </button>
-
-    <button class="card" onclick="alert('Календар подій підключимо наступним етапом.')">
-      <strong>Календар подій</strong>
-      <span>Усі майбутні події команди</span>
-    </button>
-
-    <button class="card" onclick="alert('Матеріали підключимо наступним етапом.')">
-      <strong>Матеріали</strong>
-      <span>Відео, посилання та корисна інформація</span>
-    </button>
+    <!-- Основний додаток -->
+    <section id="appSection" hidden>
+      <div class="topbar">
+        <a id="backLink" class="back" href="#home">← Назад</a>
+        <h2 id="pageTitle"></h2>
+        <div id="pageActions"></div>
+      </div>
+      <div id="view"></div>
+    </section>
   </main>
 
-  <footer>
-    FERENTS TEAM TRAINING · 2026
-  </footer>
+  <footer>FERENTS TEAM TRAINING · 2026</footer>
+
+  <dialog id="dlg"></dialog>
+  <div id="toast" class="toast" hidden></div>
+
+  <datalist id="belts">
+    <option value="Білий"><option value="Жовтий"><option value="Помаранчевий">
+    <option value="Зелений"><option value="Синій"><option value="Фіолетовий">
+    <option value="Коричневий"><option value="Чорний">
+  </datalist>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
+  // ===== Налаштування =====
+  const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+  const GROUPS = ['Молодша', 'Середня', 'Старша'];
+  const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
+  const TITLES = {
+    home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
+    payments: 'Оплати', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
+  };
 
-console.log('Supabase client initialized');
-    
-window.openAthletes = async function() {
-  document.getElementById('athletesPanel').hidden = false;
-  await loadAthletes();
-}
+  // Стан фільтрів (зберігається між екранами)
+  const state = { group: 'Усі', search: '', date: today(), month: today().slice(0, 7) };
 
-function closeAthletes() {
-  document.getElementById('athletesPanel').hidden = true;
-}
+  // ===== Допоміжні функції =====
+  function $(sel) { return document.querySelector(sel); }
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function today() { return new Date().toLocaleDateString('sv-SE'); } // YYYY-MM-DD
+  function shiftDate(iso, days) {
+    const d = new Date(iso + 'T12:00'); d.setDate(d.getDate() + days);
+    return d.toLocaleDateString('sv-SE');
+  }
+  function shiftMonth(ym, n) {
+    const d = new Date(ym + '-15T12:00'); d.setMonth(d.getMonth() + n);
+    return d.toLocaleDateString('sv-SE').slice(0, 7);
+  }
+  function fmtDate(iso, opts = { day: 'numeric', month: 'long' }) {
+    return new Date(iso + 'T12:00').toLocaleDateString('uk-UA', opts);
+  }
+  function fmtMonth(ym) {
+    const s = new Date(ym + '-15T12:00').toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  function fmtMoney(n) { return Number(n || 0).toLocaleString('uk-UA') + ' грн'; }
+  function hhmm(t) { return t ? String(t).slice(0, 5) : ''; }
+  function weekdayOf(iso) { return ((new Date(iso + 'T12:00').getDay() + 6) % 7) + 1; }
+  function inGroup(a) { return state.group === 'Усі' || a.group_name === state.group; }
+  function isActive(a) { return a.active !== false; }
 
-async function loadAthletes() {
-  const message = document.getElementById('athleteMessage');
-  const list = document.getElementById('athletesList');
-
-  message.textContent = 'Завантаження...';
-  list.replaceChildren();
-
-  const { data, error } = await supabaseClient
-    .from('athletes')
-    .select('id, full_name, group_name, birth_year')
-    .order('full_name');
-
-  if (error) {
-    message.textContent = 'Помилка завантаження: ' + error.message;
-    return;
+  let toastTimer;
+  function toast(msg, bad = false) {
+    const t = $('#toast');
+    t.textContent = msg; t.className = 'toast' + (bad ? ' bad' : ''); t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), bad ? 5000 : 2200);
   }
 
-  message.textContent = data.length
-    ? 'Спортсменів у базі: ' + data.length
-    : 'Список поки порожній';
+  // Виконує запит до Supabase і показує помилку, якщо щось пішло не так
+  async function q(request) {
+    const { data, error } = await request;
+    if (error) { toast('Помилка: ' + error.message, true); throw error; }
+    return data;
+  }
 
-  data.forEach((athlete) => {
-    const item = document.createElement('li');
-    item.textContent =
-      athlete.full_name + ' — ' +
-      (athlete.group_name || 'Група не вказана') +
-      (athlete.birth_year ? ', ' + athlete.birth_year : '');
-    list.appendChild(item);
+  function setActions(html) { $('#pageActions').innerHTML = html; }
+
+  function chips() {
+    return `<div class="chips">${['Усі', ...GROUPS].map(g =>
+      `<button type="button" class="chip ${state.group === g ? 'on' : ''}" data-group="${g}">${g}</button>`).join('')}</div>`;
+  }
+
+  // ===== Універсальна форма у спливаючому вікні =====
+  function openForm({ title, fields, values = {}, onSave, onDelete, deleteText, extra = '' }) {
+    const dlg = $('#dlg');
+    const field = f => {
+      const v = values[f.name];
+      const req = f.required ? 'required' : '';
+      if (f.type === 'select') {
+        return `<label>${f.label}<select name="${f.name}" ${req}><option value="">—</option>${f.options.map(o => {
+          const [val, lab] = Array.isArray(o) ? o : [o, o];
+          return `<option value="${esc(val)}" ${String(v ?? '') === String(val) ? 'selected' : ''}>${esc(lab)}</option>`;
+        }).join('')}</select></label>`;
+      }
+      if (f.type === 'textarea') return `<label>${f.label}<textarea name="${f.name}" rows="3">${esc(v)}</textarea></label>`;
+      if (f.type === 'checkbox') return `<label class="check"><input type="checkbox" name="${f.name}" ${v !== false ? 'checked' : ''}>${f.label}</label>`;
+      return `<label>${f.label}<input name="${f.name}" type="${f.type || 'text'}" value="${esc(v)}" ${req} ${f.attrs || ''}></label>`;
+    };
+
+    dlg.innerHTML = `<form>
+        <h3>${esc(title)}</h3>
+        ${fields.map(field).join('')}
+        ${extra ? `<div class="dlg-extra">${extra}</div>` : ''}
+        <div class="dlg-actions">
+          ${onDelete ? '<button type="button" class="btn danger" data-act="delete">Видалити</button>' : ''}
+          <span class="spacer"></span>
+          <button type="button" class="btn light" data-act="cancel">Скасувати</button>
+          <button type="submit" class="btn">Зберегти</button>
+        </div>
+      </form>`;
+
+    const form = dlg.querySelector('form');
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const obj = {};
+      for (const f of fields) {
+        let v;
+        if (f.type === 'checkbox') v = fd.has(f.name);
+        else {
+          v = String(fd.get(f.name) ?? '').trim();
+          if (v === '') v = null;
+          else if (f.type === 'number' || f.cast === 'number') v = Number(v);
+        }
+        obj[f.name] = v;
+      }
+      const btn = form.querySelector('[type=submit]');
+      btn.disabled = true;
+      try { await onSave(obj); dlg.close(); toast('Збережено'); render(); }
+      catch (err) { /* помилку вже показано */ }
+      finally { btn.disabled = false; }
+    };
+    form.querySelector('[data-act=cancel]').onclick = () => dlg.close();
+    const del = form.querySelector('[data-act=delete]');
+    if (del) del.onclick = async () => {
+      if (!confirm(deleteText || 'Точно видалити?')) return;
+      try { await onDelete(); dlg.close(); toast('Видалено'); render(); } catch (err) {}
+    };
+    dlg.showModal();
+  }
+
+  // =====================================================================
+  //  ЕКРАНИ
+  // =====================================================================
+
+  // ----- Головний -----
+  async function homeView() {
+    setActions('');
+    const { data: coachOk } = await db.rpc('is_coach');
+    if (coachOk === false) {
+      $('#view').innerHTML = `<p class="err">Ваш email не додано до списку тренерів.
+        Додайте його в таблицю <b>coaches</b> у Supabase.</p>`;
+      return;
+    }
+
+    const t = today();
+    const [ath, att, pay, sch, ev] = await Promise.all([
+      q(db.from('athletes').select('id, active')),
+      q(db.from('attendance').select('athlete_id').eq('date', t).eq('present', true)),
+      q(db.from('payments').select('athlete_id').eq('month', t.slice(0, 7) + '-01')),
+      q(db.from('schedule').select('*').eq('weekday', weekdayOf(t)).order('start_time')),
+      q(db.from('events').select('title, date').gte('date', t).order('date').limit(1)),
+    ]);
+    const active = ath.filter(isActive);
+    const paid = new Set(pay.map(p => p.athlete_id));
+    const unpaid = active.filter(a => !paid.has(a.id)).length;
+
+    const todayText = sch.length
+      ? sch.map(s => `${hhmm(s.start_time)} — ${esc(s.group_name)}${s.place ? ' · ' + esc(s.place) : ''}`).join('<br>')
+      : 'Тренувань за розкладом немає';
+    const nextEvent = ev[0]
+      ? `<br><br><b>Найближча подія:</b> ${esc(ev[0].title)}, ${fmtDate(ev[0].date)}`
+      : '';
+
+    const card = (route, title, sub) =>
+      `<a class="card" href="#${route}"><strong>${title}</strong><span>${sub}</span></a>`;
+
+    $('#view').innerHTML = `
+      <div class="stats">
+        <div class="stat"><b>${active.length}</b><span>спортсменів</span></div>
+        <div class="stat"><b>${att.length}</b><span>сьогодні на тренуванні</span></div>
+        <div class="stat ${unpaid ? 'warn' : ''}"><b>${unpaid}</b><span>не оплатили за місяць</span></div>
+      </div>
+      <div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${nextEvent}</div>
+      ${card('athletes', 'Мої спортсмени', 'Список, контакти, пояси, групи')}
+      ${card('attendance', 'Відвідування', 'Відмітити присутніх і статистика')}
+      ${card('payments', 'Оплати', 'Хто оплатив за місяць, а хто ні')}
+      ${card('schedule', 'Розклад тренувань', 'Молодша · Середня · Старша')}
+      ${card('events', 'Календар подій', 'Змагання, атестації, збори')}
+      ${card('materials', 'Матеріали', 'Відео, посилання та корисна інформація')}`;
+  }
+
+  // ----- Спортсмени -----
+  async function athletesView() {
+    setActions('<button class="btn" id="addBtn">+ Додати</button>');
+    $('#addBtn').onclick = () => athleteForm();
+
+    const list = await q(db.from('athletes').select('*').order('full_name'));
+
+    $('#view').innerHTML = `
+      <input class="search" id="search" type="search" placeholder="Пошук за імʼям" value="${esc(state.search)}">
+      ${chips()}
+      <p class="muted small" id="count"></p>
+      <div class="list" id="athList"></div>`;
+
+    const draw = () => {
+      const s = state.search.toLowerCase();
+      const rows = list.filter(a => inGroup(a) && (!s || a.full_name.toLowerCase().includes(s)));
+      $('#count').textContent = `Показано ${rows.length} з ${list.length}`;
+      $('#athList').innerHTML = rows.map(a => `
+        <button class="row ${isActive(a) ? '' : 'dim'}" data-id="${esc(a.id)}">
+          <div><strong>${esc(a.full_name)}</strong>
+          <span>${esc(a.group_name || 'Без групи')}${a.birth_year ? ' · ' + a.birth_year + ' р.н.' : ''}${a.belt ? ' · ' + esc(a.belt) + ' пояс' : ''}${isActive(a) ? '' : ' · неактивний'}</span></div>
+          <span class="chev">›</span>
+        </button>`).join('') || '<div class="empty">Нікого не знайдено</div>';
+    };
+    $('#search').oninput = e => { state.search = e.target.value; draw(); };
+    $('#athList').onclick = e => {
+      const r = e.target.closest('[data-id]');
+      if (r) athleteForm(list.find(a => String(a.id) === r.dataset.id));
+    };
+    draw();
+  }
+
+  async function athleteForm(a) {
+    let extra = '';
+    if (a) {
+      const monthStart = today().slice(0, 7) + '-01';
+      const [visits, pay] = await Promise.all([
+        q(db.from('attendance').select('id').eq('athlete_id', a.id).eq('present', true).gte('date', monthStart)),
+        q(db.from('payments').select('amount').eq('athlete_id', a.id).eq('month', monthStart)),
+      ]);
+      extra = `Цього місяця: <b>${visits.length}</b> тренувань ·
+        ${pay.length ? `<span class="badge ok">оплачено</span>` : `<span class="badge bad">не оплачено</span>`}
+        ${a.phone ? `<br><br><a class="link" href="tel:${esc(a.phone.replace(/[^\d+]/g, ''))}">📞 Подзвонити ${esc(a.parent_name || '')}</a>` : ''}`;
+    }
+    openForm({
+      title: a ? a.full_name : 'Новий спортсмен',
+      values: a || { group_name: state.group !== 'Усі' ? state.group : '', active: true },
+      fields: [
+        { name: 'full_name', label: 'Імʼя та прізвище', required: true },
+        { name: 'group_name', label: 'Група', type: 'select', options: GROUPS, required: true },
+        { name: 'birth_year', label: 'Рік народження', type: 'number', attrs: 'min="1990" max="2030" inputmode="numeric"' },
+        { name: 'belt', label: 'Пояс / кю', attrs: 'list="belts"' },
+        { name: 'parent_name', label: 'Батьки (імʼя)' },
+        { name: 'phone', label: 'Телефон', type: 'tel' },
+        { name: 'notes', label: 'Нотатки', type: 'textarea' },
+        { name: 'active', label: 'Активний (ходить на тренування)', type: 'checkbox' },
+      ],
+      extra,
+      onSave: obj => a
+        ? q(db.from('athletes').update(obj).eq('id', a.id))
+        : q(db.from('athletes').insert(obj)),
+      onDelete: a ? () => q(db.from('athletes').delete().eq('id', a.id)) : null,
+      deleteText: 'Видалити спортсмена разом з усією історією відвідувань і оплат?\n\nЯкщо він просто перестав ходити — краще зніміть галочку «Активний».',
+    });
+  }
+
+  // ----- Відвідування -----
+  async function attendanceView() {
+    setActions('');
+    const monthStart = state.date.slice(0, 7) + '-01';
+    const monthEnd = shiftMonth(state.date.slice(0, 7), 1) + '-01';
+
+    const [ath, marks, monthMarks] = await Promise.all([
+      q(db.from('athletes').select('id, full_name, group_name, active').order('full_name')),
+      q(db.from('attendance').select('athlete_id, present').eq('date', state.date)),
+      q(db.from('attendance').select('athlete_id, date').eq('present', true).gte('date', monthStart).lt('date', monthEnd)),
+    ]);
+    const rows = ath.filter(a => isActive(a) && inGroup(a));
+    const byId = new Map(rows.map(a => [String(a.id), a]));
+    const present = new Set(marks.filter(m => m.present).map(m => String(m.athlete_id)));
+
+    $('#view').innerHTML = `
+      <div class="bar">
+        <button class="btn light sq" data-shift="-1" aria-label="Попередній день">‹</button>
+        <input type="date" id="attDate" value="${state.date}">
+        <button class="btn light sq" data-shift="1" aria-label="Наступний день">›</button>
+      </div>
+      ${chips()}
+      <p class="summary" id="attSum"></p>
+      <div class="list" id="attList">
+        ${rows.map(a => `
+          <label class="row tick">
+            <span><strong>${esc(a.full_name)}</strong><span>${esc(a.group_name || '')}</span></span>
+            <input type="checkbox" data-id="${esc(a.id)}" ${present.has(String(a.id)) ? 'checked' : ''}>
+          </label>`).join('') || '<div class="empty">У цій групі немає активних спортсменів</div>'}
+      </div>
+      ${rows.length ? '<button class="btn light wide" id="allBtn">Відмітити всіх присутніми</button>' : ''}
+      <h3>${fmtMonth(state.date.slice(0, 7))}: відвідування</h3>
+      <div class="list" id="stats"></div>`;
+
+    const updateSum = () => {
+      const n = $('#attList').querySelectorAll('input:checked').length;
+      $('#attSum').innerHTML = `${fmtDate(state.date, { weekday: 'long', day: 'numeric', month: 'long' })} · присутні <b>${n}</b> з ${rows.length}`;
+    };
+    updateSum();
+
+    // Статистика за місяць
+    const counts = new Map();
+    const days = new Set();
+    monthMarks.forEach(m => {
+      if (!byId.has(String(m.athlete_id))) return;
+      counts.set(String(m.athlete_id), (counts.get(String(m.athlete_id)) || 0) + 1);
+      days.add(m.date);
+    });
+    const ranked = rows.map(a => [a, counts.get(String(a.id)) || 0]).sort((x, y) => y[1] - x[1]);
+    $('#stats').innerHTML = ranked.length
+      ? `<div class="row" style="cursor:default"><span class="muted small">Днів з відмітками: ${days.size}</span></div>` +
+        ranked.map(([a, n]) => `<div class="row" style="cursor:default"><span>${esc(a.full_name)}</span><span class="badge ${n ? 'gold' : 'bad'}">${n}</span></div>`).join('')
+      : '<div class="empty">Немає даних</div>';
+
+    const save = async (ids, isPresent) => {
+      const payload = ids.map(id => ({ athlete_id: byId.get(id).id, date: state.date, present: isPresent }));
+      await q(db.from('attendance').upsert(payload, { onConflict: 'athlete_id,date' }));
+    };
+
+    $('#attList').onchange = async e => {
+      const box = e.target;
+      if (!box.dataset.id) return;
+      updateSum();
+      try { await save([box.dataset.id], box.checked); }
+      catch (err) { box.checked = !box.checked; updateSum(); }
+    };
+    const allBtn = $('#allBtn');
+    if (allBtn) allBtn.onclick = async () => {
+      allBtn.disabled = true;
+      try { await save(rows.map(a => String(a.id)), true); toast('Всіх відмічено'); render(); }
+      catch (err) { allBtn.disabled = false; }
+    };
+    $('#attDate').onchange = e => { if (e.target.value) { state.date = e.target.value; render(); } };
+    document.querySelectorAll('[data-shift]').forEach(b =>
+      b.onclick = () => { state.date = shiftDate(state.date, Number(b.dataset.shift)); render(); });
+  }
+
+  // ----- Оплати -----
+  async function paymentsView() {
+    setActions('');
+    const monthStart = state.month + '-01';
+    const [ath, pays] = await Promise.all([
+      q(db.from('athletes').select('id, full_name, group_name, active, phone, parent_name').order('full_name')),
+      q(db.from('payments').select('*').eq('month', monthStart)),
+    ]);
+    const rows = ath.filter(a => isActive(a) && inGroup(a));
+    const payOf = new Map(pays.map(p => [String(p.athlete_id), p]));
+    const paidRows = rows.filter(a => payOf.has(String(a.id)));
+    const debtors = rows.filter(a => !payOf.has(String(a.id)));
+    const total = paidRows.reduce((s, a) => s + Number(payOf.get(String(a.id)).amount || 0), 0);
+
+    $('#view').innerHTML = `
+      <div class="bar">
+        <button class="btn light sq" data-mshift="-1" aria-label="Попередній місяць">‹</button>
+        <input type="month" id="payMonth" value="${state.month}">
+        <button class="btn light sq" data-mshift="1" aria-label="Наступний місяць">›</button>
+      </div>
+      ${chips()}
+      <p class="summary">${fmtMonth(state.month)} · оплатили <b>${paidRows.length}</b> з ${rows.length} · ${fmtMoney(total)}</p>
+      <div class="list" id="payList">
+        ${[...debtors, ...paidRows].map(a => {
+          const p = payOf.get(String(a.id));
+          return `<button class="row" data-id="${esc(a.id)}">
+            <div><strong>${esc(a.full_name)}</strong><span>${esc(a.group_name || '')}${p && p.note ? ' · ' + esc(p.note) : ''}</span></div>
+            ${p ? `<span class="badge ok">✓ ${fmtMoney(p.amount)} · ${fmtDate(p.paid_at, { day: '2-digit', month: '2-digit' })}</span>`
+                : '<span class="badge bad">Не оплачено</span>'}
+          </button>`;
+        }).join('') || '<div class="empty">У цій групі немає активних спортсменів</div>'}
+      </div>
+      ${debtors.length ? '<button class="btn light wide" id="copyDebtors">Скопіювати список боржників</button>' : ''}`;
+
+    $('#payList').onclick = e => {
+      const r = e.target.closest('[data-id]');
+      if (!r) return;
+      const a = rows.find(x => String(x.id) === r.dataset.id);
+      const p = payOf.get(r.dataset.id);
+      let lastAmount = '';
+      try { lastAmount = localStorage.getItem('ft_last_amount') || ''; } catch (err) {}
+      openForm({
+        title: `${a.full_name} — ${fmtMonth(state.month).toLowerCase()}`,
+        values: p || { amount: lastAmount, paid_at: today() },
+        fields: [
+          { name: 'amount', label: 'Сума, грн', type: 'number', required: true, attrs: 'min="0" step="1" inputmode="numeric"' },
+          { name: 'paid_at', label: 'Дата оплати', type: 'date', required: true },
+          { name: 'note', label: 'Примітка (готівка, картка, знижка…)' },
+        ],
+        onSave: async obj => {
+          try { localStorage.setItem('ft_last_amount', obj.amount); } catch (err) {}
+          await q(db.from('payments').upsert({ ...obj, athlete_id: a.id, month: monthStart }, { onConflict: 'athlete_id,month' }));
+        },
+        onDelete: p ? () => q(db.from('payments').delete().eq('id', p.id)) : null,
+        deleteText: 'Скасувати цю оплату?',
+      });
+    };
+
+    const copyBtn = $('#copyDebtors');
+    if (copyBtn) copyBtn.onclick = async () => {
+      const text = `Не оплачено за ${fmtMonth(state.month).toLowerCase()}:\n` +
+        debtors.map(a => `• ${a.full_name}${a.phone ? ' — ' + a.phone : ''}`).join('\n');
+      try { await navigator.clipboard.writeText(text); toast('Список скопійовано'); }
+      catch (err) { prompt('Скопіюйте список:', text); }
+    };
+    $('#payMonth').onchange = e => { if (e.target.value) { state.month = e.target.value; render(); } };
+    document.querySelectorAll('[data-mshift]').forEach(b =>
+      b.onclick = () => { state.month = shiftMonth(state.month, Number(b.dataset.mshift)); render(); });
+  }
+
+  // ----- Розклад -----
+  async function scheduleView() {
+    setActions('<button class="btn" id="addBtn">+ Додати</button>');
+    $('#addBtn').onclick = () => scheduleForm();
+    const all = await q(db.from('schedule').select('*').order('weekday').order('start_time'));
+    const rows = all.filter(inGroup);
+
+    let html = chips();
+    for (let d = 1; d <= 7; d++) {
+      const items = rows.filter(s => s.weekday === d);
+      if (!items.length) continue;
+      html += `<div class="day-title">${WEEKDAYS[d]}</div><div class="list">${items.map(s => `
+        <button class="row" data-id="${esc(s.id)}">
+          <div><strong>${hhmm(s.start_time)}${s.end_time ? '–' + hhmm(s.end_time) : ''}</strong>
+          <span>${esc(s.group_name)}${s.place ? ' · ' + esc(s.place) : ''}</span></div>
+          <span class="chev">›</span>
+        </button>`).join('')}</div>`;
+    }
+    if (!rows.length) html += '<p class="muted">Розклад порожній. Натисніть «+ Додати», щоб створити тренування.</p>';
+    $('#view').innerHTML = html;
+    $('#view').onclick = e => {
+      const r = e.target.closest('.row[data-id]');
+      if (r) scheduleForm(all.find(s => String(s.id) === r.dataset.id));
+    };
+  }
+
+  function scheduleForm(s) {
+    openForm({
+      title: s ? 'Редагувати тренування' : 'Нове тренування',
+      values: s ? { ...s, start_time: hhmm(s.start_time), end_time: hhmm(s.end_time) }
+                : { group_name: state.group !== 'Усі' ? state.group : '' },
+      fields: [
+        { name: 'group_name', label: 'Група', type: 'select', options: GROUPS, required: true },
+        { name: 'weekday', label: 'День тижня', type: 'select', cast: 'number', required: true,
+          options: WEEKDAYS.slice(1).map((w, i) => [i + 1, w]) },
+        { name: 'start_time', label: 'Початок', type: 'time', required: true },
+        { name: 'end_time', label: 'Кінець', type: 'time' },
+        { name: 'place', label: 'Зал / адреса' },
+      ],
+      onSave: obj => s ? q(db.from('schedule').update(obj).eq('id', s.id)) : q(db.from('schedule').insert(obj)),
+      onDelete: s ? () => q(db.from('schedule').delete().eq('id', s.id)) : null,
+    });
+  }
+
+  // ----- Події -----
+  async function eventsView() {
+    setActions('<button class="btn" id="addBtn">+ Додати</button>');
+    $('#addBtn').onclick = () => eventForm();
+    const all = await q(db.from('events').select('*').order('date'));
+    const t = today();
+    const upcoming = all.filter(e => e.date >= t);
+    const past = all.filter(e => e.date < t).reverse().slice(0, 10);
+
+    const item = e => {
+      const days = Math.round((new Date(e.date + 'T12:00') - new Date(t + 'T12:00')) / 864e5);
+      const badge = days === 0 ? '<span class="badge gold">сьогодні</span>'
+        : days > 0 ? `<span class="badge gold">через ${days} дн.</span>` : '';
+      return `<button class="row" data-id="${esc(e.id)}">
+        <div><strong>${esc(e.title)}</strong>
+        <span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}${e.place ? ' · ' + esc(e.place) : ''}</span>
+        ${e.description ? `<span>${esc(e.description)}</span>` : ''}</div>${badge}</button>`;
+    };
+    $('#view').innerHTML = `
+      <div class="list">${upcoming.map(item).join('') || '<div class="empty">Майбутніх подій поки немає</div>'}</div>
+      ${past.length ? `<h3>Минулі</h3><div class="list">${past.map(item).join('')}</div>` : ''}`;
+    $('#view').onclick = e => {
+      const r = e.target.closest('.row[data-id]');
+      if (r) eventForm(all.find(x => String(x.id) === r.dataset.id));
+    };
+  }
+
+  function eventForm(ev) {
+    openForm({
+      title: ev ? 'Редагувати подію' : 'Нова подія',
+      values: ev || { date: today() },
+      fields: [
+        { name: 'title', label: 'Назва (змагання, атестація, збори…)', required: true },
+        { name: 'date', label: 'Дата', type: 'date', required: true },
+        { name: 'place', label: 'Місце' },
+        { name: 'description', label: 'Опис', type: 'textarea' },
+      ],
+      onSave: obj => ev ? q(db.from('events').update(obj).eq('id', ev.id)) : q(db.from('events').insert(obj)),
+      onDelete: ev ? () => q(db.from('events').delete().eq('id', ev.id)) : null,
+    });
+  }
+
+  // ----- Матеріали -----
+  async function materialsView() {
+    setActions('<button class="btn" id="addBtn">+ Додати</button>');
+    $('#addBtn').onclick = () => materialForm();
+    const all = await q(db.from('materials').select('*').order('created_at', { ascending: false }));
+    $('#view').innerHTML = `<div class="list">${all.map(m => `
+      <div class="row" style="cursor:default">
+        <div style="min-width:0"><strong>${esc(m.title)}</strong>
+          ${m.description ? `<span>${esc(m.description)}</span>` : ''}
+          ${m.url && /^https?:\/\//i.test(m.url) ? `<span><a class="link" href="${esc(m.url)}" target="_blank" rel="noopener">Відкрити посилання ↗</a></span>` : ''}
+        </div>
+        <button class="btn light" data-id="${esc(m.id)}">Змінити</button>
+      </div>`).join('') || '<div class="empty">Матеріалів поки немає. Додайте відео з YouTube, правила змагань, ката тощо.</div>'}</div>`;
+    $('#view').onclick = e => {
+      const b = e.target.closest('button[data-id]');
+      if (b) materialForm(all.find(x => String(x.id) === b.dataset.id));
+    };
+  }
+
+  function materialForm(m) {
+    openForm({
+      title: m ? 'Редагувати матеріал' : 'Новий матеріал',
+      values: m || {},
+      fields: [
+        { name: 'title', label: 'Назва', required: true },
+        { name: 'url', label: 'Посилання (YouTube, Google Drive…)', type: 'url', attrs: 'placeholder="https://"' },
+        { name: 'description', label: 'Опис', type: 'textarea' },
+      ],
+      onSave: obj => m ? q(db.from('materials').update(obj).eq('id', m.id)) : q(db.from('materials').insert(obj)),
+      onDelete: m ? () => q(db.from('materials').delete().eq('id', m.id)) : null,
+    });
+  }
+
+  // =====================================================================
+  //  НАВІГАЦІЯ ТА ВХІД
+  // =====================================================================
+  const VIEWS = {
+    home: homeView, athletes: athletesView, attendance: attendanceView, payments: paymentsView,
+    schedule: scheduleView, events: eventsView, materials: materialsView,
+  };
+
+  let renderId = 0;
+  async function render() {
+    const route = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'home';
+    const id = ++renderId;
+    $('#pageTitle').textContent = TITLES[route];
+    $('#backLink').hidden = route === 'home';
+    $('#view').onclick = null;
+    if (!$('#view').innerHTML.trim() || $('#view').dataset.route !== route) {
+      $('#view').innerHTML = '<p class="muted">Завантаження…</p>';
+    }
+    $('#view').dataset.route = route;
+    try {
+      await VIEWS[route]();
+    } catch (err) {
+      if (id === renderId) $('#view').innerHTML = `<p class="err">Не вдалося завантажити: ${esc(err.message)}</p>`;
+    }
+  }
+
+  // Клік по фільтру групи
+  document.addEventListener('click', e => {
+    const chip = e.target.closest('[data-group]');
+    if (chip) { state.group = chip.dataset.group; render(); }
   });
-}
+  window.addEventListener('hashchange', () => { window.scrollTo(0, 0); render(); });
 
-document.getElementById('athleteForm').addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  const message = document.getElementById('athleteMessage');
-  const full_name = document.getElementById('athleteName').value.trim();
-  const group_name = document.getElementById('athleteGroup').value;
-  const yearValue = document.getElementById('athleteYear').value;
-  const birth_year = yearValue ? Number(yearValue) : null;
-
-  message.textContent = 'Збереження...';
-
-  const { error } = await supabaseClient
-    .from('athletes')
-    .insert([{ full_name, group_name, birth_year }]);
-
-  if (error) {
-    message.textContent = 'Не вдалося зберегти: ' + error.message;
-    return;
+  let signedIn = null;
+  function showApp(on) {
+    if (signedIn === on) return;
+    signedIn = on;
+    $('#loginSection').hidden = on;
+    $('#appSection').hidden = !on;
+    $('#logoutBtn').hidden = !on;
+    if (on) render();
   }
 
-  document.getElementById('athleteForm').reset();
-  message.textContent = 'Спортсмена успішно додано!';
-  await loadAthletes();
-});
-</script>
+  $('#loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const msg = $('#loginMessage');
+    msg.textContent = '';
+    const btn = e.target.querySelector('button');
+    btn.disabled = true;
+    const { error } = await db.auth.signInWithPassword({
+      email: $('#loginEmail').value.trim(),
+      password: $('#loginPassword').value,
+    });
+    btn.disabled = false;
+    if (error) msg.textContent = 'Невірний email або пароль';
+  });
+
+  $('#logoutBtn').onclick = async () => { await db.auth.signOut(); location.hash = ''; };
+
+  (async function boot() {
+    const { data: { session } } = await db.auth.getSession();
+    showApp(!!session);
+    db.auth.onAuthStateChange((_event, s) => showApp(!!s));
+  })();
+  </script>
 </body>
 </html>
