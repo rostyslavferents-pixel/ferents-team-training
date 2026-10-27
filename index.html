@@ -7,7 +7,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Ferents Team">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Ferents Team Training</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
   <style>
     :root {
@@ -203,7 +207,7 @@
 
     /* Чат */
     .chat {
-      height: calc(100dvh - 330px); min-height: 300px; overflow-y: auto; background: var(--card);
+      height: calc(100dvh - 250px); min-height: 280px; overflow-y: auto; background: var(--card);
       border-radius: 14px; padding: 12px; box-shadow: 0 2px 8px #0000000d; display: flex; flex-direction: column; gap: 6px;
     }
     .msg { max-width: 82%; align-self: flex-start; background: var(--bg); border-radius: 14px 14px 14px 4px; padding: 7px 12px; }
@@ -229,6 +233,111 @@
       max-width: calc(100% - 32px); box-shadow: 0 8px 24px #0003; z-index: 10;
     }
     .toast.bad { background: var(--bad); }
+
+    /* Компактна шапка всередині розділів */
+    body.inner header { padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); border-bottom-width: 3px; }
+    body.inner header h1, body.inner header .motto { display: none; }
+    body.inner .brand { font-size: 13px; color: #e5e7eb; }
+    body.inner .hwrap { align-items: center; }
+    body.inner .menu-btn { width: 38px; height: 38px; }
+    body[data-route="chat"] footer { display: none; }
+    body.has-tabs .chat { height: calc(100dvh - 250px - 62px - env(safe-area-inset-bottom)); }
+
+    /* Нижня панель вкладок */
+    .tabbar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+      background: var(--card); border-top: 1px solid var(--line);
+      padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -4px 16px #0000000a;
+    }
+    .tabbar .tabs { max-width: 640px; margin: auto; display: grid; grid-template-columns: repeat(5, 1fr); }
+    .tab {
+      position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 9px 2px 8px; color: var(--muted); text-decoration: none; font-size: 11px; font-weight: 500;
+    }
+    .tab svg { width: 24px; height: 24px; }
+    .tab.on { color: var(--ink); font-weight: 700; }
+    .tab.on svg { color: var(--gold-ink); }
+    .tab.on::before { content: ''; position: absolute; top: -1px; left: 28%; right: 28%; height: 3px; border-radius: 0 0 3px 3px; background: var(--gold); }
+    body.has-tabs { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+    body.has-tabs .toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
+    .ic-svg { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Головна: плитки розділів */
+    .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .tile {
+      display: flex; flex-direction: column; gap: 10px; min-height: 108px; padding: 14px;
+      background: var(--card); border-radius: 14px; box-shadow: 0 2px 8px #0000000d; color: var(--ink); text-decoration: none;
+    }
+    .tile:active { background: var(--line); }
+    .tile .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--gold-soft); color: var(--gold-ink);
+      display: flex; align-items: center; justify-content: center; }
+    .tile .ic svg { width: 22px; height: 22px; }
+    .tile strong { display: block; font-size: 15px; }
+    .tile small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+    a.stat { color: inherit; text-decoration: none; position: relative; }
+    a.stat::after { content: '›'; position: absolute; top: 10px; right: 12px; color: var(--muted); font-size: 18px; }
+    a.stat:active { background: var(--line); }
+
+    /* Головна: тренування зараз */
+    .now {
+      display: flex; align-items: center; gap: 14px; margin: 0 0 12px; padding: 16px 18px; border-radius: 16px;
+      background: var(--primary); color: var(--on-primary); text-decoration: none;
+    }
+    .now b { display: block; font-size: 17px; }
+    .now span { display: block; font-size: 13px; opacity: .75; margin-top: 2px; }
+    .now .go { margin-left: auto; font-size: 26px; line-height: 1; }
+    .now .dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); animation: pulse 1.8s infinite; }
+    .now.soon { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 2px var(--gold); }
+    .now.soon .dot { animation: none; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 70%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
+
+    /* Кольоровий пояс */
+    .belt {
+      display: inline-block; flex: none; width: 26px; height: 9px; border-radius: 3px; vertical-align: middle;
+      background: linear-gradient(90deg, var(--b) 0 60%, var(--s) 60% 80%, var(--b) 80%);
+      box-shadow: inset 0 0 0 1px #0000002e; margin-right: 8px; position: relative; top: -2px;
+    }
+    :root[data-theme="dark"] .belt { box-shadow: inset 0 0 0 1px #ffffff47; }
+    .belt.big { width: 54px; height: 16px; border-radius: 4px; top: 0; }
+    a.row { text-decoration: none; }
+    a.btn { text-decoration: none; }
+    .row .belt, .badge .belt { display: inline-block; margin-top: 0; }
+    .badge .belt { width: 18px; height: 7px; margin-right: 5px; top: -1px; }
+    :root[data-theme="dark"] .now:not(.soon) { background: var(--gold); color: #111827; }
+    :root[data-theme="dark"] .now:not(.soon) .dot { background: #111827; }
+
+    /* Сторінка спортсмена */
+    .hero { background: var(--card); border-radius: 16px; padding: 18px; box-shadow: 0 2px 8px #0000000d; margin-bottom: 12px; }
+    .hero-top { display: flex; align-items: center; gap: 14px; }
+    .avatar { flex: none; width: 56px; height: 56px; border-radius: 50%; background: var(--gold-soft); color: var(--gold-ink);
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; }
+    .hero h2 { font-size: 21px; margin: 0; }
+    .hero-top span { display: block; color: var(--muted); font-size: 14px; margin-top: 3px; }
+    .hero-belt { display: flex; align-items: center; gap: 4px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 15px; font-weight: 600; }
+    .hero .btn.wide { margin-top: 14px; }
+    .hero .note { margin-top: 12px; font-size: 14px; white-space: pre-line; color: var(--muted); }
+    .panel { background: var(--card); border-radius: 14px; padding: 14px 16px; box-shadow: 0 2px 8px #0000000d; }
+    .bars { display: flex; align-items: flex-end; gap: 10px; height: 140px; border-bottom: 1px solid var(--border); padding-top: 4px; }
+    .bcol { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+    .bbar { width: 100%; max-width: 34px; border-radius: 4px 4px 0 0; background: var(--gold); min-height: 2px; }
+    .bcol.zero .bbar { background: var(--line); }
+    .bval { font-size: 13px; font-weight: 600; }
+    .blabs { display: flex; gap: 10px; margin-top: 6px; }
+    .blabs span { flex: 1; text-align: center; font-size: 12px; color: var(--muted); }
+    .wchart { width: 100%; height: auto; display: block; }
+    .wchart .grid { stroke: var(--line); stroke-width: 1; }
+    .wchart .axis { fill: var(--muted); font-size: 11px; }
+    .wchart .line { fill: none; stroke: var(--gold-ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+    .wchart .pt { fill: var(--card); stroke: var(--gold-ink); stroke-width: 2; }
+    .wchart .pt.on { fill: var(--gold-ink); }
+    .wchart .hit { fill: transparent; cursor: pointer; }
+    .wchart .lbl { fill: var(--ink); font-size: 12px; font-weight: 700; }
+    .wcap { font-size: 13px; color: var(--muted); margin-top: 6px; min-height: 18px; }
+    .months { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+    .mcell { border-radius: 10px; padding: 8px 2px; text-align: center; font-size: 12px; text-decoration: none; }
+    .mcell b { display: block; font-size: 15px; margin-top: 2px; }
+    .mcell.ok { background: var(--ok-bg); color: var(--ok); }
+    .mcell.bad { background: var(--bad-bg); color: var(--bad); }
   </style>
 </head>
 
@@ -275,6 +384,8 @@
 
   <footer>FERENTS TEAM TRAINING · 2026 · <span id="appVersion"></span></footer>
 
+  <nav id="tabbar" class="tabbar" hidden aria-label="Розділи"><div class="tabs"></div></nav>
+
   <dialog id="dlg"></dialog>
   <dialog id="menu"></dialog>
   <div id="toast" class="toast" hidden></div>
@@ -286,7 +397,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v2.0';
+  const APP_VERSION = 'v2.1';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -329,10 +440,47 @@
     const i = BELTS.indexOf(current);
     return i >= 0 && i < BELTS.length - 1 ? BELTS[i + 1] : (i === -1 ? BELTS[0] : BELTS[i]);
   }
+  // Кольори поясів. Смужка — колір наступного пояса (як у кіокушин), на 1 кю — золота.
+  const BELT_COLORS = { 'білий': '#f8fafc', 'помаранчевий': '#f97316', 'синій': '#2563eb', 'жовтий': '#facc15',
+                        'зелений': '#16a34a', 'коричневий': '#7c3f16', 'чорний': '#111111' };
+  const BELT_GOLD = '#d4a017';
+  function beltMain(belt) {
+    const name = Object.keys(BELT_COLORS).find(n => String(belt || '').toLowerCase().includes(n));
+    return name ? BELT_COLORS[name] : null;
+  }
+  function beltTag(belt, big = false) {
+    const main = beltMain(belt);
+    if (!main) return '';
+    let stripe = main;
+    if (/смуж/i.test(belt)) {
+      const i = BELTS.indexOf(belt);
+      const next = i >= 0 && i < BELTS.length - 1 ? beltMain(BELTS[i + 1]) : null;
+      stripe = /коричн/i.test(belt) || !next ? BELT_GOLD : next;
+    }
+    return `<span class="belt ${big ? 'big' : ''}" style="--b:${main};--s:${stripe}" title="${esc(belt)}"></span>`;
+  }
+  function beltShort(belt) { return belt ? String(belt).split(' — ')[0] : ''; }
+
+  // Іконки (лінійні, беруть колір тексту)
+  const ICONS = {
+    home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+    attendance: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>',
+    payments: '<rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20M6 15h4"/>',
+    athletes: '<circle cx="9" cy="8" r="4"/><path d="M2 21v-1a7 7 0 0 1 14 0v1M16 4a4 4 0 0 1 0 8M22 21v-1a7 7 0 0 0-4-6.3"/>',
+    chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/>',
+    gradings: '<path d="M2 9h20v4H2z"/><path d="M10 13l-3 8M14 13l3 8"/>',
+    weights: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9a6 6 0 0 1 8 0l-2.5 3h-3z"/>',
+    training: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+    events: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+    links: '<rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/>',
+    members: '<circle cx="10" cy="8" r="4"/><path d="M3 21v-1a7 7 0 0 1 11-5.7M19 15v6M16 18h6"/>',
+  };
+  function icon(name) { return `<svg class="ic-svg" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; }
+
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', weights: 'Зважування', gradings: 'Атестації', attendance: 'Відвідування',
-    payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
+    athlete: 'Спортсмен', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -359,6 +507,8 @@
   }
   const MONTHS = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень',
                   'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
+  const MONTHS_IN = ['січні', 'лютому', 'березні', 'квітні', 'травні', 'червні',
+                     'липні', 'серпні', 'вересні', 'жовтні', 'листопаді', 'грудні'];
   function fmtMonth(ym) {
     const [y, m] = ym.split('-');
     return MONTHS[Number(m) - 1] + ' ' + y;
@@ -465,7 +615,7 @@
 
     const t = today();
     const [ath, att, pay, sch, ev, pl] = await Promise.all([
-      q(db.from('athletes').select('id, full_name, active, birth_date')),
+      q(db.from('athletes').select('id, full_name, active, birth_date, group_name')),
       q(db.from('attendance').select('athlete_id').eq('date', t).eq('present', true)),
       q(db.from('payments').select('athlete_id').eq('month', t.slice(0, 7) + '-01')),
       q(db.from('schedule').select('*').eq('weekday', weekdayOf(t)).order('start_time')),
@@ -476,6 +626,36 @@
     const active = ath.filter(isActive);
     const paid = new Set(pay.map(p => p.athlete_id));
     const unpaid = active.filter(a => !paid.has(a.id)).length;
+    const presentIds = new Set(att.map(m => String(m.athlete_id)));
+
+    // Тренування, яке йде зараз (за 30 хв до початку і 30 хв після кінця), або наступне сьогодні
+    const mins = s => { const [h, m] = String(s).split(':').map(Number); return h * 60 + m; };
+    const nowD = new Date(), nowM = nowD.getHours() * 60 + nowD.getMinutes();
+    const slots = sch.map(s => {
+      const st = mins(s.start_time), en = s.end_time ? mins(s.end_time) : st + 90;
+      return { s, st, en };
+    });
+    const current = slots.find(x => nowM >= x.st - 30 && nowM <= x.en + 30);
+    const next = !current && slots.find(x => x.st > nowM);
+    const groupCount = g => {
+      const inG = active.filter(a => !g || a.group_name === g);
+      return [inG.filter(a => presentIds.has(String(a.id))).length, inG.length];
+    };
+    let nowBlock = '';
+    if (current) {
+      const [n, total] = groupCount(current.s.group_name);
+      nowBlock = `<a class="now" href="#attendance" data-now-group="${esc(current.s.group_name || '')}">
+        <i class="dot"></i>
+        <div><b>Відмітити присутніх</b><span>${esc(current.s.group_name)} · ${hhmm(current.s.start_time)}${current.s.place ? ' · ' + esc(current.s.place) : ''} · відмічено ${n} з ${total}</span></div>
+        <i class="go">›</i></a>`;
+    } else if (next) {
+      const left = next.st - nowM;
+      const inTxt = left >= 60 ? `через ${Math.floor(left / 60)} год ${left % 60 ? (left % 60) + ' хв' : ''}` : `через ${left} хв`;
+      nowBlock = `<a class="now soon" href="#attendance" data-now-group="${esc(next.s.group_name || '')}">
+        <i class="dot"></i>
+        <div><b>Наступне: ${hhmm(next.s.start_time)} — ${esc(next.s.group_name)}</b><span>${inTxt}${next.s.place ? ' · ' + esc(next.s.place) : ''}</span></div>
+        <i class="go">›</i></a>`;
+    }
 
     const todayText = sch.length
       ? sch.map(s => `${hhmm(s.start_time)} — ${esc(s.group_name)}${s.place ? ' · ' + esc(s.place) : ''}`).join('<br>')
@@ -487,35 +667,46 @@
     // Дні народження: сьогодні та найближчі 14 днів
     const bdays = active.map(a => ({ a, b: nextBirthday(a) }))
       .filter(x => x.b && x.b.days <= 14).sort((x, y) => x.b.days - y.b.days);
+    const who = a => `<a class="link" style="color:inherit" href="#athlete/${encodeURIComponent(a.id)}">${esc(a.full_name)}</a>`;
     const bdayBlock = bdays.length ? `<div class="bday">
         <strong>🎂 ДНІ НАРОДЖЕННЯ</strong>
         ${bdays.map(({ a, b }) => b.days === 0
-          ? `<div class="bday-today">🎉 Сьогодні день народження: <b>${esc(a.full_name)}</b> — ${b.age} ${yearsWord(b.age)}!</div>`
-          : `<div>${fmtDate(b.date)} — ${esc(a.full_name)}, виповнюється ${b.age} <span class="muted">(${b.days === 1 ? 'завтра' : 'через ' + b.days + ' дн.'})</span></div>`
+          ? `<div class="bday-today">🎉 Сьогодні день народження: <b>${who(a)}</b> — ${b.age} ${yearsWord(b.age)}!</div>`
+          : `<div>${fmtDate(b.date)} — ${who(a)}, виповнюється ${b.age} <span class="muted">(${b.days === 1 ? 'завтра' : 'через ' + b.days + ' дн.'})</span></div>`
         ).join('')}
       </div>` : '';
     const nextEvent = ev[0]
       ? `<br><br><b>Найближча подія:</b> ${esc(ev[0].title)}, ${fmtDate(ev[0].date)}`
       : '';
 
-    const card = (route, title, sub) =>
-      `<a class="card" href="#${route}"><strong>${title}</strong><span>${sub}</span></a>`;
+    const tile = (route, ic, title, sub) =>
+      `<a class="tile" href="#${route}"><span class="ic">${icon(ic)}</span><span><strong>${title}</strong><small>${sub}</small></span></a>`;
 
     $('#view').innerHTML = `
+      ${nowBlock}
       ${settings.showStats ? `<div class="stats">
-        <div class="stat"><b>${active.length}</b><span>спортсменів</span></div>
-        <div class="stat"><b>${att.length}</b><span>сьогодні на тренуванні</span></div>
-        <div class="stat ${unpaid ? 'warn' : ''}"><b>${unpaid}</b><span>не оплатили за місяць</span></div>
+        <a class="stat" href="#athletes" data-reset="athletes"><b>${active.length}</b><span>спортсменів</span></a>
+        <a class="stat" href="#attendance" data-reset="attendance"><b>${att.length}</b><span>сьогодні на тренуванні</span></a>
+        <a class="stat ${unpaid ? 'warn' : ''}" href="#payments" data-reset="payments"><b>${unpaid}</b><span>не оплатили за місяць</span></a>
       </div>` : ''}
       ${settings.showToday ? `<div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${plansText}${nextEvent}</div>` : ''}
       ${settings.showBdays ? bdayBlock : ''}
-      ${card('athletes', 'Мої спортсмени', 'Дані, вага, контакти, пояси, групи')}
-      ${card('gradings', 'Атестації', 'Історія поясів і здачі на кю')}
-      ${card('attendance', 'Відвідування', 'Відмітити присутніх і статистика')}
-      ${card('payments', 'Оплати', 'Хто оплатив за місяць, а хто ні')}
-      ${card('training', 'Тренування', 'Розклад · Завдання на тренування · Тестування')}
-      ${card('events', 'Календар подій', 'Змагання, атестації, збори')}
-      ${card('materials', 'Матеріали', 'Відео, посилання та чат команди')}`;
+      <div class="tiles">
+        ${tile('gradings', 'gradings', 'Атестації', 'Пояси і здачі на кю')}
+        ${tile('weights', 'weights', 'Зважування', 'Вага всієї групи')}
+        ${tile('training', 'training', 'Тренування', 'Розклад, завдання, тести')}
+        ${tile('events', 'events', 'Календар подій', 'Змагання, збори')}
+        ${tile('links', 'links', 'Відео', 'Ката, техніка, посилання')}
+        ${tile('members', 'members', 'Учасники', 'Доступ для батьків')}
+      </div>`;
+
+    // Перед переходом готуємо фільтри: сьогоднішня дата, поточний місяць, потрібна група
+    $('#view').onclick = e => {
+      const nowLink = e.target.closest('[data-now-group]');
+      const reset = e.target.closest('[data-reset]');
+      if (nowLink) { state.date = today(); state.group = GROUPS.includes(nowLink.dataset.nowGroup) ? nowLink.dataset.nowGroup : 'Усі'; }
+      if (reset) { state.group = 'Усі'; state.search = ''; state.date = today(); state.month = today().slice(0, 7); }
+    };
   }
 
   // ----- Головна для батьків і спортсменів -----
@@ -615,51 +806,25 @@
       $('#athList').innerHTML = rows.map(a => {
         const w = weights.get(String(a.id));
         const info = [a.group_name || 'Без групи', birthLabel(a), w ? fmtKg(w.weight) : '',
-                      a.belt ? a.belt + ' пояс' : '', isActive(a) ? '' : 'неактивний'].filter(Boolean);
-        return `<button class="row ${isActive(a) ? '' : 'dim'}" data-id="${esc(a.id)}">
-          <div><strong>${esc(a.full_name)}${bdayMark(a)}</strong><span>${esc(info.join(' · '))}${(() => {
+                      beltShort(a.belt), isActive(a) ? '' : 'неактивний'].filter(Boolean);
+        return `<a class="row ${isActive(a) ? '' : 'dim'}" href="#athlete/${encodeURIComponent(a.id)}">
+          <div><strong>${beltTag(a.belt)}${esc(a.full_name)}${bdayMark(a)}</strong><span>${esc(info.join(' · '))}${(() => {
             const b = nextBirthday(a);
             return b && b.days > 0 && b.days <= 7 ? ` · ДН ${fmtDate(b.date)}` : '';
           })()}</span></div>
           <span class="chev">›</span>
-        </button>`;
+        </a>`;
       }).join('') || '<div class="empty">Нікого не знайдено</div>';
     };
     $('#search').oninput = e => { state.search = e.target.value; draw(); };
-    $('#athList').onclick = e => {
-      const r = e.target.closest('[data-id]');
-      if (r) athleteForm(list.find(a => String(a.id) === r.dataset.id));
-    };
     draw();
   }
 
   async function athleteForm(a) {
-    let extra = '';
     let lastWeight = null;
     if (a) {
-      const monthStart = today().slice(0, 7) + '-01';
-      const [visits, pay, gr, wt] = await Promise.all([
-        q(db.from('attendance').select('id').eq('athlete_id', a.id).eq('present', true).gte('date', monthStart)),
-        q(db.from('payments').select('amount').eq('athlete_id', a.id).eq('month', monthStart)),
-        db.from('gradings').select('date, belt, passed').eq('athlete_id', a.id).order('date', { ascending: false }).limit(5),
-        db.from('weights').select('date, weight').eq('athlete_id', a.id).order('date', { ascending: false }).limit(6),
-      ]);
-      const weights = wt.data || [];
-      lastWeight = weights[0] ? Number(weights[0].weight) : null;
-      const dmy = d => fmtDate(d, { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const history = (gr.data || []).map(g => `${dmy(g.date)} — ${esc(g.belt)} ${g.passed ? '✓' : '✗'}`).join('<br>');
-      const wHistory = weights.map((w, i) => {
-        const prev = weights[i + 1];
-        const diff = prev ? Number(w.weight) - Number(prev.weight) : 0;
-        const d = prev && diff ? ` <span class="muted">(${diff > 0 ? '+' : ''}${diff.toFixed(1).replace('.', ',')})</span>` : '';
-        return `${dmy(w.date)} — ${fmtKg(w.weight)}${d}`;
-      }).join('<br>');
-      const nb = nextBirthday(a);
-      extra = `${nb && nb.days <= 7 ? (nb.days === 0 ? '🎉 <b>Сьогодні день народження!</b><br><br>' : `🎂 День народження ${fmtDate(nb.date)} — виповнюється ${nb.age}<br><br>`) : ''}Цього місяця: <b>${visits.length}</b> тренувань ·
-        ${pay.length ? `<span class="badge ok">оплачено</span>` : `<span class="badge bad">не оплачено</span>`}
-        ${wHistory ? `<br><br><b>Вага:</b><br>${wHistory}` : ''}
-        ${history ? `<br><br><b>Атестації:</b><br>${history}` : ''}
-        ${a.phone ? `<br><br><a class="link" href="tel:${esc(a.phone.replace(/[^\d+]/g, ''))}">📞 Подзвонити ${esc(a.parent_name || '')}</a>` : ''}`;
+      const { data } = await db.from('weights').select('weight').eq('athlete_id', a.id).order('date', { ascending: false }).limit(1);
+      lastWeight = data && data[0] ? Number(data[0].weight) : null;
     }
     openForm({
       title: a ? a.full_name + (ageOf(a) !== null ? `, ${birthLabel(a)}` : '') : 'Новий спортсмен',
@@ -675,7 +840,6 @@
         { name: 'notes', label: 'Нотатки', type: 'textarea' },
         { name: 'active', label: 'Активний (ходить на тренування)', type: 'checkbox' },
       ],
-      extra,
       onSave: async obj => {
         const weight = obj.weight;
         delete obj.weight;
@@ -687,16 +851,134 @@
           await q(db.from('weights').upsert({ athlete_id: id, date: today(), weight }, { onConflict: 'athlete_id,date' }));
         }
       },
-      onDelete: a ? () => q(db.from('athletes').delete().eq('id', a.id)) : null,
+      onDelete: a ? async () => { await q(db.from('athletes').delete().eq('id', a.id)); location.hash = '#athletes'; } : null,
       deleteText: 'Видалити спортсмена разом з усією історією відвідувань, оплат і ваги?\n\nЯкщо він просто перестав ходити — краще зніміть галочку «Активний».',
     });
+  }
+
+  // ----- Сторінка спортсмена -----
+  async function athleteView() {
+    setActions('');
+    const found = await q(db.from('athletes').select('*').eq('id', state.param));
+    const a = found[0];
+    if (!a) {
+      $('#view').innerHTML = '<div class="empty">Спортсмена не знайдено. <a class="link" href="#athletes">До списку</a></div>';
+      return;
+    }
+    setActions('<button class="btn light" id="editBtn">Змінити</button>');
+    $('#editBtn').onclick = () => athleteForm(a);
+
+    const t = today(), ym = t.slice(0, 7), monthStart = ym + '-01';
+    const firstMonth = shiftMonth(ym, -5);
+    const [att, pays, grs, wts, sch] = await Promise.all([
+      q(db.from('attendance').select('date').eq('athlete_id', a.id).eq('present', true).gte('date', firstMonth + '-01')),
+      q(db.from('payments').select('month, amount, paid_at').eq('athlete_id', a.id).gte('month', firstMonth + '-01')),
+      q(db.from('gradings').select('date, belt, passed, note').eq('athlete_id', a.id).order('date', { ascending: false })),
+      q(db.from('weights').select('date, weight').eq('athlete_id', a.id).order('date', { ascending: false }).limit(20)),
+      q(db.from('schedule').select('weekday, group_name')),
+    ]);
+
+    // Відвідування цього місяця і % від тренувань за розкладом його групи
+    const visits = att.filter(x => x.date >= monthStart).length;
+    const days = new Set(sch.filter(s => s.group_name === a.group_name).map(s => s.weekday));
+    let planned = 0;
+    for (let d = monthStart; d <= t; d = shiftDate(d, 1)) if (days.has(weekdayOf(d))) planned++;
+    const pct = planned ? Math.min(100, Math.round(visits / planned * 100)) : null;
+    const payOf = new Map(pays.map(p => [p.month.slice(0, 7), p]));
+    const paidNow = payOf.has(ym);
+
+    // Шапка
+    const initials = a.full_name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+    const nb = nextBirthday(a);
+    const bdayLine = nb && nb.days <= 7 ? (nb.days === 0 ? ' · 🎉 сьогодні ДН!' : ` · 🎂 ${fmtDate(nb.date)}`) : '';
+    const sub = [a.group_name || 'Без групи', birthLabel(a), isActive(a) ? '' : 'неактивний'].filter(Boolean).join(' · ');
+    const phone = a.phone ? a.phone.replace(/[^\d+]/g, '') : '';
+
+    // Відвідування за 6 місяців
+    const months = [...Array(6)].map((_, i) => shiftMonth(firstMonth, i));
+    const perMonth = months.map(m => att.filter(x => x.date.startsWith(m)).length);
+    const maxV = Math.max(1, ...perMonth);
+    const short = m => MONTHS[Number(m.slice(5)) - 1].slice(0, 3);
+
+    // Графік ваги (від старих до нових)
+    const wl = wts.slice().reverse().map(w => ({ date: w.date, kg: Number(w.weight) }));
+    let weightHtml = '<div class="empty" style="padding:0">Зважувань ще немає</div>';
+    if (wl.length === 1) weightHtml = `<p style="margin:0"><b>${fmtKg(wl[0].kg)}</b> <span class="muted small">· ${fmtDate(wl[0].date)}</span></p>`;
+    if (wl.length > 1) {
+      const W = 320, H = 150, L = 34, R = 14, T = 22, B = 24;
+      let lo = Math.min(...wl.map(w => w.kg)), hi = Math.max(...wl.map(w => w.kg));
+      if (hi - lo < 2) { lo -= 1; hi += 1; }
+      const x = i => L + (W - L - R) * i / (wl.length - 1);
+      const y = kg => T + (H - T - B) * (1 - (kg - lo) / (hi - lo));
+      const kgTxt = n => n.toLocaleString('uk-UA', { maximumFractionDigits: 1 });
+      const ticks = [hi, (hi + lo) / 2, lo];
+      const last = wl[wl.length - 1];
+      weightHtml = `<svg class="wchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Графік ваги">
+          ${ticks.map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>
+            <text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${kgTxt(v)}</text>`).join('')}
+          <text class="axis" x="${L}" y="${H - 6}">${fmtDate(wl[0].date, { day: '2-digit', month: '2-digit' })}</text>
+          <text class="axis" x="${W - R}" y="${H - 6}" text-anchor="end">${fmtDate(last.date, { day: '2-digit', month: '2-digit' })}</text>
+          <polyline class="line" points="${wl.map((w, i) => `${x(i)},${y(w.kg)}`).join(' ')}"/>
+          ${wl.map((w, i) => `<circle class="pt" r="4" cx="${x(i)}" cy="${y(w.kg)}" data-i="${i}"/>`).join('')}
+          <text class="lbl" x="${x(wl.length - 1)}" y="${y(last.kg) - 10}" text-anchor="end">${kgTxt(last.kg)} кг</text>
+          ${wl.map((w, i) => `<rect class="hit" x="${x(i) - 14}" y="0" width="28" height="${H}" data-i="${i}"/>`).join('')}
+        </svg>
+        <div class="wcap" id="wcap">Натисніть на точку, щоб побачити дату й вагу</div>`;
+    }
+
+    const grHtml = grs.length ? grs.map(g => `<div class="row" style="cursor:default">
+        <div><strong>${beltTag(g.belt)}${esc(g.belt)}</strong><span>${fmtDate(g.date)} ${g.date.slice(0, 4)}${g.note ? ' · ' + esc(g.note) : ''}</span></div>
+        <span class="badge ${g.passed ? 'ok' : 'bad'}">${g.passed ? 'здав ✓' : 'не здав'}</span>
+      </div>`).join('') : '<div class="empty">Атестацій ще не було</div>';
+
+    $('#view').innerHTML = `
+      <div class="hero">
+        <div class="hero-top"><div class="avatar">${esc(initials)}</div>
+          <div><h2>${esc(a.full_name)}</h2><span>${esc(sub)}${bdayLine}</span></div></div>
+        <div class="hero-belt">${a.belt ? beltTag(a.belt, true) + esc(a.belt) : '<span class="muted">Пояс не вказано</span>'}</div>
+        ${a.parent_name ? `<div class="note">Батьки: ${esc(a.parent_name)}${a.phone ? ' · ' + esc(a.phone) : ''}</div>` : ''}
+        ${a.notes ? `<div class="note">${esc(a.notes)}</div>` : ''}
+        ${phone ? `<a class="btn light wide" href="tel:${esc(phone)}">📞 Подзвонити${a.parent_name ? ' батькам' : ''}</a>` : ''}
+      </div>
+      <div class="stats">
+        <div class="stat"><b>${visits}</b><span>тренувань у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</span></div>
+        <div class="stat"><b>${pct === null ? '—' : pct + '%'}</b><span>${pct === null ? 'немає розкладу групи' : `з ${planned} за розкладом`}</span></div>
+        <a class="stat ${paidNow ? '' : 'warn'}" href="#payments" data-month="${ym}"><b>${paidNow ? '✓' : '✗'}</b><span>${paidNow ? 'оплачено' : 'не оплачено'} за місяць</span></a>
+      </div>
+      <h3>Відвідування за пів року</h3>
+      <div class="panel">
+        <div class="bars">${perMonth.map(n => `<div class="bcol ${n ? '' : 'zero'}"><span class="bval">${n}</span><div class="bbar" style="height:${n / maxV * 100}%"></div></div>`).join('')}</div>
+        <div class="blabs">${months.map(m => `<span>${short(m)}</span>`).join('')}</div>
+      </div>
+      <h3>Вага</h3>
+      <div class="panel">${weightHtml}</div>
+      <h3>Оплати</h3>
+      <div class="months">${months.map(m => {
+        const p = payOf.get(m);
+        return `<a class="mcell ${p ? 'ok' : 'bad'}" href="#payments" data-month="${m}">${short(m)}<b>${p ? '✓' : '✗'}</b></a>`;
+      }).join('')}</div>
+      <h3>Атестації</h3>
+      <div class="list">${grHtml}</div>`;
+
+    $('#view').onclick = e => {
+      const m = e.target.closest('[data-month]');
+      if (m) { state.month = m.dataset.month; state.group = a.group_name || 'Усі'; return; }
+      const pt = e.target.closest('[data-i]');
+      if (pt && wl.length > 1) {
+        const i = Number(pt.dataset.i), w = wl[i], prev = wl[i - 1];
+        const diff = prev ? w.kg - prev.kg : 0;
+        $('#wcap').innerHTML = `<b style="color:var(--ink)">${fmtKg(w.kg)}</b> · ${fmtDate(w.date)} ${w.date.slice(0, 4)}` +
+          (prev && diff ? ` · ${diff > 0 ? '+' : ''}${diff.toFixed(1).replace('.', ',')} кг` : '');
+        document.querySelectorAll('.wchart .pt').forEach(c => c.classList.toggle('on', c.dataset.i === String(i)));
+      }
+    };
   }
 
   // ----- Вага (зважування групи) -----
   async function weightsView() {
     setActions('');
     const [ath, all] = await Promise.all([
-      q(db.from('athletes').select('id, full_name, group_name, active, birth_date, birth_year').order('full_name')),
+      q(db.from('athletes').select('id, full_name, group_name, active, birth_date, birth_year, belt').order('full_name')),
       q(db.from('weights').select('athlete_id, date, weight').order('date', { ascending: false })),
     ]);
     const rows = ath.filter(a => isActive(a) && inGroup(a));
@@ -721,7 +1003,7 @@
         ${rows.map(a => {
           const k = String(a.id), cur = onDate.get(k), prev = before.get(k);
           return `<div class="row" style="cursor:default">
-            <div><strong>${esc(a.full_name)}</strong>
+            <div><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong>
             <span>${esc([a.group_name, birthLabel(a), prev ? 'було ' + fmtKg(prev.weight) + ' (' + fmtDate(prev.date, { day: '2-digit', month: '2-digit' }) + ')' : ''].filter(Boolean).join(' · '))}</span></div>
             <input class="kg" type="number" step="0.1" min="10" max="200" inputmode="decimal" placeholder="кг"
               data-id="${esc(a.id)}" value="${cur ? Number(cur.weight) : ''}">
@@ -773,7 +1055,7 @@
           const a = byId.get(String(g.athlete_id));
           return `<button class="row" data-id="${esc(g.id)}">
             <div><strong>${esc(a.full_name)}</strong><span>${esc(a.group_name || '')}${g.note ? ' · ' + esc(g.note) : ''}</span></div>
-            <span class="badge ${g.passed ? 'ok' : 'bad'}">${esc(g.belt)} ${g.passed ? '✓' : '✗'}</span>
+            <span class="badge ${g.passed ? 'ok' : 'bad'}">${beltTag(g.belt)}${esc(beltShort(g.belt))} ${g.passed ? '✓' : '✗'}</span>
           </button>`;
         }).join('')}</div>`;
     }).join('');
@@ -831,7 +1113,7 @@
     const monthEnd = shiftMonth(state.date.slice(0, 7), 1) + '-01';
 
     const [ath, marks, monthMarks] = await Promise.all([
-      q(db.from('athletes').select('id, full_name, group_name, active').order('full_name')),
+      q(db.from('athletes').select('id, full_name, group_name, active, belt').order('full_name')),
       q(db.from('attendance').select('athlete_id, present').eq('date', state.date)),
       q(db.from('attendance').select('athlete_id, date').eq('present', true).gte('date', monthStart).lt('date', monthEnd)),
     ]);
@@ -851,7 +1133,7 @@
       <div class="list" id="attList">
         ${rows.map(a => `
           <label class="row tick">
-            <span><strong>${esc(a.full_name)}</strong><span>${esc(a.group_name || '')}</span></span>
+            <span><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}</span></span>
             <input type="checkbox" data-id="${esc(a.id)}" ${present.has(String(a.id)) ? 'checked' : ''}>
           </label>`).join('') || '<div class="empty">У цій групі немає активних спортсменів</div>'}
       </div>
@@ -876,7 +1158,7 @@
     const ranked = rows.map(a => [a, counts.get(String(a.id)) || 0]).sort((x, y) => y[1] - x[1]);
     $('#stats').innerHTML = ranked.length
       ? `<div class="row" style="cursor:default"><span class="muted small">Днів з відмітками: ${days.size}</span></div>` +
-        ranked.map(([a, n]) => `<div class="row" style="cursor:default"><span>${esc(a.full_name)}</span><span class="badge ${n ? 'gold' : 'bad'}">${n}</span></div>`).join('')
+        ranked.map(([a, n]) => `<a class="row" href="#athlete/${encodeURIComponent(a.id)}"><span>${esc(a.full_name)}</span><span class="badge ${n ? 'gold' : 'bad'}">${n}</span></a>`).join('')
       : '<div class="empty">Немає даних</div>';
 
     const save = async (ids, isPresent) => {
@@ -1337,24 +1619,50 @@
   //  НАВІГАЦІЯ ТА ВХІД
   // =====================================================================
   const VIEWS = {
-    home: homeView, athletes: athletesView, weights: weightsView, gradings: gradingsView, attendance: attendanceView, payments: paymentsView,
+    home: homeView, athletes: athletesView, athlete: athleteView, weights: weightsView, gradings: gradingsView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
     links: linksView, chat: chatView, members: membersView, settings: settingsView,
   };
   // Що бачать батьки і спортсмени
   const MEMBER_ROUTES = ['home', 'schedule', 'events', 'materials', 'links', 'chat', 'settings'];
-  const PARENT_ROUTE = { weights: 'athletes', schedule: 'training', plans: 'training', tests: 'training', links: 'materials', chat: 'materials' };
+  const PARENT_ROUTE = { weights: 'athletes', athlete: 'athletes', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  // Нижня панель для тренера: вкладка → які екрани до неї належать
+  const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
+  const TAB_OF = { weights: 'athletes', athlete: 'athletes' };
+  function drawTabbar(route) {
+    const bar = $('#tabbar'), on = isCoach();
+    bar.hidden = !on;
+    document.body.classList.toggle('has-tabs', on);
+    if (!on) return;
+    const cur = TABS.some(([r]) => r === route) ? route : (TAB_OF[route] || 'home');
+    bar.firstElementChild.innerHTML = TABS.map(([r, label]) =>
+      `<a class="tab ${r === cur ? 'on' : ''}" href="#${r}" data-tab="${r}" ${r === cur ? 'aria-current="page"' : ''}>${icon(r)}<span>${label}</span></a>`).join('');
+  }
+  // Вкладка завжди відкриває «сьогодні» і поточний місяць
+  $('#tabbar').addEventListener('click', e => {
+    const t = e.target.closest('[data-tab]');
+    if (!t) return;
+    if (t.dataset.tab === 'attendance') state.date = today();
+    if (t.dataset.tab === 'payments') state.month = today().slice(0, 7);
+    if (location.hash === '#' + t.dataset.tab) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); render(); }
+  });
 
   let renderId = 0;
   async function render() {
-    let route = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'home';
+    const [key, param] = location.hash.slice(1).split('/');
+    let route = VIEWS[key] ? key : 'home';
+    state.param = param ? decodeURIComponent(param) : null;
     if (!isCoach() && !MEMBER_ROUTES.includes(route)) route = 'home';
     if (!state.role && route !== 'settings') route = 'home';
     const id = ++renderId;
     if (chatChannel) { db.removeChannel(chatChannel); chatChannel = null; }
     $('#pageTitle').textContent = TITLES[route];
-    $('#backLink').hidden = route === 'home';
+    document.body.classList.toggle('inner', route !== 'home');
+    document.body.dataset.route = route;
+    drawTabbar(route);
+    const isTab = isCoach() && TABS.some(([r]) => r === route);
+    $('#backLink').hidden = route === 'home' || isTab;
     const parent = isCoach() ? PARENT_ROUTE[route] : (['links', 'chat'].includes(route) ? 'home' : null);
     $('#backLink').href = '#' + (parent || 'home');
     $('#view').onclick = null;
@@ -1401,6 +1709,8 @@
       render();
     } else {
       state.role = null;
+      drawTabbar('home');
+      document.body.classList.remove('inner');
     }
   }
 
