@@ -11,9 +11,20 @@
 
   <style>
     :root {
-      --bg: #f3f4f6; --ink: #111827; --muted: #6b7280; --line: #e5e7eb;
-      --card: #ffffff; --gold: #d1a84b; --gold-soft: #f6ecd4;
+      --bg: #f3f4f6; --ink: #111827; --muted: #6b7280; --line: #e5e7eb; --border: #d1d5db;
+      --card: #ffffff; --head: #111827; --primary: #111827; --on-primary: #ffffff; --link: #1d4ed8;
+      --gold: #d1a84b;
+      --gold-soft: color-mix(in srgb, var(--gold) 20%, var(--card));
+      --gold-ink: color-mix(in srgb, var(--gold) 60%, #000);
       --ok: #15803d; --ok-bg: #dcfce7; --bad: #b91c1c; --bad-bg: #fee2e2;
+      color-scheme: light;
+    }
+    :root[data-theme="dark"] {
+      --bg: #0b0f17; --ink: #e5e7eb; --muted: #9ca3af; --line: #1f2937; --border: #374151;
+      --card: #151b26; --head: #05080d; --primary: #e5e7eb; --on-primary: #111827; --link: #93c5fd;
+      --gold-ink: color-mix(in srgb, var(--gold) 70%, #fff);
+      --ok: #4ade80; --ok-bg: #12301f; --bad: #f87171; --bad-bg: #3a1515;
+      color-scheme: dark;
     }
     * { box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }
@@ -26,7 +37,7 @@
 
     /* Шапка */
     header {
-      background: var(--ink); color: #fff;
+      background: var(--head); color: #fff;
       padding: 22px 16px 18px;
       padding-top: max(22px, env(safe-area-inset-top));
       border-bottom: 4px solid var(--gold);
@@ -57,18 +68,18 @@
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 6px;
       border: 0; border-radius: 12px; padding: 11px 16px;
-      background: var(--ink); color: #fff; font: inherit; font-weight: 600; font-size: 15px;
+      background: var(--primary); color: var(--on-primary); font: inherit; font-weight: 600; font-size: 15px;
       cursor: pointer;
     }
     .btn:disabled { opacity: .5; }
-    .btn.light { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+    .btn.light { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
     .btn.danger { background: var(--bad-bg); color: var(--bad); }
     .btn.wide { width: 100%; margin-top: 12px; }
     .btn.sq { width: 46px; padding: 11px 0; font-size: 20px; line-height: 1; }
 
     input, select, textarea {
       width: 100%; font: inherit; font-size: 16px; color: var(--ink);
-      padding: 11px 12px; border: 1px solid #d1d5db; border-radius: 12px; background: #fff;
+      padding: 11px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card);
     }
     input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); border-color: transparent; }
     label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 0; }
@@ -80,7 +91,7 @@
     .bar { display: flex; gap: 8px; margin-bottom: 10px; }
     .picker {
       position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
-      margin: 0; padding: 11px 12px; border: 1px solid #d1d5db; border-radius: 12px; background: #fff;
+      margin: 0; padding: 11px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card);
       font-size: 16px; font-weight: 600; color: var(--ink);
     }
     label.picker { cursor: pointer; }
@@ -90,36 +101,36 @@
     .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; }
     .chip {
       flex: none; border: 0; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 14px;
-      background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer;
+      background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer;
     }
-    .chip.on { background: var(--ink); color: #fff; box-shadow: none; }
+    .chip.on { background: var(--primary); color: var(--on-primary); box-shadow: none; }
 
     /* Головний екран */
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 4px 0 12px; }
-    .stat { background: #fff; border-radius: 14px; padding: 14px 12px; box-shadow: 0 2px 8px #0000000d; }
+    .stat { background: var(--card); border-radius: 14px; padding: 14px 12px; box-shadow: 0 2px 8px #0000000d; }
     .stat b { display: block; font-size: 26px; }
     .stat span { font-size: 12px; color: var(--muted); }
     .stat.warn b { color: var(--bad); }
-    .bday { background: #fff; border-radius: 14px; padding: 14px 16px; margin-top: 12px; font-size: 14px; line-height: 1.6; box-shadow: 0 2px 8px #0000000d; }
-    .bday strong { display: block; font-size: 13px; letter-spacing: .05em; color: #8a6a1f; margin-bottom: 2px; }
+    .bday { background: var(--card); border-radius: 14px; padding: 14px 16px; margin-top: 12px; font-size: 14px; line-height: 1.6; box-shadow: 0 2px 8px #0000000d; }
+    .bday strong { display: block; font-size: 13px; letter-spacing: .05em; color: var(--gold-ink); margin-bottom: 2px; }
     .bday-today { background: var(--gold-soft); border-radius: 10px; padding: 8px 10px; margin: 4px 0; }
     .today { background: var(--gold-soft); border-radius: 14px; padding: 14px 16px; font-size: 14px; line-height: 1.5; }
-    .today strong { display: block; font-size: 13px; letter-spacing: .05em; color: #8a6a1f; margin-bottom: 2px; }
+    .today strong { display: block; font-size: 13px; letter-spacing: .05em; color: var(--gold-ink); margin-bottom: 2px; }
 
     .card {
       display: block; width: 100%; text-align: left; text-decoration: none;
-      border: 0; border-radius: 14px; background: #fff; padding: 18px 20px; margin: 12px 0;
+      border: 0; border-radius: 14px; background: var(--card); padding: 18px 20px; margin: 12px 0;
       color: var(--ink); font: inherit; box-shadow: 0 2px 8px #0000000d; cursor: pointer;
     }
     .card strong { display: block; font-size: 18px; }
     .card span { display: block; color: var(--muted); margin-top: 6px; font-size: 14px; }
-    .card:active, .row:active { background: #e5e7eb; }
+    .card:active, .row:active { background: var(--line); }
 
     /* Списки */
-    .list { background: #fff; border-radius: 14px; box-shadow: 0 2px 8px #0000000d; overflow: hidden; }
+    .list { background: var(--card); border-radius: 14px; box-shadow: 0 2px 8px #0000000d; overflow: hidden; }
     .row {
       display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      width: 100%; text-align: left; border: 0; background: #fff; color: var(--ink);
+      width: 100%; text-align: left; border: 0; background: var(--card); color: var(--ink);
       font: inherit; padding: 13px 16px; margin: 0; border-bottom: 1px solid var(--line); cursor: pointer;
     }
     .row:last-child { border-bottom: 0; }
@@ -127,7 +138,7 @@
     .row span span, .row div span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
     .row.dim strong { color: var(--muted); }
     .row.tick input { width: 26px; height: 26px; flex: none; accent-color: var(--ok); }
-    .chev { color: #9ca3af; font-size: 22px; }
+    .chev { color: var(--muted); font-size: 22px; }
     .row.plan { align-items: flex-start; }
     .tasks { white-space: pre-line; font-size: 14px; color: var(--ink); margin-top: 8px; line-height: 1.5; }
     .row input.kg { width: 92px; flex: none; text-align: center; }
@@ -137,21 +148,21 @@
     .badge { flex: none; font-size: 13px; font-weight: 600; border-radius: 999px; padding: 5px 10px; white-space: nowrap; }
     .badge.ok { background: var(--ok-bg); color: var(--ok); }
     .badge.bad { background: var(--bad-bg); color: var(--bad); }
-    .badge.gold { background: var(--gold-soft); color: #8a6a1f; }
+    .badge.gold { background: var(--gold-soft); color: var(--gold-ink); }
 
     .summary { font-size: 15px; margin: 6px 2px 10px; }
     .summary b { font-size: 18px; }
 
-    a.link { color: #1d4ed8; word-break: break-all; }
+    a.link { color: var(--link); word-break: break-all; }
 
     /* Вхід */
-    .login { background: #fff; border-radius: 16px; padding: 22px 20px; box-shadow: 0 2px 8px #0000000d; margin-top: 10px; }
+    .login { background: var(--card); border-radius: 16px; padding: 22px 20px; box-shadow: 0 2px 8px #0000000d; margin-top: 10px; }
     .login .btn { width: 100%; margin-top: 18px; }
 
     /* Діалог */
     dialog {
       border: 0; border-radius: 18px; padding: 0; width: min(520px, calc(100% - 24px));
-      max-height: calc(100% - 40px); box-shadow: 0 20px 50px #0004;
+      max-height: calc(100% - 40px); box-shadow: 0 20px 50px #0004; background: var(--card); color: var(--ink);
     }
     dialog::backdrop { background: #1118277a; }
     dialog form { padding: 20px; }
@@ -160,9 +171,61 @@
     .dlg-actions .spacer { flex: 1; }
     .dlg-extra { margin-top: 12px; font-size: 14px; }
 
+    /* Меню ☰ */
+    .menu-btn {
+      width: 44px; height: 44px; flex: none; border: 1px solid #374151; border-radius: 12px; background: transparent;
+      display: flex; flex-direction: column; gap: 5px; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .menu-btn span { width: 20px; height: 2px; border-radius: 2px; background: #e5e7eb; }
+    dialog#menu {
+      margin: 0 0 0 auto; height: 100%; max-height: 100%; width: min(320px, 86%);
+      border-radius: 18px 0 0 18px; padding: 0; display: none; flex-direction: column;
+    }
+    dialog#menu[open] { display: flex; }
+    .menu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+      padding: max(20px, env(safe-area-inset-top)) 18px 16px; background: var(--head); color: #fff; border-bottom: 4px solid var(--gold); }
+    .menu-head span { display: block; color: #9ca3af; font-size: 13px; margin-top: 3px; }
+    .menu-close { background: transparent; border: 0; color: #d1d5db; font-size: 20px; cursor: pointer; padding: 0 4px; }
+    .menu-item {
+      display: block; width: 100%; text-align: left; padding: 15px 18px; border: 0; border-bottom: 1px solid var(--line);
+      background: transparent; color: var(--ink); font: inherit; font-size: 16px; text-decoration: none; cursor: pointer;
+    }
+    .menu-item:active { background: var(--line); }
+    .menu-foot { margin-top: auto; padding: 16px 18px; color: var(--muted); font-size: 12px; }
+
+    /* Налаштування */
+    .set-block { background: var(--card); border-radius: 14px; padding: 2px 16px 16px; margin-bottom: 12px; box-shadow: 0 2px 8px #0000000d; }
+    .set-block h3 { margin: 14px 0 10px; }
+    .chip { background: var(--card); }
+    .swatches { display: flex; gap: 12px; flex-wrap: wrap; }
+    .swatch { width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; }
+    .swatch.on { box-shadow: 0 0 0 3px var(--card), 0 0 0 5px var(--ink); }
+
+    /* Чат */
+    .chat {
+      height: calc(100dvh - 330px); min-height: 300px; overflow-y: auto; background: var(--card);
+      border-radius: 14px; padding: 12px; box-shadow: 0 2px 8px #0000000d; display: flex; flex-direction: column; gap: 6px;
+    }
+    .msg { max-width: 82%; align-self: flex-start; background: var(--bg); border-radius: 14px 14px 14px 4px; padding: 7px 12px; }
+    .msg.mine { align-self: flex-end; background: var(--gold-soft); border-radius: 14px 14px 4px 14px; }
+    .msg.can-del { cursor: pointer; }
+    .msg-head { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+    .msg-head b { color: var(--gold-ink); font-weight: 600; }
+    .msg-body { white-space: pre-wrap; word-break: break-word; font-size: 15px; line-height: 1.4; }
+    .msg-day { align-self: center; font-size: 12px; color: var(--muted); margin: 8px 0 2px; }
+    .chat-input { display: flex; gap: 8px; margin-top: 10px; align-items: flex-end; }
+    .chat-input textarea { resize: none; max-height: 120px; margin: 0; }
+    .chat-input .btn { flex: none; width: 52px; height: 46px; padding: 0; font-size: 20px; }
+
+    /* Вхід */
+    .login-links { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+    .linkbtn { background: none; border: 0; padding: 0; color: var(--link); font: inherit; font-size: 14px; cursor: pointer; text-align: left; }
+    .msg-ok { color: var(--ok); }
+    .info { background: var(--gold-soft); border-radius: 14px; padding: 14px 16px; font-size: 14px; line-height: 1.55; margin-bottom: 12px; }
+
     .toast {
       position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%);
-      background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 12px; font-size: 14px;
+      background: var(--head); color: #fff; padding: 12px 18px; border-radius: 12px; font-size: 14px;
       max-width: calc(100% - 32px); box-shadow: 0 8px 24px #0003; z-index: 10;
     }
     .toast.bad { background: var(--bad); }
@@ -175,9 +238,9 @@
       <div>
         <p class="brand">FERENTS TEAM</p>
         <h1>Training</h1>
-        <p class="motto">Дисципліна. Праця. Результат.</p>
+        <p class="motto" id="motto">Дисципліна. Праця. Результат.</p>
       </div>
-      <button id="logoutBtn" class="ghost" hidden>Вийти</button>
+      <button id="menuBtn" class="menu-btn" aria-label="Меню" hidden><span></span><span></span><span></span></button>
     </div>
   </header>
 
@@ -185,11 +248,17 @@
     <!-- Вхід тренера -->
     <section id="loginSection" hidden>
       <form id="loginForm" class="login">
-        <h2>Вхід для тренера</h2>
+        <h2 id="loginTitle">Вхід</h2>
+        <p class="muted small" id="loginHint">Для тренерів, батьків і спортсменів команди.</p>
         <label>Email<input id="loginEmail" type="email" autocomplete="username" required></label>
-        <label>Пароль<input id="loginPassword" type="password" autocomplete="current-password" required></label>
-        <button class="btn" type="submit">Увійти</button>
-        <p id="loginMessage" class="small err"></p>
+        <label id="pwLabel">Пароль<input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required></label>
+        <button class="btn" type="submit" id="loginBtn">Увійти</button>
+        <p id="loginMessage" class="small"></p>
+        <div class="login-links">
+          <button type="button" class="linkbtn" data-mode="signup">Немає акаунта? Зареєструватися</button>
+          <button type="button" class="linkbtn" data-mode="reset">Забули пароль?</button>
+          <button type="button" class="linkbtn" data-mode="login" hidden>← Назад до входу</button>
+        </div>
       </form>
     </section>
 
@@ -207,6 +276,7 @@
   <footer>FERENTS TEAM TRAINING · 2026 · <span id="appVersion"></span></footer>
 
   <dialog id="dlg"></dialog>
+  <dialog id="menu"></dialog>
   <div id="toast" class="toast" hidden></div>
 
 
@@ -216,8 +286,32 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v1.8';
+  const APP_VERSION = 'v2.0';
   document.getElementById('appVersion').textContent = APP_VERSION;
+
+  // ===== Особисті налаштування (зберігаються на пристрої) =====
+  const DEFAULT_SETTINGS = { theme: 'auto', accent: '#d1a84b', zoom: 1, motto: '', showStats: true, showToday: true, showBdays: true };
+  const ACCENTS = [['#d1a84b', 'Золотий'], ['#dc2626', 'Червоний'], ['#2563eb', 'Синій'], ['#16a34a', 'Зелений'],
+                   ['#ea580c', 'Помаранчевий'], ['#92400e', 'Коричневий'], ['#7c3aed', 'Фіолетовий']];
+  let settings = (() => {
+    try { return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem('ft_settings') || '{}') }; }
+    catch (e) { return { ...DEFAULT_SETTINGS }; }
+  })();
+  const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
+  function applySettings() {
+    const dark = settings.theme === 'dark' || (settings.theme === 'auto' && darkMq.matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    document.documentElement.style.setProperty('--gold', settings.accent);
+    document.body.style.zoom = settings.zoom;
+    document.getElementById('motto').textContent = settings.motto || 'Дисципліна. Праця. Результат.';
+    document.querySelector('meta[name=theme-color]').content = dark ? '#05080d' : '#111827';
+  }
+  function saveSettings() {
+    try { localStorage.setItem('ft_settings', JSON.stringify(settings)); } catch (e) {}
+    applySettings();
+  }
+  if (darkMq.addEventListener) darkMq.addEventListener('change', applySettings);
+  applySettings();
 
   const GROUPS = ['Молодша', 'Середня', 'Старша'];
   // Пояси від найнижчого до найвищого
@@ -238,11 +332,13 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', weights: 'Зважування', gradings: 'Атестації', attendance: 'Відвідування',
-    payments: 'Оплати', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
+    payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
   };
 
   // Стан фільтрів (зберігається між екранами)
-  const state = { group: 'Усі', search: '', date: today(), month: today().slice(0, 7) };
+  const state = { group: 'Усі', search: '', date: today(), month: today().slice(0, 7), role: null, email: '' };
+  function isCoach() { return state.role === 'coach'; }
+  const ROLES = { coach: 'Тренер', parent: 'Батьки', athlete: 'Спортсмен' };
 
   // ===== Допоміжні функції =====
   function $(sel) { return document.querySelector(sel); }
@@ -360,10 +456,10 @@
   // ----- Головний -----
   async function homeView() {
     setActions('');
-    const { data: coachOk } = await db.rpc('is_coach');
-    if (coachOk === false) {
-      $('#view').innerHTML = `<p class="err">Ваш email не додано до списку тренерів.
-        Додайте його в таблицю <b>coaches</b> у Supabase.</p>`;
+    if (state.role === 'member') return memberHomeView();
+    if (state.role !== 'coach') {
+      $('#view').innerHTML = `<div class="info">Ваш email <b>${esc(state.email)}</b> ще не додано до команди.
+        Попросіть тренера додати вас у розділі «Учасники та доступ», а потім оновіть сторінку.</div>`;
       return;
     }
 
@@ -406,20 +502,42 @@
       `<a class="card" href="#${route}"><strong>${title}</strong><span>${sub}</span></a>`;
 
     $('#view').innerHTML = `
-      <div class="stats">
+      ${settings.showStats ? `<div class="stats">
         <div class="stat"><b>${active.length}</b><span>спортсменів</span></div>
         <div class="stat"><b>${att.length}</b><span>сьогодні на тренуванні</span></div>
         <div class="stat ${unpaid ? 'warn' : ''}"><b>${unpaid}</b><span>не оплатили за місяць</span></div>
-      </div>
-      <div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${plansText}${nextEvent}</div>
-      ${bdayBlock}
+      </div>` : ''}
+      ${settings.showToday ? `<div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${plansText}${nextEvent}</div>` : ''}
+      ${settings.showBdays ? bdayBlock : ''}
       ${card('athletes', 'Мої спортсмени', 'Дані, вага, контакти, пояси, групи')}
       ${card('gradings', 'Атестації', 'Історія поясів і здачі на кю')}
       ${card('attendance', 'Відвідування', 'Відмітити присутніх і статистика')}
       ${card('payments', 'Оплати', 'Хто оплатив за місяць, а хто ні')}
       ${card('training', 'Тренування', 'Розклад · Завдання на тренування · Тестування')}
       ${card('events', 'Календар подій', 'Змагання, атестації, збори')}
-      ${card('materials', 'Матеріали', 'Відео, посилання та корисна інформація')}`;
+      ${card('materials', 'Матеріали', 'Відео, посилання та чат команди')}`;
+  }
+
+  // ----- Головна для батьків і спортсменів -----
+  async function memberHomeView() {
+    const t = today();
+    const [sch, ev] = await Promise.all([
+      q(db.from('schedule').select('*').eq('weekday', weekdayOf(t)).order('start_time')),
+      q(db.from('events').select('title, date, place').gte('date', t).order('date').limit(3)),
+    ]);
+    const todayText = sch.length
+      ? sch.map(s => `${hhmm(s.start_time)} — ${esc(s.group_name)}${s.place ? ' · ' + esc(s.place) : ''}`).join('<br>')
+      : 'Тренувань за розкладом немає';
+    const events = ev.length
+      ? '<br><br><b>Найближчі події:</b><br>' + ev.map(e => `${fmtDate(e.date)} — ${esc(e.title)}`).join('<br>') : '';
+    const card = (route, title, sub) =>
+      `<a class="card" href="#${route}"><strong>${title}</strong><span>${sub}</span></a>`;
+    $('#view').innerHTML = `
+      ${settings.showToday ? `<div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${events}</div>` : ''}
+      ${card('chat', '💬 Чат команди', 'Спілкування з тренером і командою')}
+      ${card('schedule', '📅 Розклад тренувань', 'Дні та час для кожної групи')}
+      ${card('events', '🏆 Календар подій', 'Змагання, атестації, збори')}
+      ${card('links', '🎬 Відео та посилання', 'Ката, техніка, корисні матеріали')}`;
   }
 
   // Вік і підпис дати народження
@@ -855,8 +973,8 @@
 
   // ----- Розклад -----
   async function scheduleView() {
-    setActions('<button class="btn" id="addBtn">+ Додати</button>');
-    $('#addBtn').onclick = () => scheduleForm();
+    setActions(isCoach() ? '<button class="btn" id="addBtn">+ Додати</button>' : '');
+    if (isCoach()) $('#addBtn').onclick = () => scheduleForm();
     const all = await q(db.from('schedule').select('*').order('weekday').order('start_time'));
     const rows = all.filter(inGroup);
 
@@ -871,11 +989,11 @@
           <span class="chev">›</span>
         </button>`).join('')}</div>`;
     }
-    if (!rows.length) html += '<p class="muted">Розклад порожній. Натисніть «+ Додати», щоб створити тренування.</p>';
+    if (!rows.length) html += `<p class="muted">Розклад порожній.${isCoach() ? ' Натисніть «+ Додати», щоб створити тренування.' : ''}</p>`;
     $('#view').innerHTML = html;
     $('#view').onclick = e => {
       const r = e.target.closest('.row[data-id]');
-      if (r) scheduleForm(all.find(s => String(s.id) === r.dataset.id));
+      if (r && isCoach()) scheduleForm(all.find(s => String(s.id) === r.dataset.id));
     };
   }
 
@@ -962,8 +1080,8 @@
 
   // ----- Події -----
   async function eventsView() {
-    setActions('<button class="btn" id="addBtn">+ Додати</button>');
-    $('#addBtn').onclick = () => eventForm();
+    setActions(isCoach() ? '<button class="btn" id="addBtn">+ Додати</button>' : '');
+    if (isCoach()) $('#addBtn').onclick = () => eventForm();
     const all = await q(db.from('events').select('*').order('date'));
     const t = today();
     const upcoming = all.filter(e => e.date >= t);
@@ -983,7 +1101,7 @@
       ${past.length ? `<h3>Минулі</h3><div class="list">${past.map(item).join('')}</div>` : ''}`;
     $('#view').onclick = e => {
       const r = e.target.closest('.row[data-id]');
-      if (r) eventForm(all.find(x => String(x.id) === r.dataset.id));
+      if (r && isCoach()) eventForm(all.find(x => String(x.id) === r.dataset.id));
     };
   }
 
@@ -1002,10 +1120,24 @@
     });
   }
 
-  // ----- Матеріали -----
+  // ----- Матеріали (розділ) -----
   async function materialsView() {
-    setActions('<button class="btn" id="addBtn">+ Додати</button>');
-    $('#addBtn').onclick = () => materialForm();
+    setActions('');
+    const [mats, last] = await Promise.all([
+      q(db.from('materials').select('id')),
+      db.from('chat_messages').select('author_name, body').order('created_at', { ascending: false }).limit(1),
+    ]);
+    const lm = (last.data || [])[0];
+    const preview = lm ? `${lm.author_name || ''}: ${lm.body.length > 60 ? lm.body.slice(0, 60) + '…' : lm.body}` : 'Спілкування тренерів, батьків і спортсменів';
+    $('#view').innerHTML = `
+      <a class="card" href="#links"><strong>🎬 Відео та посилання</strong><span>${mats.length} матеріалів · ката, техніка, правила</span></a>
+      <a class="card" href="#chat"><strong>💬 Чат команди</strong><span>${esc(preview)}</span></a>`;
+  }
+
+  // ----- Відео та посилання -----
+  async function linksView() {
+    setActions(isCoach() ? '<button class="btn" id="addBtn">+ Додати</button>' : '');
+    if (isCoach()) $('#addBtn').onclick = () => materialForm();
     const all = await q(db.from('materials').select('*').order('created_at', { ascending: false }));
     $('#view').innerHTML = `<div class="list">${all.map(m => `
       <div class="row" style="cursor:default">
@@ -1013,8 +1145,8 @@
           ${m.description ? `<span>${esc(m.description)}</span>` : ''}
           ${m.url && /^https?:\/\//i.test(m.url) ? `<span><a class="link" href="${esc(m.url)}" target="_blank" rel="noopener">Відкрити посилання ↗</a></span>` : ''}
         </div>
-        <button class="btn light" data-id="${esc(m.id)}">Змінити</button>
-      </div>`).join('') || '<div class="empty">Матеріалів поки немає. Додайте відео з YouTube, правила змагань, ката тощо.</div>'}</div>`;
+        ${isCoach() ? `<button class="btn light" data-id="${esc(m.id)}">Змінити</button>` : ''}
+      </div>`).join('') || `<div class="empty">Матеріалів поки немає.${isCoach() ? ' Додайте відео з YouTube, правила змагань, ката тощо.' : ''}</div>`}</div>`;
     $('#view').onclick = e => {
       const b = e.target.closest('button[data-id]');
       if (b) materialForm(all.find(x => String(x.id) === b.dataset.id));
@@ -1035,6 +1167,172 @@
     });
   }
 
+  // ----- Чат команди -----
+  let chatChannel = null;
+  async function chatView() {
+    setActions('');
+    const msgs = (await q(db.from('chat_messages').select('*').order('created_at', { ascending: false }).limit(200))).reverse();
+    $('#view').innerHTML = `
+      <div class="chat" id="chatBox"></div>
+      <form class="chat-input" id="chatForm">
+        <textarea id="chatText" rows="1" maxlength="2000" placeholder="Повідомлення…"></textarea>
+        <button class="btn" type="submit" aria-label="Надіслати">➤</button>
+      </form>`;
+    const box = $('#chatBox');
+    let lastDay = '';
+    const atBottom = () => box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    const add = m => {
+      if (box.querySelector(`[data-id="${m.id}"]`)) return;
+      const d = new Date(m.created_at);
+      const day = d.toLocaleDateString('sv-SE');
+      if (day !== lastDay) {
+        lastDay = day;
+        box.insertAdjacentHTML('beforeend', `<div class="msg-day">${day === today() ? 'Сьогодні' : fmtDate(day, { day: 'numeric', month: 'long', year: 'numeric' })}</div>`);
+      }
+      const mine = m.author_email === state.email;
+      const time = d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+      box.insertAdjacentHTML('beforeend', `
+        <div class="msg ${mine ? 'mine' : ''} ${mine || isCoach() ? 'can-del' : ''}" data-id="${m.id}">
+          <div class="msg-head">${mine ? 'Ви' : `<b>${esc(m.author_name || m.author_email)}</b>`} · ${time}</div>
+          <div class="msg-body">${esc(m.body)}</div>
+        </div>`);
+    };
+    msgs.forEach(add);
+    if (!msgs.length) box.innerHTML = '<p class="muted small" id="chatEmpty" style="text-align:center;margin:auto">Повідомлень ще немає. Напишіть першим 👋</p>';
+    box.scrollTop = box.scrollHeight;
+
+    // Нові повідомлення в реальному часі
+    chatChannel = db.channel('team-chat')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, p => {
+        const stick = atBottom();
+        const empty = $('#chatEmpty'); if (empty) empty.remove();
+        add(p.new);
+        if (stick) box.scrollTop = box.scrollHeight;
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, p => {
+        const el = box.querySelector(`[data-id="${p.old.id}"]`); if (el) el.remove();
+      })
+      .subscribe();
+
+    const text = $('#chatText');
+    text.oninput = () => { text.style.height = 'auto'; text.style.height = Math.min(text.scrollHeight, 120) + 'px'; };
+    text.onkeydown = e => {
+      if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); $('#chatForm').requestSubmit(); }
+    };
+    $('#chatForm').onsubmit = async e => {
+      e.preventDefault();
+      const body = text.value.trim();
+      if (!body) return;
+      text.value = ''; text.oninput();
+      const { data, error } = await db.from('chat_messages').insert({ body }).select().single();
+      if (error) { toast('Не надіслано: ' + error.message, true); text.value = body; return; }
+      const empty = $('#chatEmpty'); if (empty) empty.remove();
+      add(data);
+      box.scrollTop = box.scrollHeight;
+    };
+    box.onclick = async e => {
+      const el = e.target.closest('.msg.can-del');
+      if (!el || !confirm('Видалити це повідомлення?')) return;
+      const { error } = await db.from('chat_messages').delete().eq('id', el.dataset.id);
+      if (error) toast('Помилка: ' + error.message, true); else el.remove();
+    };
+  }
+
+  // ----- Учасники та доступ (тільки тренер) -----
+  async function membersView() {
+    setActions('<button class="btn" id="addBtn">+ Додати</button>');
+    $('#addBtn').onclick = () => memberForm();
+    const list = await q(db.from('members').select('*').order('role').order('full_name'));
+    $('#view').innerHTML = `
+      <div class="info"><b>Як дати доступ:</b><br>
+        1. Додайте людину тут: імʼя, email і роль.<br>
+        2. Людина відкриває сайт → «Зареєструватися» з цим самим email → підтверджує пошту.<br>
+        3. Батьки й спортсмени бачать чат, розклад, події та матеріали. Тренери бачать усе.</div>
+      <div class="list">${list.map(m => `
+        <button class="row" data-email="${esc(m.email)}">
+          <div><strong>${esc(m.full_name)}</strong><span>${esc(m.email)}</span></div>
+          <span class="badge ${m.role === 'coach' ? 'gold' : 'ok'}">${ROLES[m.role] || m.role}</span>
+        </button>`).join('') || '<div class="empty">Ще нікого не додано</div>'}</div>`;
+    $('#view').onclick = e => {
+      const r = e.target.closest('.row[data-email]');
+      if (r) memberForm(list.find(m => m.email === r.dataset.email));
+    };
+  }
+
+  function memberForm(m) {
+    openForm({
+      title: m ? m.full_name : 'Новий учасник',
+      values: m || { role: 'parent' },
+      fields: [
+        { name: 'full_name', label: 'Імʼя (так буде видно в чаті)', required: true, attrs: 'placeholder="напр. Олена (мама Івана)"' },
+        { name: 'email', label: 'Email', type: 'email', required: true },
+        { name: 'role', label: 'Роль', type: 'select', required: true, options: Object.entries(ROLES) },
+      ],
+      onSave: obj => {
+        obj.email = obj.email.toLowerCase();
+        return m ? q(db.from('members').update(obj).eq('email', m.email)) : q(db.from('members').insert(obj));
+      },
+      onDelete: m ? () => q(db.from('members').delete().eq('email', m.email)) : null,
+      deleteText: 'Забрати доступ у цієї людини?',
+    });
+  }
+
+  // ----- Налаштування -----
+  async function settingsView() {
+    setActions('');
+    let lastAmount = '';
+    try { lastAmount = localStorage.getItem('ft_last_amount') || ''; } catch (e) {}
+    const seg = (key, opts) => `<div class="chips">${opts.map(([v, l]) =>
+      `<button type="button" class="chip ${String(settings[key]) === String(v) ? 'on' : ''}" data-set="${key}" data-val="${v}">${l}</button>`).join('')}</div>`;
+    $('#view').innerHTML = `
+      <div class="set-block"><h3>🌗 Тема</h3>${seg('theme', [['auto', 'Як у системі'], ['light', 'Світла'], ['dark', 'Темна']])}</div>
+      <div class="set-block"><h3>🥋 Колір акценту</h3>
+        <div class="swatches">${ACCENTS.map(([c, l]) =>
+          `<button type="button" class="swatch ${settings.accent === c ? 'on' : ''}" data-set="accent" data-val="${c}" style="background:${c}" title="${l}" aria-label="${l}"></button>`).join('')}</div></div>
+      <div class="set-block"><h3>🔠 Розмір тексту</h3>${seg('zoom', [[1, 'Звичайний'], [1.12, 'Великий'], [1.25, 'Дуже великий']])}
+        <p class="muted small">Великий зручно, коли телефон лежить на лавці в залі.</p></div>
+      <div class="set-block"><h3>✍️ Девіз у шапці</h3>
+        <input id="setMotto" maxlength="60" placeholder="Дисципліна. Праця. Результат." value="${esc(settings.motto)}"></div>
+      <div class="set-block"><h3>🏠 Що показувати на головній</h3>
+        ${[['showToday', 'Блок «Сьогодні»'], ...(isCoach() ? [['showStats', 'Цифри: спортсмени, присутні, боржники'], ['showBdays', 'Дні народження']] : [])]
+          .map(([k, l]) => `<label class="check"><input type="checkbox" data-check="${k}" ${settings[k] ? 'checked' : ''}>${l}</label>`).join('')}</div>
+      ${isCoach() ? `<div class="set-block"><h3>💵 Сума оплати за замовчуванням</h3>
+        <input id="setAmount" type="number" min="0" inputmode="numeric" placeholder="напр. 800" value="${esc(lastAmount)}"></div>` : ''}
+      <p class="muted small">Налаштування зберігаються на цьому пристрої.</p>`;
+    $('#view').onclick = e => {
+      const b = e.target.closest('[data-set]');
+      if (!b) return;
+      settings[b.dataset.set] = b.dataset.set === 'zoom' ? Number(b.dataset.val) : b.dataset.val;
+      saveSettings(); settingsView();
+    };
+    $('#setMotto').oninput = e => { settings.motto = e.target.value.trim(); saveSettings(); };
+    document.querySelectorAll('[data-check]').forEach(c => c.onchange = () => { settings[c.dataset.check] = c.checked; saveSettings(); });
+    const amt = $('#setAmount');
+    if (amt) amt.oninput = () => { try { localStorage.setItem('ft_last_amount', amt.value); } catch (e) {} };
+  }
+
+  // ----- Меню ☰ -----
+  function openMenu() {
+    const m = $('#menu');
+    m.innerHTML = `
+      <div class="menu-head">
+        <div><b>${esc(state.name && state.name !== 'Тренер' ? state.name : state.email)}</b><span>${state.role === 'coach' ? 'Тренер' : state.role === 'member' ? 'Учасник команди' : 'Без доступу'}</span></div>
+        <button type="button" class="menu-close" aria-label="Закрити">✕</button>
+      </div>
+      <a class="menu-item" href="#home">🏠 Головна</a>
+      ${state.role ? '<a class="menu-item" href="#chat">💬 Чат команди</a>' : ''}
+      ${isCoach() ? '<a class="menu-item" href="#members">👥 Учасники та доступ</a>' : ''}
+      <a class="menu-item" href="#settings">⚙️ Налаштування</a>
+      <button type="button" class="menu-item" id="menuLogout">🚪 Вийти</button>
+      <div class="menu-foot">Ferents Team Training · ${APP_VERSION}</div>`;
+    m.onclick = e => {
+      if (e.target === m || e.target.closest('.menu-close') || e.target.closest('a.menu-item')) m.close();
+    };
+    $('#menuLogout').onclick = async () => { m.close(); await db.auth.signOut(); location.hash = ''; };
+    m.showModal();
+  }
+  $('#menuBtn').onclick = openMenu;
+
   // =====================================================================
   //  НАВІГАЦІЯ ТА ВХІД
   // =====================================================================
@@ -1042,16 +1340,23 @@
     home: homeView, athletes: athletesView, weights: weightsView, gradings: gradingsView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView,
   };
+  // Що бачать батьки і спортсмени
+  const MEMBER_ROUTES = ['home', 'schedule', 'events', 'materials', 'links', 'chat', 'settings'];
+  const PARENT_ROUTE = { weights: 'athletes', schedule: 'training', plans: 'training', tests: 'training', links: 'materials', chat: 'materials' };
 
   let renderId = 0;
   async function render() {
-    const route = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'home';
+    let route = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'home';
+    if (!isCoach() && !MEMBER_ROUTES.includes(route)) route = 'home';
+    if (!state.role && route !== 'settings') route = 'home';
     const id = ++renderId;
+    if (chatChannel) { db.removeChannel(chatChannel); chatChannel = null; }
     $('#pageTitle').textContent = TITLES[route];
     $('#backLink').hidden = route === 'home';
-    $('#backLink').href = route === 'weights' ? '#athletes'
-      : ['schedule', 'plans', 'tests'].includes(route) ? '#training' : '#home';
+    const parent = isCoach() ? PARENT_ROUTE[route] : (['links', 'chat'].includes(route) ? 'home' : null);
+    $('#backLink').href = '#' + (parent || 'home');
     $('#view').onclick = null;
     if (!$('#view').innerHTML.trim() || $('#view').dataset.route !== route) {
       $('#view').innerHTML = '<p class="muted">Завантаження…</p>';
@@ -1071,36 +1376,95 @@
   });
   window.addEventListener('hashchange', () => { window.scrollTo(0, 0); render(); });
 
+  // Хто зайшов: тренер, учасник (батьки/спортсмен) чи ще ніхто
+  async function detectRole() {
+    const { data: coach } = await db.rpc('is_coach');
+    const { data: name } = await db.rpc('my_name');
+    state.name = name || '';
+    if (coach) return 'coach';
+    const { data: member } = await db.rpc('is_member');
+    return member ? 'member' : null;
+  }
+
   let signedIn = null;
-  function showApp(on) {
+  async function showApp(session) {
+    const on = !!session;
     if (signedIn === on) return;
     signedIn = on;
     $('#loginSection').hidden = on;
     $('#appSection').hidden = !on;
-    $('#logoutBtn').hidden = !on;
-    if (on) render();
+    $('#menuBtn').hidden = !on;
+    if (on) {
+      state.email = (session.user.email || '').toLowerCase();
+      $('#view').innerHTML = '<p class="muted">Завантаження…</p>';
+      state.role = await detectRole();
+      render();
+    } else {
+      state.role = null;
+    }
   }
+
+  // Вхід / реєстрація / відновлення пароля
+  let loginMode = 'login';
+  function setLoginMode(mode) {
+    loginMode = mode;
+    const t = { login: ['Вхід', 'Увійти', 'Для тренерів, батьків і спортсменів команди.'],
+                signup: ['Реєстрація', 'Зареєструватися', 'Використайте email, який ви дали тренеру. Пароль — мінімум 6 символів.'],
+                reset: ['Відновлення пароля', 'Надіслати лист', 'Ми надішлемо на пошту посилання для нового пароля.'] }[mode];
+    $('#loginTitle').textContent = t[0];
+    $('#loginBtn').textContent = t[1];
+    $('#loginHint').textContent = t[2];
+    $('#pwLabel').hidden = mode === 'reset';
+    $('#loginPassword').required = mode !== 'reset';
+    $('#loginPassword').autocomplete = mode === 'signup' ? 'new-password' : 'current-password';
+    document.querySelectorAll('[data-mode]').forEach(b => { b.hidden = b.dataset.mode === mode || (mode !== 'login' && b.dataset.mode !== 'login'); });
+    $('#loginMessage').textContent = '';
+  }
+  document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => setLoginMode(b.dataset.mode));
 
   $('#loginForm').addEventListener('submit', async e => {
     e.preventDefault();
     const msg = $('#loginMessage');
-    msg.textContent = '';
-    const btn = e.target.querySelector('button');
+    const say = (text, ok) => { msg.textContent = text; msg.className = 'small ' + (ok ? 'msg-ok' : 'err'); };
+    const email = $('#loginEmail').value.trim().toLowerCase();
+    const password = $('#loginPassword').value;
+    const redirect = location.origin + location.pathname;
+    const btn = $('#loginBtn');
     btn.disabled = true;
-    const { error } = await db.auth.signInWithPassword({
-      email: $('#loginEmail').value.trim(),
-      password: $('#loginPassword').value,
-    });
-    btn.disabled = false;
-    if (error) msg.textContent = 'Невірний email або пароль';
+    try {
+      if (loginMode === 'login') {
+        const { error } = await db.auth.signInWithPassword({ email, password });
+        if (error) say(/confirm/i.test(error.message) ? 'Підтвердіть email — перевірте пошту' : 'Невірний email або пароль');
+      } else if (loginMode === 'signup') {
+        const { data, error } = await db.auth.signUp({ email, password, options: { emailRedirectTo: redirect } });
+        if (error) say(/registered|exists/i.test(error.message) ? 'Цей email уже зареєстрований — увійдіть' : 'Помилка: ' + error.message);
+        else if (!data.session) say(`Готово! Ми надіслали лист на ${email}. Підтвердіть пошту й увійдіть.`, true);
+      } else {
+        const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: redirect });
+        if (error) say('Помилка: ' + error.message);
+        else say('Лист надіслано. Відкрийте посилання з пошти й задайте новий пароль.', true);
+      }
+    } finally { btn.disabled = false; }
   });
-
-  $('#logoutBtn').onclick = async () => { await db.auth.signOut(); location.hash = ''; };
 
   (async function boot() {
     const { data: { session } } = await db.auth.getSession();
-    showApp(!!session);
-    db.auth.onAuthStateChange((_event, s) => showApp(!!s));
+    showApp(session);
+    db.auth.onAuthStateChange((event, s) => {
+      setTimeout(() => {
+        showApp(s);
+        if (event === 'PASSWORD_RECOVERY') {
+          openForm({
+            title: 'Новий пароль',
+            fields: [{ name: 'password', label: 'Новий пароль (мінімум 6 символів)', type: 'password', required: true, attrs: 'minlength="6" autocomplete="new-password"' }],
+            onSave: async obj => {
+              const { error } = await db.auth.updateUser({ password: obj.password });
+              if (error) { toast('Помилка: ' + error.message, true); throw error; }
+            },
+          });
+        }
+      }, 0);
+    });
   })();
   </script>
 </body>

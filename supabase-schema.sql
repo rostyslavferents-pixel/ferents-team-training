@@ -190,3 +190,92 @@ create policy coach_all on public.training_plans for all to authenticated
   using (public.is_coach()) with check (public.is_coach());
 revoke all on public.training_plans from anon;
 notify pgrst, 'reload schema';
+
+
+-- 9. Учасники команди (батьки, спортсмени, тренери) і чат
+create table if not exists public.members (
+  email       text primary key,
+  full_name   text not null,
+  role        text not null default 'parent' check (role in ('coach','parent','athlete')),
+  created_at  timestamptz not null default now()
+);
+
+-- тренер = є в coaches або доданий у members з роллю coach
+create or replace function public.is_coach()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.coaches where email = lower(auth.jwt() ->> 'email'))
+      or exists (select 1 from public.members where email = lower(auth.jwt() ->> 'email') and role = 'coach');
+$$;
+
+create or replace function public.is_member()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_coach()
+      or exists (select 1 from public.members where email = lower(auth.jwt() ->> 'email'));
+$$;
+
+create or replace function public.my_name()
+returns text language sql stable security definer set search_path = public as $$
+  select coalesce(
+    (select full_name from public.members where email = lower(auth.jwt() ->> 'email')),
+    case when public.is_coach() then 'Тренер' end);
+$$;
+
+create table if not exists public.chat_messages (
+  id            bigint generated always as identity primary key,
+  created_at    timestamptz not null default now(),
+  author_email  text not null default lower(auth.jwt() ->> 'email'),
+  author_name   text,
+  body          text not null check (char_length(body) between 1 and 2000)
+);
+
+-- автор і час повідомлення ставляться автоматично (підробити не можна)
+create or replace function public.chat_set_author()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  new.author_email := lower(auth.jwt() ->> 'email');
+  new.author_name  := public.my_name();
+  new.created_at   := now();
+  return new;
+end $$;
+drop trigger if exists chat_set_author on public.chat_messages;
+create trigger chat_set_author before insert on public.chat_messages
+  for each row execute function public.chat_set_author();
+
+-- доступ
+alter table public.members enable row level security;
+alter table public.chat_messages enable row level security;
+do $$
+declare p record;
+begin
+  for p in select policyname, tablename from pg_policies
+           where schemaname = 'public' and tablename in ('members','chat_messages') loop
+    execute format('drop policy %I on public.%I', p.policyname, p.tablename);
+  end loop;
+end $$;
+
+create policy coach_all on public.members for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+
+create policy chat_read   on public.chat_messages for select to authenticated using (public.is_member());
+create policy chat_write  on public.chat_messages for insert to authenticated with check (public.is_member());
+create policy chat_delete on public.chat_messages for delete to authenticated
+  using (public.is_coach() or author_email = lower(auth.jwt() ->> 'email'));
+
+-- батьки й спортсмени можуть переглядати розклад, події та матеріали
+drop policy if exists member_read on public.schedule;
+drop policy if exists member_read on public.events;
+drop policy if exists member_read on public.materials;
+create policy member_read on public.schedule  for select to authenticated using (public.is_member());
+create policy member_read on public.events    for select to authenticated using (public.is_member());
+create policy member_read on public.materials for select to authenticated using (public.is_member());
+
+revoke all on public.members, public.chat_messages from anon;
+
+-- повідомлення в чаті приходять миттєво
+do $$
+begin
+  alter publication supabase_realtime add table public.chat_messages;
+exception when duplicate_object then null;
+end $$;
+
+notify pgrst, 'reload schema';
