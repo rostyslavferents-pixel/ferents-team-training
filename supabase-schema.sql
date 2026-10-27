@@ -120,3 +120,29 @@ begin
     execute format('revoke all on public.%I from anon', t);
   end loop;
 end $$;
+
+
+-- 6. Атестації (історія поясів)
+do $$
+declare id_type text;
+begin
+  select format_type(a.atttypid, a.atttypmod) into id_type
+  from pg_attribute a where a.attrelid = 'public.athletes'::regclass and a.attname = 'id';
+
+  execute format($f$
+    create table if not exists public.gradings (
+      id          bigint generated always as identity primary key,
+      athlete_id  %s not null references public.athletes(id) on delete cascade,
+      date        date not null,
+      belt        text not null,
+      passed      boolean not null default true,
+      note        text
+    )$f$, id_type);
+end $$;
+
+alter table public.gradings enable row level security;
+drop policy if exists coach_all on public.gradings;
+create policy coach_all on public.gradings for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+revoke all on public.gradings from anon;
+notify pgrst, 'reload schema';

@@ -219,7 +219,7 @@
   const GROUPS = ['Молодша', 'Середня', 'Старша'];
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
-    home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
+    home: 'Особистий кабінет', athletes: 'Мої спортсмени', gradings: 'Атестації', attendance: 'Відвідування',
     payments: 'Оплати', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
   };
 
@@ -379,6 +379,7 @@
       </div>
       <div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${nextEvent}</div>
       ${card('athletes', 'Мої спортсмени', 'Список, контакти, пояси, групи')}
+      ${card('gradings', 'Атестації', 'Історія поясів і здачі на кю')}
       ${card('attendance', 'Відвідування', 'Відмітити присутніх і статистика')}
       ${card('payments', 'Оплати', 'Хто оплатив за місяць, а хто ні')}
       ${card('schedule', 'Розклад тренувань', 'Молодша · Середня · Старша')}
@@ -422,12 +423,16 @@
     let extra = '';
     if (a) {
       const monthStart = today().slice(0, 7) + '-01';
-      const [visits, pay] = await Promise.all([
+      const [visits, pay, gr] = await Promise.all([
         q(db.from('attendance').select('id').eq('athlete_id', a.id).eq('present', true).gte('date', monthStart)),
         q(db.from('payments').select('amount').eq('athlete_id', a.id).eq('month', monthStart)),
+        db.from('gradings').select('date, belt, passed').eq('athlete_id', a.id).order('date', { ascending: false }).limit(5),
       ]);
+      const history = (gr.data || []).map(g =>
+        `${fmtDate(g.date, { day: '2-digit', month: '2-digit', year: 'numeric' })} — ${esc(g.belt)} ${g.passed ? '✓' : '✗'}`).join('<br>');
       extra = `Цього місяця: <b>${visits.length}</b> тренувань ·
         ${pay.length ? `<span class="badge ok">оплачено</span>` : `<span class="badge bad">не оплачено</span>`}
+        ${history ? `<br><br><b>Атестації:</b><br>${history}` : ''}
         ${a.phone ? `<br><br><a class="link" href="tel:${esc(a.phone.replace(/[^\d+]/g, ''))}">📞 Подзвонити ${esc(a.parent_name || '')}</a>` : ''}`;
     }
     openForm({
@@ -449,6 +454,71 @@
         : q(db.from('athletes').insert(obj)),
       onDelete: a ? () => q(db.from('athletes').delete().eq('id', a.id)) : null,
       deleteText: 'Видалити спортсмена разом з усією історією відвідувань і оплат?\n\nЯкщо він просто перестав ходити — краще зніміть галочку «Активний».',
+    });
+  }
+
+  // ----- Атестації -----
+  async function gradingsView() {
+    setActions('<button class="btn" id="addBtn">+ Додати</button>');
+    const [ath, list] = await Promise.all([
+      q(db.from('athletes').select('id, full_name, group_name, active, belt').order('full_name')),
+      q(db.from('gradings').select('*').order('date', { ascending: false })),
+    ]);
+    $('#addBtn').onclick = () => gradingForm(ath);
+    const byId = new Map(ath.map(a => [String(a.id), a]));
+    const rows = list.filter(g => { const a = byId.get(String(g.athlete_id)); return a && inGroup(a); });
+
+    // групуємо за датою атестації
+    const dates = [...new Set(rows.map(g => g.date))];
+    let html = chips();
+    html += dates.map(d => {
+      const items = rows.filter(g => g.date === d);
+      const passed = items.filter(g => g.passed).length;
+      return `<div class="day-title">${fmtDate(d)} ${d.slice(0, 4)} · здали ${passed} з ${items.length}</div>
+        <div class="list">${items.map(g => {
+          const a = byId.get(String(g.athlete_id));
+          return `<button class="row" data-id="${esc(g.id)}">
+            <div><strong>${esc(a.full_name)}</strong><span>${esc(a.group_name || '')}${g.note ? ' · ' + esc(g.note) : ''}</span></div>
+            <span class="badge ${g.passed ? 'ok' : 'bad'}">${esc(g.belt)} ${g.passed ? '✓' : '✗'}</span>
+          </button>`;
+        }).join('')}</div>`;
+    }).join('');
+    if (!rows.length) html += '<p class="muted">Атестацій ще немає. Натисніть «+ Додати», щоб записати результат здачі.</p>';
+    $('#view').innerHTML = html;
+    $('#view').onclick = e => {
+      const r = e.target.closest('.row[data-id]');
+      if (r) gradingForm(ath, list.find(g => String(g.id) === r.dataset.id));
+    };
+  }
+
+  function gradingForm(ath, g) {
+    const options = ath.filter(a => isActive(a) || (g && String(a.id) === String(g.athlete_id)))
+      .filter(a => g || inGroup(a))
+      .map(a => [a.id, a.full_name + (a.belt ? ` (зараз: ${a.belt})` : '')]);
+    const numericId = ath.length && typeof ath[0].id === 'number';
+    openForm({
+      title: g ? 'Редагувати атестацію' : 'Нова атестація',
+      values: g ? { ...g, passed: g.passed ? 'yes' : 'no' } : { date: today(), passed: 'yes' },
+      fields: [
+        { name: 'athlete_id', label: 'Спортсмен', type: 'select', options, required: true, cast: numericId ? 'number' : '' },
+        { name: 'date', label: 'Дата атестації', type: 'date', required: true },
+        { name: 'belt', label: 'На який пояс / кю', required: true, attrs: 'list="belts" placeholder="напр. Жовтий, 8 кю"' },
+        { name: 'passed', label: 'Результат', type: 'select', required: true, options: [['yes', 'Здав'], ['no', 'Не здав']] },
+        { name: 'note', label: 'Примітка (екзаменатор, оцінка…)' },
+      ],
+      extra: 'Якщо спортсмен здав, його пояс у картці оновиться автоматично.',
+      onSave: async obj => {
+        obj.passed = obj.passed === 'yes';
+        if (g) await q(db.from('gradings').update(obj).eq('id', g.id));
+        else await q(db.from('gradings').insert(obj));
+        if (obj.passed) {
+          // пояс у картці = пояс з найсвіжішої успішної атестації
+          const last = await q(db.from('gradings').select('belt').eq('athlete_id', obj.athlete_id)
+            .eq('passed', true).order('date', { ascending: false }).limit(1));
+          if (last[0]) await q(db.from('athletes').update({ belt: last[0].belt }).eq('id', obj.athlete_id));
+        }
+      },
+      onDelete: g ? () => q(db.from('gradings').delete().eq('id', g.id)) : null,
     });
   }
 
@@ -722,7 +792,7 @@
   //  НАВІГАЦІЯ ТА ВХІД
   // =====================================================================
   const VIEWS = {
-    home: homeView, athletes: athletesView, attendance: attendanceView, payments: paymentsView,
+    home: homeView, athletes: athletesView, gradings: gradingsView, attendance: attendanceView, payments: paymentsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
   };
 
