@@ -302,6 +302,14 @@
     a.row { text-decoration: none; }
     a.btn { text-decoration: none; }
     .row .belt, .badge .belt { display: inline-block; margin-top: 0; }
+    .chips.seg { padding-bottom: 4px; }
+    .chips.seg .chip { font-weight: 600; }
+    .chips.seg .chip.on { background: var(--gold); color: #111827; }
+    .sum-sec { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .sum-sec:last-child { border-bottom: 0; }
+    .assign-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+    .assign-row .chips { padding: 0; flex: none; }
+    .assign-row .chip { padding: 6px 11px; font-size: 13px; }
     .badge .belt { width: 18px; height: 7px; margin-right: 5px; top: -1px; }
     :root[data-theme="dark"] .now:not(.soon) { background: var(--gold); color: #111827; }
     :root[data-theme="dark"] .now:not(.soon) .dot { background: #111827; }
@@ -419,7 +427,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v2.5.1';
+  const APP_VERSION = 'v2.6';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -447,6 +455,7 @@
   applySettings();
 
   const GROUPS = ['Молодша', 'Середня', 'Старша'];
+  const SECTIONS = ['Наварія', 'Сихів'];
   // Пояси від найнижчого до найвищого
   const BELTS = [
     '0 кю — білий', '10 кю — помаранчевий', '9 кю — помаранчевий зі смужкою',
@@ -534,6 +543,15 @@
   function hhmm(t) { return t ? String(t).slice(0, 5) : ''; }
   function weekdayOf(iso) { return ((new Date(iso + 'T12:00').getDay() + 6) % 7) + 1; }
   function inGroup(a) { return state.group === 'Усі' || a.group_name === state.group; }
+  // Секція (Наварія / Сихів): фільтр для спортсменів, оплат, відміток, атестацій
+  state.section = (() => { try { return localStorage.getItem('ft_section') || 'Усі'; } catch (e) { return 'Усі'; } })();
+  state.hasSection = null; // чи є в базі колонка athletes.section
+  function noteSection(list) { if (list && list.length) state.hasSection = 'section' in list[0]; }
+  function inSection(a) { return !state.hasSection || state.section === 'Усі' || a.section === state.section; }
+  function inFilter(a) { return inGroup(a) && inSection(a); }
+  function groupLabel(a) {
+    return [state.hasSection && state.section === 'Усі' ? a.section : '', a.group_name || 'Без групи'].filter(Boolean).join(' · ');
+  }
   function isActive(a) { return a.active !== false; }
 
   let toastTimer;
@@ -620,8 +638,12 @@
 
   function setActions(html) { $('#pageActions').innerHTML = html; }
 
-  function chips() {
-    return `<div class="chips">${['Усі', ...GROUPS].map(g =>
+  function chips(withSection = false) {
+    const sec = withSection && state.hasSection
+      ? `<div class="chips seg">${['Усі', ...SECTIONS].map(x =>
+          `<button type="button" class="chip ${state.section === x ? 'on' : ''}" data-section="${x}">${x === 'Усі' ? 'Обидві секції' : x}</button>`).join('')}</div>`
+      : '';
+    return sec + `<div class="chips">${['Усі', ...GROUPS].map(g =>
       `<button type="button" class="chip ${state.group === g ? 'on' : ''}" data-group="${g}">${g}</button>`).join('')}</div>`;
   }
 
@@ -885,20 +907,25 @@
       q(db.from('athletes').select('*').order('full_name')),
       lastWeights(),
     ]);
+    noteSection(list);
+    const noSec = state.hasSection ? list.filter(a => isActive(a) && !a.section) : [];
 
     $('#view').innerHTML = `
+      ${state.hasSection === false ? sectionSetupCard() : ''}
+      ${noSec.length ? `<div class="info">У <b>${noSec.length}</b> спортсменів не вказана секція — їх не видно у фільтрі Наварія / Сихів.
+        <button type="button" class="btn sm" id="assignBtn" style="margin-top:8px">Розподілити по секціях</button></div>` : ''}
       <input class="search" id="search" type="search" placeholder="Пошук за імʼям" value="${esc(state.search)}">
-      ${chips()}
+      ${chips(true)}
       <p class="muted small" id="count"></p>
       <div class="list" id="athList"></div>`;
 
     const draw = () => {
       const s = state.search.toLowerCase();
-      const rows = list.filter(a => inGroup(a) && (!s || a.full_name.toLowerCase().includes(s)));
+      const rows = list.filter(a => inFilter(a) && (!s || a.full_name.toLowerCase().includes(s)));
       $('#count').textContent = `Показано ${rows.length} з ${list.length}`;
       $('#athList').innerHTML = rows.map(a => {
         const w = weights.get(String(a.id));
-        const info = [a.group_name || 'Без групи', birthLabel(a), w ? fmtKg(w.weight) : '',
+        const info = [groupLabel(a), birthLabel(a), w ? fmtKg(w.weight) : '',
                       beltShort(a.belt), isActive(a) ? '' : 'неактивний'].filter(Boolean);
         return `<a class="row ${isActive(a) ? '' : 'dim'}" href="#athlete/${encodeURIComponent(a.id)}">
           <div><strong>${beltTag(a.belt)}${esc(a.full_name)}${bdayMark(a)}</strong><span>${esc(info.join(' · '))}${(() => {
@@ -910,7 +937,49 @@
       }).join('') || '<div class="empty">Нікого не знайдено</div>';
     };
     $('#search').oninput = e => { state.search = e.target.value; draw(); };
+    const ab = $('#assignBtn');
+    if (ab) ab.onclick = () => assignSections(noSec);
     draw();
+  }
+
+  // Картка-підказка, якщо в базі ще немає колонки «секція»
+  function sectionSetupCard() {
+    const sql = 'alter table public.athletes add column if not exists section text;';
+    return `<div class="info"><b>Секції Наварія / Сихів</b><br>Щоб їх увімкнути, один раз виконайте в Supabase → SQL Editor:
+      <code style="display:block;margin:8px 0;padding:8px;background:var(--card);border-radius:8px;font-size:12px;word-break:break-all">${sql}</code>
+      <button type="button" class="btn sm light" onclick="navigator.clipboard.writeText('${sql}').then(() => toast('Скопійовано'))">Скопіювати</button></div>`;
+  }
+
+  // Швидко розподілити спортсменів без секції
+  function assignSections(people) {
+    const dlg = $('#dlg');
+    const choice = new Map();
+    dlg.innerHTML = `<form><h3>Розподілити по секціях</h3>
+      <p class="muted small" style="margin:4px 0 8px">Натисніть секцію для кожного. Кого не відмітите — залишиться без змін.</p>
+      ${people.map(a => `<div class="assign-row"><span><b>${esc(a.full_name)}</b><br><span class="muted small">${esc(a.group_name || '')}</span></span>
+        <div class="chips">${SECTIONS.map(x => `<button type="button" class="chip" data-aid="${esc(a.id)}" data-sec="${x}">${x}</button>`).join('')}</div></div>`).join('')}
+      <div class="dlg-actions"><span class="spacer"></span>
+        <button type="button" class="btn light" data-act="cancel">Скасувати</button>
+        <button type="submit" class="btn">Зберегти</button></div></form>`;
+    const form = dlg.querySelector('form');
+    form.onclick = e => {
+      const b = e.target.closest('[data-sec]');
+      if (b) {
+        choice.set(b.dataset.aid, b.dataset.sec);
+        b.parentElement.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b));
+      }
+      if (e.target.closest('[data-act=cancel]')) dlg.close();
+    };
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const btn = form.querySelector('[type=submit]');
+      btn.disabled = true;
+      try {
+        for (const [id, sec] of choice) await q(db.from('athletes').update({ section: sec }).eq('id', people.find(a => String(a.id) === id).id));
+        dlg.close(); toast(`Збережено: ${choice.size}`); render();
+      } catch (err) { btn.disabled = false; }
+    };
+    dlg.showModal();
   }
 
   async function athleteForm(a) {
@@ -921,9 +990,11 @@
     }
     openForm({
       title: a ? a.full_name + (ageOf(a) !== null ? `, ${birthLabel(a)}` : '') : 'Новий спортсмен',
-      values: a ? { ...a, weight: lastWeight } : { group_name: state.group !== 'Усі' ? state.group : '', active: true },
+      values: a ? { ...a, weight: lastWeight } : { group_name: state.group !== 'Усі' ? state.group : '',
+                                                     section: state.section !== 'Усі' ? state.section : '', active: true },
       fields: [
         { name: 'full_name', label: 'Імʼя та прізвище', required: true },
+        ...(state.hasSection ? [{ name: 'section', label: 'Секція', type: 'select', options: SECTIONS, required: true }] : []),
         { name: 'group_name', label: 'Група', type: 'select', options: GROUPS, required: true },
         { name: 'birth_date', label: 'Дата народження' + (a && !a.birth_date && a.birth_year ? ` (зараз вказано лише рік: ${a.birth_year})` : ''), type: 'date', attrs: 'min="1990-01-01" max="' + today() + '"' },
         { name: 'weight', label: 'Вага, кг (зберігається в історію на сьогодні)', type: 'number', attrs: 'min="10" max="200" step="0.1" inputmode="decimal"' },
@@ -953,6 +1024,7 @@
   async function athleteView() {
     setActions('');
     const found = await q(db.from('athletes').select('*').eq('id', state.param));
+    noteSection(found);
     const a = found[0];
     if (!a) {
       $('#view').innerHTML = '<div class="empty">Спортсмена не знайдено. <a class="link" href="#athletes">До списку</a></div>';
@@ -988,7 +1060,7 @@
     const initials = a.full_name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
     const nb = nextBirthday(a);
     const bdayLine = nb && nb.days <= 7 ? (nb.days === 0 ? ' · 🎉 сьогодні ДН!' : ` · 🎂 ${fmtDate(nb.date)}`) : '';
-    const sub = [a.group_name || 'Без групи', birthLabel(a), isActive(a) ? '' : 'неактивний'].filter(Boolean).join(' · ');
+    const sub = [a.section, a.group_name || 'Без групи', birthLabel(a), isActive(a) ? '' : 'неактивний'].filter(Boolean).join(' · ');
     const phone = a.phone ? a.phone.replace(/[^\d+]/g, '') : '';
 
     // Відвідування за 6 місяців
@@ -1063,7 +1135,7 @@
     $('#addW').onclick = () => weightForm(a);
     $('#view').onclick = e => {
       const m = e.target.closest('[data-month]');
-      if (m) { state.month = m.dataset.month; state.group = a.group_name || 'Усі'; return; }
+      if (m) { state.month = m.dataset.month; state.group = a.group_name || 'Усі'; if (a.section) state.section = a.section; return; }
       const we = e.target.closest('[data-wedit]');
       if (we) { weightForm(a, wl[Number(we.dataset.wedit)]); return; }
       const pt = e.target.closest('[data-i]');
@@ -1100,16 +1172,17 @@
   async function gradingsView() {
     setActions('<button class="btn" id="addBtn">+ Додати</button>');
     const [ath, list] = await Promise.all([
-      q(db.from('athletes').select('id, full_name, group_name, active, belt').order('full_name')),
+      q(db.from('athletes').select('*').order('full_name')),
       q(db.from('gradings').select('*').order('date', { ascending: false })),
     ]);
     $('#addBtn').onclick = () => gradingForm(ath);
     const byId = new Map(ath.map(a => [String(a.id), a]));
-    const rows = list.filter(g => { const a = byId.get(String(g.athlete_id)); return a && inGroup(a); });
+    noteSection(ath);
+    const rows = list.filter(g => { const a = byId.get(String(g.athlete_id)); return a && inFilter(a); });
 
     // групуємо за датою атестації
     const dates = [...new Set(rows.map(g => g.date))];
-    let html = chips();
+    let html = chips(true);
     html += dates.map(d => {
       const items = rows.filter(g => g.date === d);
       const passed = items.filter(g => g.passed).length;
@@ -1132,7 +1205,7 @@
 
   function gradingForm(ath, g) {
     const options = ath.filter(a => isActive(a) || (g && String(a.id) === String(g.athlete_id)))
-      .filter(a => g || inGroup(a))
+      .filter(a => g || inFilter(a))
       .map(a => [a.id, a.full_name + (a.belt ? ` (зараз: ${a.belt})` : '')]);
     const numericId = ath.length && typeof ath[0].id === 'number';
     openForm({
@@ -1176,14 +1249,15 @@
     const monthEnd = shiftMonth(state.date.slice(0, 7), 1) + '-01';
 
     const [ath, marks0, monthMarks0] = await Promise.all([
-      q(db.from('athletes').select('id, full_name, group_name, active, belt').order('full_name')),
+      q(db.from('athletes').select('*').order('full_name')),
       q(db.from('attendance').select('athlete_id, date, present').eq('date', state.date)),
       q(db.from('attendance').select('athlete_id, date').eq('present', true).gte('date', monthStart).lt('date', monthEnd)),
     ]);
     const marks = withPending('attendance', marks0, r => r.date === state.date);
     const monthMarks = withPending('attendance', monthMarks0, r => r.date >= monthStart && r.date < monthEnd).filter(m => m.present !== false);
     const waiting = new Set(withPending('attendance', [], r => r.date === state.date).map(m => String(m.athlete_id)));
-    const rows = ath.filter(a => isActive(a) && inGroup(a));
+    noteSection(ath);
+    const rows = ath.filter(a => isActive(a) && inFilter(a));
     const byId = new Map(rows.map(a => [String(a.id), a]));
     const present = new Set(marks.filter(m => m.present).map(m => String(m.athlete_id)));
 
@@ -1194,12 +1268,12 @@
           <input type="date" id="attDate" value="${state.date}" aria-label="Обрати дату"></label>
         <button class="btn light sq" data-shift="1" aria-label="Наступний день">›</button>
       </div>
-      ${chips()}
+      ${chips(true)}
       <p class="summary" id="attSum"></p>
       <div class="list" id="attList">
         ${rows.map(a => `
           <label class="row tick">
-            <span><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}<i class="wait" ${waiting.has(String(a.id)) ? '' : 'hidden'}> · ⏳ чекає відправки</i></span></span>
+            <span><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([groupLabel(a), beltShort(a.belt)].filter(Boolean).join(' · '))}<i class="wait" ${waiting.has(String(a.id)) ? '' : 'hidden'}> · ⏳ чекає відправки</i></span></span>
             <input type="checkbox" data-id="${esc(a.id)}" ${present.has(String(a.id)) ? 'checked' : ''}>
           </label>`).join('') || '<div class="empty">У цій групі немає активних спортсменів</div>'}
       </div>
@@ -1261,11 +1335,19 @@
     const monthStart = state.month + '-01';
     const waitPay = pendingKeys('payments');
     const [ath, pays] = await Promise.all([
-      q(db.from('athletes').select('id, full_name, group_name, active, phone, parent_name').order('full_name')),
+      q(db.from('athletes').select('*').order('full_name')),
       q(db.from('payments').select('*').eq('month', monthStart)),
     ]).then(([a, p]) => [a, withPending('payments', p, r => r.month === monthStart)]);
-    const rows = ath.filter(a => isActive(a) && inGroup(a));
+    noteSection(ath);
+    const rows = ath.filter(a => isActive(a) && inFilter(a));
     const payOf = new Map(pays.map(p => [String(p.athlete_id), p]));
+    // Підсумок окремо по кожній секції, коли вибрано обидві
+    const secSum = state.hasSection && state.section === 'Усі' ? SECTIONS.map(x => {
+      const inS = rows.filter(a => a.section === x), paidS = inS.filter(a => payOf.has(String(a.id)));
+      const sum = paidS.reduce((t, a) => t + Number(payOf.get(String(a.id)).amount || 0), 0);
+      return inS.length ? `<div class="sum-sec"><b>${x}</b><span>оплатили <b>${paidS.length}</b> з ${inS.length} · ${fmtMoney(sum)}</span></div>` : '';
+    }).join('') : '';
+    const secTitle = state.hasSection && state.section !== 'Усі' ? state.section + ' · ' : '';
     const paidRows = rows.filter(a => payOf.has(String(a.id)));
     const debtors = rows.filter(a => !payOf.has(String(a.id)));
     const total = paidRows.reduce((s, a) => s + Number(payOf.get(String(a.id)).amount || 0), 0);
@@ -1276,13 +1358,15 @@
         <div class="picker"><span>${fmtMonth(state.month)}</span></div>
         <button class="btn light sq" data-mshift="1" aria-label="Наступний місяць">›</button>
       </div>
-      ${chips()}
-      <p class="summary">${fmtMonth(state.month)} · оплатили <b>${paidRows.length}</b> з ${rows.length} · ${fmtMoney(total)}</p>
+      ${state.hasSection === false ? sectionSetupCard() : ''}
+      ${chips(true)}
+      <p class="summary">${secTitle}${fmtMonth(state.month)} · оплатили <b>${paidRows.length}</b> з ${rows.length} · ${fmtMoney(total)}</p>
+      ${secSum ? `<div class="panel" style="padding:4px 16px;margin-bottom:10px">${secSum}</div>` : ''}
       <div class="list" id="payList">
         ${[...debtors, ...paidRows].map(a => {
           const p = payOf.get(String(a.id));
           return `<button class="row" data-id="${esc(a.id)}">
-            <div><strong>${esc(a.full_name)}</strong><span>${esc(a.group_name || '')}${p && p.note ? ' · ' + esc(p.note) : ''}</span></div>
+            <div><strong>${esc(a.full_name)}</strong><span>${esc(groupLabel(a))}${p && p.note ? ' · ' + esc(p.note) : ''}</span></div>
             ${waitPay.has(opKey('payments', { athlete_id: a.id, month: monthStart })) ? '<span class="badge gold">⏳</span>' : ''}
             ${p ? `<span class="badge ok">✓ ${fmtMoney(p.amount)} · ${fmtDate(p.paid_at, { day: '2-digit', month: '2-digit' })}</span>`
                 : '<span class="badge bad">Не оплачено</span>'}
@@ -1317,7 +1401,7 @@
 
     const copyBtn = $('#copyDebtors');
     if (copyBtn) copyBtn.onclick = async () => {
-      const text = `Не оплачено за ${fmtMonth(state.month).toLowerCase()}:\n` +
+      const text = `${secTitle}Не оплачено за ${fmtMonth(state.month).toLowerCase()}:\n` +
         debtors.map(a => `• ${a.full_name}${a.phone ? ' — ' + a.phone : ''}`).join('\n');
       try { await navigator.clipboard.writeText(text); toast('Список скопійовано'); }
       catch (err) { prompt('Скопіюйте список:', text); }
@@ -1828,6 +1912,12 @@
   document.addEventListener('click', e => {
     const chip = e.target.closest('[data-group]');
     if (chip) { state.group = chip.dataset.group; render(); }
+    const sec = e.target.closest('[data-section]');
+    if (sec) {
+      state.section = sec.dataset.section;
+      try { localStorage.setItem('ft_section', state.section); } catch (err) {}
+      render();
+    }
   });
   window.addEventListener('hashchange', () => { window.scrollTo(0, 0); render(); });
 

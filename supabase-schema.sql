@@ -39,6 +39,7 @@ alter table public.athletes add column if not exists phone       text;
 alter table public.athletes add column if not exists notes       text;
 alter table public.athletes add column if not exists active      boolean not null default true;
 alter table public.athletes add column if not exists created_at  timestamptz not null default now();
+alter table public.athletes add column if not exists section     text;  -- секція: Наварія / Сихів
 
 
 -- 3. Відвідування та оплати (тип athlete_id підлаштовується під тип athletes.id)
