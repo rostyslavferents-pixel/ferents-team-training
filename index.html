@@ -100,6 +100,9 @@
     .stat b { display: block; font-size: 26px; }
     .stat span { font-size: 12px; color: var(--muted); }
     .stat.warn b { color: var(--bad); }
+    .bday { background: #fff; border-radius: 14px; padding: 14px 16px; margin-top: 12px; font-size: 14px; line-height: 1.6; box-shadow: 0 2px 8px #0000000d; }
+    .bday strong { display: block; font-size: 13px; letter-spacing: .05em; color: #8a6a1f; margin-bottom: 2px; }
+    .bday-today { background: var(--gold-soft); border-radius: 10px; padding: 8px 10px; margin: 4px 0; }
     .today { background: var(--gold-soft); border-radius: 14px; padding: 14px 16px; font-size: 14px; line-height: 1.5; }
     .today strong { display: block; font-size: 13px; letter-spacing: .05em; color: #8a6a1f; margin-bottom: 2px; }
 
@@ -199,7 +202,7 @@
     </section>
   </main>
 
-  <footer>FERENTS TEAM TRAINING · 2026</footer>
+  <footer>FERENTS TEAM TRAINING · 2026 · <span id="appVersion"></span></footer>
 
   <dialog id="dlg"></dialog>
   <div id="toast" class="toast" hidden></div>
@@ -216,6 +219,8 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const APP_VERSION = 'v1.5 · дні народження';
+  document.getElementById('appVersion').textContent = APP_VERSION;
 
   const GROUPS = ['Молодша', 'Середня', 'Старша'];
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
@@ -352,7 +357,7 @@
 
     const t = today();
     const [ath, att, pay, sch, ev] = await Promise.all([
-      q(db.from('athletes').select('id, active')),
+      q(db.from('athletes').select('id, full_name, active, birth_date')),
       q(db.from('attendance').select('athlete_id').eq('date', t).eq('present', true)),
       q(db.from('payments').select('athlete_id').eq('month', t.slice(0, 7) + '-01')),
       q(db.from('schedule').select('*').eq('weekday', weekdayOf(t)).order('start_time')),
@@ -365,6 +370,16 @@
     const todayText = sch.length
       ? sch.map(s => `${hhmm(s.start_time)} — ${esc(s.group_name)}${s.place ? ' · ' + esc(s.place) : ''}`).join('<br>')
       : 'Тренувань за розкладом немає';
+    // Дні народження: сьогодні та найближчі 14 днів
+    const bdays = active.map(a => ({ a, b: nextBirthday(a) }))
+      .filter(x => x.b && x.b.days <= 14).sort((x, y) => x.b.days - y.b.days);
+    const bdayBlock = bdays.length ? `<div class="bday">
+        <strong>🎂 ДНІ НАРОДЖЕННЯ</strong>
+        ${bdays.map(({ a, b }) => b.days === 0
+          ? `<div class="bday-today">🎉 Сьогодні день народження: <b>${esc(a.full_name)}</b> — ${b.age} ${yearsWord(b.age)}!</div>`
+          : `<div>${fmtDate(b.date)} — ${esc(a.full_name)}, виповнюється ${b.age} <span class="muted">(${b.days === 1 ? 'завтра' : 'через ' + b.days + ' дн.'})</span></div>`
+        ).join('')}
+      </div>` : '';
     const nextEvent = ev[0]
       ? `<br><br><b>Найближча подія:</b> ${esc(ev[0].title)}, ${fmtDate(ev[0].date)}`
       : '';
@@ -379,6 +394,7 @@
         <div class="stat ${unpaid ? 'warn' : ''}"><b>${unpaid}</b><span>не оплатили за місяць</span></div>
       </div>
       <div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${nextEvent}</div>
+      ${bdayBlock}
       ${card('athletes', 'Мої спортсмени', 'Список, контакти, пояси, групи')}
       ${card('weights', 'Вага', 'Зважування групи та історія ваги')}
       ${card('gradings', 'Атестації', 'Історія поясів і здачі на кю')}
@@ -403,6 +419,28 @@
     if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return 'роки';
     return 'років';
   }
+  // Найближчий день народження: { days, age, date }
+  function nextBirthday(a) {
+    if (!a.birth_date) return null;
+    const [y, m, d] = a.birth_date.split('-').map(Number);
+    const t = today(), ty = Number(t.slice(0, 4));
+    const mk = yr => {
+      // 29 лютого в невисокосний рік святкуємо 28-го
+      const leap = (yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0;
+      const dd = (m === 2 && d === 29 && !leap) ? 28 : d;
+      return `${yr}-${String(m).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+    };
+    let date = mk(ty), yr = ty;
+    if (date < t) { yr = ty + 1; date = mk(yr); }
+    const days = Math.round((new Date(date + 'T12:00') - new Date(t + 'T12:00')) / 864e5);
+    return { days, age: yr - y, date };
+  }
+  function bdayMark(a) {
+    const b = nextBirthday(a);
+    if (!b || b.days > 7) return '';
+    return b.days === 0 ? ' 🎂 сьогодні!' : ' 🎂';
+  }
+
   function birthLabel(a) {
     const age = ageOf(a);
     if (age !== null) return `${age} ${yearsWord(age)}`;
@@ -443,7 +481,10 @@
         const info = [a.group_name || 'Без групи', birthLabel(a), w ? fmtKg(w.weight) : '',
                       a.belt ? a.belt + ' пояс' : '', isActive(a) ? '' : 'неактивний'].filter(Boolean);
         return `<button class="row ${isActive(a) ? '' : 'dim'}" data-id="${esc(a.id)}">
-          <div><strong>${esc(a.full_name)}</strong><span>${esc(info.join(' · '))}</span></div>
+          <div><strong>${esc(a.full_name)}${bdayMark(a)}</strong><span>${esc(info.join(' · '))}${(() => {
+            const b = nextBirthday(a);
+            return b && b.days > 0 && b.days <= 7 ? ` · ДН ${fmtDate(b.date)}` : '';
+          })()}</span></div>
           <span class="chev">›</span>
         </button>`;
       }).join('') || '<div class="empty">Нікого не знайдено</div>';
@@ -477,7 +518,8 @@
         const d = prev && diff ? ` <span class="muted">(${diff > 0 ? '+' : ''}${diff.toFixed(1).replace('.', ',')})</span>` : '';
         return `${dmy(w.date)} — ${fmtKg(w.weight)}${d}`;
       }).join('<br>');
-      extra = `Цього місяця: <b>${visits.length}</b> тренувань ·
+      const nb = nextBirthday(a);
+      extra = `${nb && nb.days <= 7 ? (nb.days === 0 ? '🎉 <b>Сьогодні день народження!</b><br><br>' : `🎂 День народження ${fmtDate(nb.date)} — виповнюється ${nb.age}<br><br>`) : ''}Цього місяця: <b>${visits.length}</b> тренувань ·
         ${pay.length ? `<span class="badge ok">оплачено</span>` : `<span class="badge bad">не оплачено</span>`}
         ${wHistory ? `<br><br><b>Вага:</b><br>${wHistory}` : ''}
         ${history ? `<br><br><b>Атестації:</b><br>${history}` : ''}
