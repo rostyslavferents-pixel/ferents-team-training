@@ -197,16 +197,35 @@
     .menu-head span { display: block; color: #9ca3af; font-size: 13px; margin-top: 3px; }
     .menu-close { background: transparent; border: 0; color: #d1d5db; cursor: pointer; padding: 2px; display: flex; }
     .menu-close svg { width: 22px; height: 22px; }
+    .menu-list { padding: 10px 0; }
     .menu-item {
-      display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 15px 18px; border: 0; border-bottom: 1px solid var(--line);
-      background: transparent; color: var(--ink); font: inherit; font-size: 16px; text-decoration: none; cursor: pointer;
+      position: relative; display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+      padding: 11px 18px; border: 0; background: transparent; color: var(--ink);
+      font: inherit; font-size: 16px; font-weight: 500; text-decoration: none; cursor: pointer;
+      transition: background .15s;
     }
-    .menu-item svg {
-      width: 20px; height: 20px; flex: none; color: var(--muted);
-      fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    .menu-item + .menu-item::before {
+      content: ''; position: absolute; top: 0; left: 68px; right: 0; height: 1px; background: var(--line);
     }
     .menu-item:active { background: var(--line); }
-    .menu-item:active svg { color: var(--gold); }
+    .menu-item:active .mi { transform: scale(.92); }
+    .mi {
+      --c1: #94a3b8; --c2: #475569;
+      width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center; color: #fff;
+      background: linear-gradient(145deg, var(--c1), var(--c2));
+      box-shadow: inset 0 1px 0 #ffffff40, 0 3px 8px color-mix(in srgb, var(--c2) 35%, transparent);
+      transition: transform .15s;
+    }
+    .mi svg { width: 20px; height: 20px; }
+    .mi-home     { --c1: #ecc76a; --c2: #b8862b; }
+    .mi-chat     { --c1: #5eb0ff; --c2: #2563eb; }
+    .mi-users    { --c1: #3ddc9f; --c2: #0e9467; }
+    .mi-settings { --c1: #9aa6b8; --c2: #4b5567; }
+    .mi-install  { --c1: #b197fc; --c2: #6d3fe0; }
+    .mi-logout   { --c1: #ff8a80; --c2: #d93636; }
+    .mi-chev { margin-left: auto; width: 18px; height: 18px; color: var(--border); flex: none; }
+    .menu-item.out { margin-top: 14px; color: var(--bad); }
+    .menu-item.out::before { display: none; }
     .menu-foot { margin-top: auto; padding: 16px 18px; color: var(--muted); font-size: 12px; }
 
     /* Налаштування */
@@ -546,7 +565,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.2';
+  const APP_VERSION = 'v3.3';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -2337,7 +2356,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   }
 
   // ----- Меню ☰ -----
-  // Лінійні іконки (24×24, колір береться з тексту)
+  // Іконки меню: білі лінійні значки на кольорових плитках
   const MENU_ICONS = {
     home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
     chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/>',
@@ -2346,22 +2365,27 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     install: '<rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 6.5v7"/><path d="m9 10.5 3 3 3-3"/><path d="M11 18h2"/>',
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
     close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    chev: '<path d="m9 18 6-6-6-6"/>',
   };
-  const mIcon = n => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${MENU_ICONS[n]}</svg>`;
+  const svgI = (n, w = 2, cls = '') => `<svg${cls ? ` class="${cls}"` : ''} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${MENU_ICONS[n]}</svg>`;
+  const mIcon = n => `<span class="mi mi-${n}">${svgI(n)}</span>`;
+  const mChev = svgI('chev', 2.2, 'mi-chev');
 
   function openMenu() {
     const m = $('#menu');
     m.innerHTML = `
       <div class="menu-head">
         <div><b>${esc(state.name && state.name !== 'Тренер' ? state.name : state.email)}</b><span>${state.role === 'coach' ? 'Тренер' : state.role === 'member' ? 'Учасник команди' : 'Без доступу'}</span></div>
-        <button type="button" class="menu-close" aria-label="Закрити">${mIcon('close')}</button>
+        <button type="button" class="menu-close" aria-label="Закрити">${svgI('close', 1.8)}</button>
       </div>
-      <a class="menu-item" href="#home">${mIcon('home')}Головна</a>
-      ${state.role ? `<a class="menu-item" href="#chat">${mIcon('chat')}Чат команди</a>` : ''}
-      ${isCoach() ? `<a class="menu-item" href="#members">${mIcon('users')}Учасники та доступ</a>` : ''}
-      <a class="menu-item" href="#settings">${mIcon('settings')}Налаштування</a>
-      ${isInstalled() ? '' : `<button type="button" class="menu-item" id="menuInstall">${mIcon('install')}Встановити додаток</button>`}
-      <button type="button" class="menu-item" id="menuLogout">${mIcon('logout')}Вийти</button>
+      <nav class="menu-list">
+      <a class="menu-item" href="#home">${mIcon('home')}Головна${mChev}</a>
+      ${state.role ? `<a class="menu-item" href="#chat">${mIcon('chat')}Чат команди${mChev}</a>` : ''}
+      ${isCoach() ? `<a class="menu-item" href="#members">${mIcon('users')}Учасники та доступ${mChev}</a>` : ''}
+      <a class="menu-item" href="#settings">${mIcon('settings')}Налаштування${mChev}</a>
+      ${isInstalled() ? '' : `<button type="button" class="menu-item" id="menuInstall">${mIcon('install')}Встановити додаток${mChev}</button>`}
+      <button type="button" class="menu-item out" id="menuLogout">${mIcon('logout')}Вийти</button>
+      </nav>
       <div class="menu-foot">Ferents Team Training · ${APP_VERSION}</div>`;
     m.onclick = e => {
       if (e.target === m || e.target.closest('.menu-close') || e.target.closest('a.menu-item')) m.close();
