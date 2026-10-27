@@ -219,13 +219,13 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v1.5 · дні народження';
+  const APP_VERSION = 'v1.6';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   const GROUPS = ['Молодша', 'Середня', 'Старша'];
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
-    home: 'Особистий кабінет', athletes: 'Мої спортсмени', weights: 'Вага', gradings: 'Атестації', attendance: 'Відвідування',
+    home: 'Особистий кабінет', athletes: 'Мої спортсмени', weights: 'Зважування', gradings: 'Атестації', attendance: 'Відвідування',
     payments: 'Оплати', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
   };
 
@@ -395,8 +395,7 @@
       </div>
       <div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${nextEvent}</div>
       ${bdayBlock}
-      ${card('athletes', 'Мої спортсмени', 'Список, контакти, пояси, групи')}
-      ${card('weights', 'Вага', 'Зважування групи та історія ваги')}
+      ${card('athletes', 'Мої спортсмени', 'Дані, вага, контакти, пояси, групи')}
       ${card('gradings', 'Атестації', 'Історія поясів і здачі на кю')}
       ${card('attendance', 'Відвідування', 'Відмітити присутніх і статистика')}
       ${card('payments', 'Оплати', 'Хто оплатив за місяць, а хто ні')}
@@ -470,7 +469,8 @@
       <input class="search" id="search" type="search" placeholder="Пошук за імʼям" value="${esc(state.search)}">
       ${chips()}
       <p class="muted small" id="count"></p>
-      <div class="list" id="athList"></div>`;
+      <div class="list" id="athList"></div>
+      <a class="btn light wide" href="#weights">⚖️ Зважування групи</a>`;
 
     const draw = () => {
       const s = state.search.toLowerCase();
@@ -960,6 +960,7 @@
     const id = ++renderId;
     $('#pageTitle').textContent = TITLES[route];
     $('#backLink').hidden = route === 'home';
+    $('#backLink').href = route === 'weights' ? '#athletes' : '#home';
     $('#view').onclick = null;
     if (!$('#view').innerHTML.trim() || $('#view').dataset.route !== route) {
       $('#view').innerHTML = '<p class="muted">Завантаження…</p>';
