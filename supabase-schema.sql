@@ -173,3 +173,20 @@ create policy coach_all on public.weights for all to authenticated
   using (public.is_coach()) with check (public.is_coach());
 revoke all on public.weights from anon;
 notify pgrst, 'reload schema';
+
+
+-- 8. Завдання на тренування
+create table if not exists public.training_plans (
+  id          bigint generated always as identity primary key,
+  date        date not null,
+  group_name  text,             -- null = для всіх груп
+  title       text not null,
+  tasks       text,
+  created_at  timestamptz not null default now()
+);
+alter table public.training_plans enable row level security;
+drop policy if exists coach_all on public.training_plans;
+create policy coach_all on public.training_plans for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+revoke all on public.training_plans from anon;
+notify pgrst, 'reload schema';

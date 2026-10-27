@@ -128,6 +128,8 @@
     .row.dim strong { color: var(--muted); }
     .row.tick input { width: 26px; height: 26px; flex: none; accent-color: var(--ok); }
     .chev { color: #9ca3af; font-size: 22px; }
+    .row.plan { align-items: flex-start; }
+    .tasks { white-space: pre-line; font-size: 14px; color: var(--ink); margin-top: 8px; line-height: 1.5; }
     .row input.kg { width: 92px; flex: none; text-align: center; }
     .day-title { font-size: 13px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 18px 4px 6px; }
     .empty { padding: 18px 16px; color: var(--muted); }
@@ -214,7 +216,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v1.7';
+  const APP_VERSION = 'v1.8';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   const GROUPS = ['Молодша', 'Середня', 'Старша'];
@@ -236,7 +238,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', weights: 'Зважування', gradings: 'Атестації', attendance: 'Відвідування',
-    payments: 'Оплати', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
+    payments: 'Оплати', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -304,7 +306,7 @@
           return `<option value="${esc(val)}" ${String(v ?? '') === String(val) ? 'selected' : ''}>${esc(lab)}</option>`;
         }).join('')}</select></label>`;
       }
-      if (f.type === 'textarea') return `<label>${f.label}<textarea name="${f.name}" rows="3">${esc(v)}</textarea></label>`;
+      if (f.type === 'textarea') return `<label>${f.label}<textarea name="${f.name}" rows="${f.rows || 3}" ${req} ${f.attrs || ''}>${esc(v)}</textarea></label>`;
       if (f.type === 'checkbox') return `<label class="check"><input type="checkbox" name="${f.name}" ${v !== false ? 'checked' : ''}>${f.label}</label>`;
       return `<label>${f.label}<input name="${f.name}" type="${f.type || 'text'}" value="${esc(v)}" ${req} ${f.attrs || ''}></label>`;
     };
@@ -366,13 +368,15 @@
     }
 
     const t = today();
-    const [ath, att, pay, sch, ev] = await Promise.all([
+    const [ath, att, pay, sch, ev, pl] = await Promise.all([
       q(db.from('athletes').select('id, full_name, active, birth_date')),
       q(db.from('attendance').select('athlete_id').eq('date', t).eq('present', true)),
       q(db.from('payments').select('athlete_id').eq('month', t.slice(0, 7) + '-01')),
       q(db.from('schedule').select('*').eq('weekday', weekdayOf(t)).order('start_time')),
       q(db.from('events').select('title, date').gte('date', t).order('date').limit(1)),
+      db.from('training_plans').select('group_name, title').eq('date', t),
     ]);
+    const plansToday = (pl.data || []);
     const active = ath.filter(isActive);
     const paid = new Set(pay.map(p => p.athlete_id));
     const unpaid = active.filter(a => !paid.has(a.id)).length;
@@ -380,6 +384,10 @@
     const todayText = sch.length
       ? sch.map(s => `${hhmm(s.start_time)} — ${esc(s.group_name)}${s.place ? ' · ' + esc(s.place) : ''}`).join('<br>')
       : 'Тренувань за розкладом немає';
+    const plansText = plansToday.length
+      ? '<br><br><b>Завдання:</b> ' + plansToday.map(p => `${esc(p.group_name || 'всі групи')} — ${esc(p.title)}`).join('; ') +
+        ' <a class="link" href="#plans">відкрити</a>'
+      : '';
     // Дні народження: сьогодні та найближчі 14 днів
     const bdays = active.map(a => ({ a, b: nextBirthday(a) }))
       .filter(x => x.b && x.b.days <= 14).sort((x, y) => x.b.days - y.b.days);
@@ -403,13 +411,13 @@
         <div class="stat"><b>${att.length}</b><span>сьогодні на тренуванні</span></div>
         <div class="stat ${unpaid ? 'warn' : ''}"><b>${unpaid}</b><span>не оплатили за місяць</span></div>
       </div>
-      <div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${nextEvent}</div>
+      <div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${plansText}${nextEvent}</div>
       ${bdayBlock}
       ${card('athletes', 'Мої спортсмени', 'Дані, вага, контакти, пояси, групи')}
       ${card('gradings', 'Атестації', 'Історія поясів і здачі на кю')}
       ${card('attendance', 'Відвідування', 'Відмітити присутніх і статистика')}
       ${card('payments', 'Оплати', 'Хто оплатив за місяць, а хто ні')}
-      ${card('schedule', 'Розклад тренувань', 'Молодша · Середня · Старша')}
+      ${card('training', 'Тренування', 'Розклад · Завдання на тренування · Тестування')}
       ${card('events', 'Календар подій', 'Змагання, атестації, збори')}
       ${card('materials', 'Матеріали', 'Відео, посилання та корисна інформація')}`;
   }
@@ -889,6 +897,69 @@
     });
   }
 
+  // ----- Тренування (розділ) -----
+  async function trainingView() {
+    setActions('');
+    const card = (route, title, sub) =>
+      `<a class="card" href="#${route}"><strong>${title}</strong><span>${sub}</span></a>`;
+    $('#view').innerHTML =
+      card('schedule', '📅 Розклад тренувань', 'Дні, час і зал для кожної групи') +
+      card('plans', '📝 Завдання на тренування', 'План і завдання перед кожним тренуванням') +
+      card('tests', '📊 Тестування', 'Контрольні нормативи спортсменів');
+  }
+
+  // ----- Завдання на тренування -----
+  async function plansView() {
+    setActions('<button class="btn" id="addBtn">+ Додати</button>');
+    $('#addBtn').onclick = () => planForm();
+    const all = await q(db.from('training_plans').select('*').order('date'));
+    const rows = all.filter(p => state.group === 'Усі' || !p.group_name || p.group_name === state.group);
+    const t = today();
+    const upcoming = rows.filter(p => p.date >= t);
+    const past = rows.filter(p => p.date < t).reverse().slice(0, 15);
+
+    const item = p => `<button class="row plan" data-id="${esc(p.id)}">
+        <div style="min-width:0">
+          <strong>${esc(p.title)}</strong>
+          <span>${fmtDate(p.date, { weekday: 'short', day: 'numeric', month: 'long' })} · ${esc(p.group_name || 'Всі групи')}</span>
+          ${p.tasks ? `<div class="tasks">${esc(p.tasks)}</div>` : ''}
+        </div>
+        ${p.date === t ? '<span class="badge gold">сьогодні</span>' : ''}
+      </button>`;
+
+    $('#view').innerHTML = `${chips()}
+      <div class="list">${upcoming.map(item).join('') || '<div class="empty">Запланованих завдань немає. Натисніть «+ Додати».</div>'}</div>
+      ${past.length ? `<h3>Минулі</h3><div class="list">${past.map(item).join('')}</div>` : ''}`;
+    $('#view').onclick = e => {
+      const r = e.target.closest('.row[data-id]');
+      if (r) planForm(all.find(x => String(x.id) === r.dataset.id));
+    };
+  }
+
+  function planForm(p) {
+    openForm({
+      title: p ? 'Редагувати завдання' : 'Завдання на тренування',
+      values: p || { date: today(), group_name: state.group !== 'Усі' ? state.group : '' },
+      fields: [
+        { name: 'date', label: 'Дата тренування', type: 'date', required: true },
+        { name: 'group_name', label: 'Група (порожньо — всі групи)', type: 'select', options: GROUPS },
+        { name: 'title', label: 'Тема', required: true, attrs: 'placeholder="напр. Кіхон, ката Пінан Соно Ічі, спаринги"' },
+        { name: 'tasks', label: 'Завдання та план (кожне з нового рядка)', type: 'textarea', rows: 8,
+          attrs: 'placeholder="1. Розминка — 10 хв\n2. Кіхон: удари руками — 15 хв\n3. Ката\n4. ОФП"' },
+      ],
+      onSave: obj => p ? q(db.from('training_plans').update(obj).eq('id', p.id)) : q(db.from('training_plans').insert(obj)),
+      onDelete: p ? () => q(db.from('training_plans').delete().eq('id', p.id)) : null,
+    });
+  }
+
+  // ----- Тестування (буде пізніше) -----
+  async function testsView() {
+    setActions('');
+    $('#view').innerHTML = `<div class="today"><strong>У РОЗРОБЦІ</strong>
+      Тут буде ведення тестування спортсменів: контрольні нормативи, результати та динаміка.
+      Інтерфейс оформимо наступним етапом.</div>`;
+  }
+
   // ----- Події -----
   async function eventsView() {
     setActions('<button class="btn" id="addBtn">+ Додати</button>');
@@ -969,6 +1040,7 @@
   // =====================================================================
   const VIEWS = {
     home: homeView, athletes: athletesView, weights: weightsView, gradings: gradingsView, attendance: attendanceView, payments: paymentsView,
+    training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
   };
 
@@ -978,7 +1050,8 @@
     const id = ++renderId;
     $('#pageTitle').textContent = TITLES[route];
     $('#backLink').hidden = route === 'home';
-    $('#backLink').href = route === 'weights' ? '#athletes' : '#home';
+    $('#backLink').href = route === 'weights' ? '#athletes'
+      : ['schedule', 'plans', 'tests'].includes(route) ? '#training' : '#home';
     $('#view').onclick = null;
     if (!$('#view').innerHTML.trim() || $('#view').dataset.route !== route) {
       $('#view').innerHTML = '<p class="muted">Завантаження…</p>';
