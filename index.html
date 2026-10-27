@@ -10,8 +10,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <title>Ferents Team Training</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/karate-192.png">
+  <link rel="apple-touch-icon" href="icons/karate-apple-180.png">
 
   <style>
     :root {
@@ -417,7 +417,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v2.3';
+  const APP_VERSION = 'v2.4';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -1611,8 +1611,8 @@
     try { hidden = localStorage.getItem('ft_install_hide') === '1'; } catch (e) {}
     if (hidden || !canInstall()) return '';
     return `<div class="install" id="installCard">
-      <img src="icons/icon-192.png" alt="">
-      <div><b>Додаток на телефон</b>Іконка FT, на весь екран</div>
+      <img src="icons/karate-192.png" alt="">
+      <div><b>Додаток на телефон</b>Іконка на екрані, на весь екран</div>
       <button type="button" class="btn sm" id="installBtn">Встановити</button>
       <button type="button" class="x" id="installHide" aria-label="Сховати">✕</button>
     </div>`;

@@ -1,7 +1,7 @@
 // Ferents Team Training — сервіс-воркер: додаток відкривається без інтернету
 // і завжди бере свіжу версію сайту, коли інтернет є.
-const VERSION = 'ft-v2.3';
-const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+const VERSION = 'ft-v2.4';
+const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/karate-192.png', 'icons/karate-512.png', 'icons/karate-apple-180.png'];
 const SUPABASE_LIB = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
 
 self.addEventListener('install', e => {
