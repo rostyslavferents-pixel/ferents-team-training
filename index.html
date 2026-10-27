@@ -337,6 +337,20 @@
     .sec h3 { margin: 0; }
     .btn.sm { padding: 7px 12px; font-size: 14px; border-radius: 10px; }
     .hero-w { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 15px; }
+    /* Встановлення додатку */
+    .install { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 14px; padding: 12px 14px;
+      box-shadow: inset 0 0 0 1px var(--line), 0 2px 8px #0000000d; margin-bottom: 12px; }
+    .install img { width: 44px; height: 44px; border-radius: 10px; flex: none; }
+    .install div { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); line-height: 1.35; }
+    .install b { display: block; color: var(--ink); font-size: 15px; }
+    .install .x { background: none; border: 0; color: var(--muted); font-size: 18px; padding: 4px; cursor: pointer; }
+    .steps { margin: 14px 0 0; padding: 0; list-style: none; counter-reset: st; }
+    .steps li { counter-increment: st; display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; line-height: 1.45; }
+    .steps li:last-child { border-bottom: 0; }
+    .steps li::before { content: counter(st); flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--gold-soft); color: var(--gold-ink);
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+    .ios-share { display: inline-block; width: 18px; height: 18px; vertical-align: -3px; color: var(--link); }
+    .offline { position: sticky; top: 0; z-index: 6; background: var(--bad); color: #fff; text-align: center; font-size: 13px; padding: 7px 12px; }
     .wcap { font-size: 13px; color: var(--muted); margin-top: 6px; min-height: 18px; }
     .months { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
     .mcell { border-radius: 10px; padding: 8px 2px; text-align: center; font-size: 12px; text-decoration: none; }
@@ -347,6 +361,7 @@
 </head>
 
 <body>
+  <div id="offline" class="offline" hidden>Немає інтернету — показано збережені дані. Зміни не збережуться.</div>
   <header>
     <div class="hwrap">
       <div>
@@ -402,7 +417,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v2.2';
+  const APP_VERSION = 'v2.3';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -683,6 +698,7 @@
       `<a class="tile ${cls}" href="#${route}"><span class="ic">${icon(ic)}</span><span><strong>${title}</strong><small>${sub}</small></span></a>`;
 
     $('#view').innerHTML = `
+      ${installCard()}
       ${nowBlock}
       ${settings.showStats ? `<div class="stats">
         <a class="stat" href="#athletes" data-reset="athletes"><b>${active.length}</b><span>спортсменів</span></a>
@@ -723,6 +739,7 @@
     const card = (route, title, sub) =>
       `<a class="card" href="#${route}"><strong>${title}</strong><span>${sub}</span></a>`;
     $('#view').innerHTML = `
+      ${installCard()}
       ${settings.showToday ? `<div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${events}</div>` : ''}
       ${card('chat', '💬 Чат команди', 'Спілкування з тренером і командою')}
       ${card('schedule', '📅 Розклад тренувань', 'Дні та час для кожної групи')}
@@ -1569,15 +1586,81 @@
       ${state.role ? '<a class="menu-item" href="#chat">💬 Чат команди</a>' : ''}
       ${isCoach() ? '<a class="menu-item" href="#members">👥 Учасники та доступ</a>' : ''}
       <a class="menu-item" href="#settings">⚙️ Налаштування</a>
+      ${isInstalled() ? '' : '<button type="button" class="menu-item" id="menuInstall">📲 Встановити додаток</button>'}
       <button type="button" class="menu-item" id="menuLogout">🚪 Вийти</button>
       <div class="menu-foot">Ferents Team Training · ${APP_VERSION}</div>`;
     m.onclick = e => {
       if (e.target === m || e.target.closest('.menu-close') || e.target.closest('a.menu-item')) m.close();
     };
+    const mi = $('#menuInstall');
+    if (mi) mi.onclick = () => { m.close(); installApp(); };
     $('#menuLogout').onclick = async () => { m.close(); await db.auth.signOut(); location.hash = ''; };
     m.showModal();
   }
   $('#menuBtn').onclick = openMenu;
+
+  // ----- Додаток на телефоні: встановлення, робота без інтернету -----
+  let installEvent = null;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function isInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  }
+  function canInstall() { return !isInstalled() && (installEvent || isIOS || /android/i.test(navigator.userAgent)); }
+  function installCard() {
+    let hidden = false;
+    try { hidden = localStorage.getItem('ft_install_hide') === '1'; } catch (e) {}
+    if (hidden || !canInstall()) return '';
+    return `<div class="install" id="installCard">
+      <img src="icons/icon-192.png" alt="">
+      <div><b>Додаток на телефон</b>Іконка FT, на весь екран</div>
+      <button type="button" class="btn sm" id="installBtn">Встановити</button>
+      <button type="button" class="x" id="installHide" aria-label="Сховати">✕</button>
+    </div>`;
+  }
+  document.addEventListener('click', e => {
+    if (e.target.closest('#installBtn')) installApp();
+    if (e.target.closest('#installHide')) {
+      try { localStorage.setItem('ft_install_hide', '1'); } catch (err) {}
+      const c = $('#installCard'); if (c) c.remove();
+    }
+  });
+  async function installApp() {
+    if (installEvent) {
+      installEvent.prompt();
+      const { outcome } = await installEvent.userChoice;
+      installEvent = null;
+      if (outcome === 'accepted') { const c = $('#installCard'); if (c) c.remove(); }
+      return;
+    }
+    const share = '<svg class="ios-share ic-svg" viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
+    const steps = isIOS
+      ? [`Відкрийте сайт у <b>Safari</b> (у Chrome на iPhone теж є кнопка «Поділитися»)`,
+         `Натисніть «Поділитися» ${share} внизу або вгорі екрана`,
+         `Прокрутіть і виберіть <b>«На екран Додому»</b>`, `Натисніть <b>«Додати»</b> — на екрані з'явиться іконка FT`]
+      : [`Відкрийте сайт у <b>Chrome</b>`, `Натисніть <b>⋮</b> у правому верхньому куті`,
+         `Виберіть <b>«Встановити додаток»</b> або <b>«Додати на головний екран»</b>`, `Підтвердьте — на екрані з'явиться іконка FT`];
+    const dlg = $('#dlg');
+    dlg.innerHTML = `<form method="dialog"><h3>📲 Встановити додаток</h3>
+      <p class="muted small" style="margin:4px 0 0">${isIOS ? 'iPhone / iPad' : 'Android'}</p>
+      <ol class="steps">${steps.map(x => `<li><span>${x}</span></li>`).join('')}</ol>
+      <div class="dlg-actions"><span class="spacer"></span><button class="btn">Зрозуміло</button></div></form>`;
+    dlg.showModal();
+  }
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    installEvent = e;
+    if ((location.hash.slice(1) || 'home') === 'home' && !$('#installCard') && signedIn) render();
+  });
+  window.addEventListener('appinstalled', () => { installEvent = null; const c = $('#installCard'); if (c) c.remove(); toast('Додаток встановлено'); });
+
+  function updateOnline() { $('#offline').hidden = navigator.onLine; }
+  window.addEventListener('online', () => { updateOnline(); if (signedIn) render(); });
+  window.addEventListener('offline', updateOnline);
+  updateOnline();
+
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
 
   // =====================================================================
   //  НАВІГАЦІЯ ТА ВХІД
@@ -1650,12 +1733,18 @@
 
   // Хто зайшов: тренер, учасник (батьки/спортсмен) чи ще ніхто
   async function detectRole() {
-    const { data: coach } = await db.rpc('is_coach');
+    const { data: coach, error } = await db.rpc('is_coach');
+    // Без інтернету беремо роль, збережену минулого разу
+    if (error && !navigator.onLine) {
+      try { const c = JSON.parse(localStorage.getItem('ft_role') || 'null'); if (c && c.email === state.email) { state.name = c.name; return c.role; } } catch (e) {}
+    }
     const { data: name } = await db.rpc('my_name');
     state.name = name || '';
-    if (coach) return 'coach';
-    const { data: member } = await db.rpc('is_member');
-    return member ? 'member' : null;
+    let role = null;
+    if (coach) role = 'coach';
+    else { const { data: member } = await db.rpc('is_member'); role = member ? 'member' : null; }
+    try { localStorage.setItem('ft_role', JSON.stringify({ email: state.email, role, name: state.name })); } catch (e) {}
+    return role;
   }
 
   let signedIn = null;
