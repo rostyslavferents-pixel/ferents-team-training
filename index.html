@@ -125,6 +125,7 @@
     .row.dim strong { color: var(--muted); }
     .row.tick input { width: 26px; height: 26px; flex: none; accent-color: var(--ok); }
     .chev { color: #9ca3af; font-size: 22px; }
+    .row input.kg { width: 92px; flex: none; text-align: center; }
     .day-title { font-size: 13px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 18px 4px 6px; }
     .empty { padding: 18px 16px; color: var(--muted); }
 
@@ -219,7 +220,7 @@
   const GROUPS = ['Молодша', 'Середня', 'Старша'];
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
-    home: 'Особистий кабінет', athletes: 'Мої спортсмени', gradings: 'Атестації', attendance: 'Відвідування',
+    home: 'Особистий кабінет', athletes: 'Мої спортсмени', weights: 'Вага', gradings: 'Атестації', attendance: 'Відвідування',
     payments: 'Оплати', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали'
   };
 
@@ -379,6 +380,7 @@
       </div>
       <div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${nextEvent}</div>
       ${card('athletes', 'Мої спортсмени', 'Список, контакти, пояси, групи')}
+      ${card('weights', 'Вага', 'Зважування групи та історія ваги')}
       ${card('gradings', 'Атестації', 'Історія поясів і здачі на кю')}
       ${card('attendance', 'Відвідування', 'Відмітити присутніх і статистика')}
       ${card('payments', 'Оплати', 'Хто оплатив за місяць, а хто ні')}
@@ -387,12 +389,44 @@
       ${card('materials', 'Матеріали', 'Відео, посилання та корисна інформація')}`;
   }
 
+  // Вік і підпис дати народження
+  function ageOf(a) {
+    if (!a.birth_date) return null;
+    const b = new Date(a.birth_date + 'T12:00'), n = new Date();
+    let age = n.getFullYear() - b.getFullYear();
+    if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) age--;
+    return age;
+  }
+  function yearsWord(n) {
+    const d = n % 10, h = n % 100;
+    if (d === 1 && h !== 11) return 'рік';
+    if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return 'роки';
+    return 'років';
+  }
+  function birthLabel(a) {
+    const age = ageOf(a);
+    if (age !== null) return `${age} ${yearsWord(age)}`;
+    return a.birth_year ? a.birth_year + ' р.н.' : '';
+  }
+  function fmtKg(w) { return Number(w).toLocaleString('uk-UA', { maximumFractionDigits: 1 }) + ' кг'; }
+
+  // Остання вага кожного спортсмена: Map(id → {weight, date})
+  async function lastWeights() {
+    const { data } = await db.from('weights').select('athlete_id, weight, date').order('date', { ascending: false });
+    const m = new Map();
+    (data || []).forEach(w => { if (!m.has(String(w.athlete_id))) m.set(String(w.athlete_id), w); });
+    return m;
+  }
+
   // ----- Спортсмени -----
   async function athletesView() {
     setActions('<button class="btn" id="addBtn">+ Додати</button>');
     $('#addBtn').onclick = () => athleteForm();
 
-    const list = await q(db.from('athletes').select('*').order('full_name'));
+    const [list, weights] = await Promise.all([
+      q(db.from('athletes').select('*').order('full_name')),
+      lastWeights(),
+    ]);
 
     $('#view').innerHTML = `
       <input class="search" id="search" type="search" placeholder="Пошук за імʼям" value="${esc(state.search)}">
@@ -404,12 +438,15 @@
       const s = state.search.toLowerCase();
       const rows = list.filter(a => inGroup(a) && (!s || a.full_name.toLowerCase().includes(s)));
       $('#count').textContent = `Показано ${rows.length} з ${list.length}`;
-      $('#athList').innerHTML = rows.map(a => `
-        <button class="row ${isActive(a) ? '' : 'dim'}" data-id="${esc(a.id)}">
-          <div><strong>${esc(a.full_name)}</strong>
-          <span>${esc(a.group_name || 'Без групи')}${a.birth_year ? ' · ' + a.birth_year + ' р.н.' : ''}${a.belt ? ' · ' + esc(a.belt) + ' пояс' : ''}${isActive(a) ? '' : ' · неактивний'}</span></div>
+      $('#athList').innerHTML = rows.map(a => {
+        const w = weights.get(String(a.id));
+        const info = [a.group_name || 'Без групи', birthLabel(a), w ? fmtKg(w.weight) : '',
+                      a.belt ? a.belt + ' пояс' : '', isActive(a) ? '' : 'неактивний'].filter(Boolean);
+        return `<button class="row ${isActive(a) ? '' : 'dim'}" data-id="${esc(a.id)}">
+          <div><strong>${esc(a.full_name)}</strong><span>${esc(info.join(' · '))}</span></div>
           <span class="chev">›</span>
-        </button>`).join('') || '<div class="empty">Нікого не знайдено</div>';
+        </button>`;
+      }).join('') || '<div class="empty">Нікого не знайдено</div>';
     };
     $('#search').oninput = e => { state.search = e.target.value; draw(); };
     $('#athList').onclick = e => {
@@ -421,27 +458,39 @@
 
   async function athleteForm(a) {
     let extra = '';
+    let lastWeight = null;
     if (a) {
       const monthStart = today().slice(0, 7) + '-01';
-      const [visits, pay, gr] = await Promise.all([
+      const [visits, pay, gr, wt] = await Promise.all([
         q(db.from('attendance').select('id').eq('athlete_id', a.id).eq('present', true).gte('date', monthStart)),
         q(db.from('payments').select('amount').eq('athlete_id', a.id).eq('month', monthStart)),
         db.from('gradings').select('date, belt, passed').eq('athlete_id', a.id).order('date', { ascending: false }).limit(5),
+        db.from('weights').select('date, weight').eq('athlete_id', a.id).order('date', { ascending: false }).limit(6),
       ]);
-      const history = (gr.data || []).map(g =>
-        `${fmtDate(g.date, { day: '2-digit', month: '2-digit', year: 'numeric' })} — ${esc(g.belt)} ${g.passed ? '✓' : '✗'}`).join('<br>');
+      const weights = wt.data || [];
+      lastWeight = weights[0] ? Number(weights[0].weight) : null;
+      const dmy = d => fmtDate(d, { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const history = (gr.data || []).map(g => `${dmy(g.date)} — ${esc(g.belt)} ${g.passed ? '✓' : '✗'}`).join('<br>');
+      const wHistory = weights.map((w, i) => {
+        const prev = weights[i + 1];
+        const diff = prev ? Number(w.weight) - Number(prev.weight) : 0;
+        const d = prev && diff ? ` <span class="muted">(${diff > 0 ? '+' : ''}${diff.toFixed(1).replace('.', ',')})</span>` : '';
+        return `${dmy(w.date)} — ${fmtKg(w.weight)}${d}`;
+      }).join('<br>');
       extra = `Цього місяця: <b>${visits.length}</b> тренувань ·
         ${pay.length ? `<span class="badge ok">оплачено</span>` : `<span class="badge bad">не оплачено</span>`}
+        ${wHistory ? `<br><br><b>Вага:</b><br>${wHistory}` : ''}
         ${history ? `<br><br><b>Атестації:</b><br>${history}` : ''}
         ${a.phone ? `<br><br><a class="link" href="tel:${esc(a.phone.replace(/[^\d+]/g, ''))}">📞 Подзвонити ${esc(a.parent_name || '')}</a>` : ''}`;
     }
     openForm({
-      title: a ? a.full_name : 'Новий спортсмен',
-      values: a || { group_name: state.group !== 'Усі' ? state.group : '', active: true },
+      title: a ? a.full_name + (ageOf(a) !== null ? `, ${birthLabel(a)}` : '') : 'Новий спортсмен',
+      values: a ? { ...a, weight: lastWeight } : { group_name: state.group !== 'Усі' ? state.group : '', active: true },
       fields: [
         { name: 'full_name', label: 'Імʼя та прізвище', required: true },
         { name: 'group_name', label: 'Група', type: 'select', options: GROUPS, required: true },
-        { name: 'birth_year', label: 'Рік народження', type: 'number', attrs: 'min="1990" max="2030" inputmode="numeric"' },
+        { name: 'birth_date', label: 'Дата народження' + (a && !a.birth_date && a.birth_year ? ` (зараз вказано лише рік: ${a.birth_year})` : ''), type: 'date', attrs: 'min="1990-01-01" max="' + today() + '"' },
+        { name: 'weight', label: 'Вага, кг (зберігається в історію на сьогодні)', type: 'number', attrs: 'min="10" max="200" step="0.1" inputmode="decimal"' },
         { name: 'belt', label: 'Пояс / кю', attrs: 'list="belts"' },
         { name: 'parent_name', label: 'Батьки (імʼя)' },
         { name: 'phone', label: 'Телефон', type: 'tel' },
@@ -449,12 +498,79 @@
         { name: 'active', label: 'Активний (ходить на тренування)', type: 'checkbox' },
       ],
       extra,
-      onSave: obj => a
-        ? q(db.from('athletes').update(obj).eq('id', a.id))
-        : q(db.from('athletes').insert(obj)),
+      onSave: async obj => {
+        const weight = obj.weight;
+        delete obj.weight;
+        obj.birth_year = obj.birth_date ? Number(obj.birth_date.slice(0, 4)) : (a ? a.birth_year : null);
+        let id = a && a.id;
+        if (a) await q(db.from('athletes').update(obj).eq('id', a.id));
+        else id = (await q(db.from('athletes').insert(obj).select('id').single())).id;
+        if (weight !== null && weight !== lastWeight) {
+          await q(db.from('weights').upsert({ athlete_id: id, date: today(), weight }, { onConflict: 'athlete_id,date' }));
+        }
+      },
       onDelete: a ? () => q(db.from('athletes').delete().eq('id', a.id)) : null,
-      deleteText: 'Видалити спортсмена разом з усією історією відвідувань і оплат?\n\nЯкщо він просто перестав ходити — краще зніміть галочку «Активний».',
+      deleteText: 'Видалити спортсмена разом з усією історією відвідувань, оплат і ваги?\n\nЯкщо він просто перестав ходити — краще зніміть галочку «Активний».',
     });
+  }
+
+  // ----- Вага (зважування групи) -----
+  async function weightsView() {
+    setActions('');
+    const [ath, all] = await Promise.all([
+      q(db.from('athletes').select('id, full_name, group_name, active, birth_date, birth_year').order('full_name')),
+      q(db.from('weights').select('athlete_id, date, weight').order('date', { ascending: false })),
+    ]);
+    const rows = ath.filter(a => isActive(a) && inGroup(a));
+    const byId = new Map(rows.map(a => [String(a.id), a]));
+    const onDate = new Map(), before = new Map();
+    all.forEach(w => {
+      const k = String(w.athlete_id);
+      if (w.date === state.date) onDate.set(k, w);
+      else if (w.date < state.date && !before.has(k)) before.set(k, w);
+    });
+
+    $('#view').innerHTML = `
+      <div class="bar">
+        <button class="btn light sq" data-shift="-1" aria-label="Попередній день">‹</button>
+        <label class="picker"><span>${fmtDate(state.date, { weekday: 'short', day: 'numeric', month: 'long' })} ${state.date.slice(0, 4)}</span>
+          <input type="date" id="wDate" value="${state.date}" aria-label="Обрати дату"></label>
+        <button class="btn light sq" data-shift="1" aria-label="Наступний день">›</button>
+      </div>
+      ${chips()}
+      <p class="muted small">Впишіть вагу тим, кого зважили, і натисніть «Зберегти». Порожні поля пропускаються.</p>
+      <div class="list" id="wList">
+        ${rows.map(a => {
+          const k = String(a.id), cur = onDate.get(k), prev = before.get(k);
+          return `<div class="row" style="cursor:default">
+            <div><strong>${esc(a.full_name)}</strong>
+            <span>${esc([a.group_name, birthLabel(a), prev ? 'було ' + fmtKg(prev.weight) + ' (' + fmtDate(prev.date, { day: '2-digit', month: '2-digit' }) + ')' : ''].filter(Boolean).join(' · '))}</span></div>
+            <input class="kg" type="number" step="0.1" min="10" max="200" inputmode="decimal" placeholder="кг"
+              data-id="${esc(a.id)}" value="${cur ? Number(cur.weight) : ''}">
+          </div>`;
+        }).join('') || '<div class="empty">У цій групі немає активних спортсменів</div>'}
+      </div>
+      ${rows.length ? '<button class="btn wide" id="wSave">Зберегти вагу</button>' : ''}`;
+
+    const saveBtn = $('#wSave');
+    if (saveBtn) saveBtn.onclick = async () => {
+      const toSave = [], toDelete = [];
+      document.querySelectorAll('#wList input.kg').forEach(inp => {
+        const k = inp.dataset.id, v = inp.value.trim();
+        if (v) toSave.push({ athlete_id: byId.get(k).id, date: state.date, weight: Number(v.replace(',', '.')) });
+        else if (onDate.has(k)) toDelete.push(byId.get(k).id);
+      });
+      saveBtn.disabled = true;
+      try {
+        if (toSave.length) await q(db.from('weights').upsert(toSave, { onConflict: 'athlete_id,date' }));
+        if (toDelete.length) await q(db.from('weights').delete().eq('date', state.date).in('athlete_id', toDelete));
+        toast(`Збережено: ${toSave.length}`);
+        render();
+      } catch (err) { saveBtn.disabled = false; }
+    };
+    $('#wDate').onchange = e => { if (e.target.value) { state.date = e.target.value; render(); } };
+    document.querySelectorAll('[data-shift]').forEach(b =>
+      b.onclick = () => { state.date = shiftDate(state.date, Number(b.dataset.shift)); render(); });
   }
 
   // ----- Атестації -----
@@ -792,7 +908,7 @@
   //  НАВІГАЦІЯ ТА ВХІД
   // =====================================================================
   const VIEWS = {
-    home: homeView, athletes: athletesView, gradings: gradingsView, attendance: attendanceView, payments: paymentsView,
+    home: homeView, athletes: athletesView, weights: weightsView, gradings: gradingsView, attendance: attendanceView, payments: paymentsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
   };
 

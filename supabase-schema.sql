@@ -146,3 +146,30 @@ create policy coach_all on public.gradings for all to authenticated
   using (public.is_coach()) with check (public.is_coach());
 revoke all on public.gradings from anon;
 notify pgrst, 'reload schema';
+
+
+-- 7. Повна дата народження та історія ваги
+alter table public.athletes add column if not exists birth_date date;
+
+do $$
+declare id_type text;
+begin
+  select format_type(a.atttypid, a.atttypmod) into id_type
+  from pg_attribute a where a.attrelid = 'public.athletes'::regclass and a.attname = 'id';
+
+  execute format($f$
+    create table if not exists public.weights (
+      id          bigint generated always as identity primary key,
+      athlete_id  %s not null references public.athletes(id) on delete cascade,
+      date        date not null,
+      weight      numeric(5,1) not null check (weight > 0),
+      unique (athlete_id, date)
+    )$f$, id_type);
+end $$;
+
+alter table public.weights enable row level security;
+drop policy if exists coach_all on public.weights;
+create policy coach_all on public.weights for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+revoke all on public.weights from anon;
+notify pgrst, 'reload schema';
