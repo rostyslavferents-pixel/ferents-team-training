@@ -350,6 +350,8 @@
     .steps li::before { content: counter(st); flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--gold-soft); color: var(--gold-ink);
       display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
     .ios-share { display: inline-block; width: 18px; height: 18px; vertical-align: -3px; color: var(--link); }
+    .offline.sync { background: var(--gold-soft); color: var(--gold-ink); font-weight: 600; }
+    .wait { font-style: normal; color: var(--gold-ink); }
     .offline { position: sticky; top: 0; z-index: 6; background: var(--bad); color: #fff; text-align: center; font-size: 13px; padding: 7px 12px; }
     .wcap { font-size: 13px; color: var(--muted); margin-top: 6px; min-height: 18px; }
     .months { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
@@ -417,7 +419,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v2.4';
+  const APP_VERSION = 'v2.5';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -544,8 +546,76 @@
   // Виконує запит до Supabase і показує помилку, якщо щось пішло не так
   async function q(request) {
     const { data, error } = await request;
-    if (error) { toast('Помилка: ' + error.message, true); throw error; }
+    if (error) {
+      toast(isNetErr(error) ? 'Немає інтернету — це можна зберегти лише зі зв\'язком' : 'Помилка: ' + error.message, true);
+      throw error;
+    }
     return data;
+  }
+
+  // ===== Офлайн-черга: відмітки, вага й оплати зберігаються на телефоні, поки немає інтернету =====
+  const QKEY = 'ft_queue';
+  const QKEYS = { attendance: r => [r.athlete_id, r.date], weights: r => [r.athlete_id, r.date], payments: r => [r.athlete_id, r.month] };
+  const QCONFLICT = { attendance: 'athlete_id,date', weights: 'athlete_id,date', payments: 'athlete_id,month' };
+  function loadQueue() { try { return JSON.parse(localStorage.getItem(QKEY) || '[]'); } catch (e) { return []; } }
+  function storeQueue(list) { try { localStorage.setItem(QKEY, JSON.stringify(list)); } catch (e) {} updateOnline(); }
+  function opKey(table, r) { return table + ':' + QKEYS[table](r).join(':'); }
+  function isNetErr(error) {
+    return !navigator.onLine || /failed to fetch|networkerror|network request|load failed|fetch failed|timeout/i.test(String(error && (error.message || error)));
+  }
+  function runOp(op) {
+    if (op.op === 'upsert') return db.from(op.table).upsert(op.rows, { onConflict: QCONFLICT[op.table] });
+    let req = db.from(op.table).delete();
+    for (const [k, v] of Object.entries(op.match)) req = req.eq(k, v);
+    return req;
+  }
+  // Записати рядки (upsert) або видалити за ключем (delete). Без інтернету — у чергу.
+  async function write(table, op, data) {
+    const ops = op === 'upsert'
+      ? data.map(r => ({ table, op, rows: [r], key: opKey(table, r) }))
+      : [{ table, op, match: data, key: opKey(table, data) }];
+    const keys = new Set(ops.map(o => o.key));
+    if (navigator.onLine) {
+      const { error } = await runOp(op === 'upsert' ? { table, op, rows: data } : ops[0]);
+      if (!error) {
+        const rest = loadQueue();
+        if (rest.some(x => keys.has(x.key))) storeQueue(rest.filter(x => !keys.has(x.key)));
+        return 'saved';
+      }
+      if (!isNetErr(error)) { toast('Помилка: ' + error.message, true); throw error; }
+    }
+    const ts = Date.now();
+    storeQueue([...loadQueue().filter(x => !keys.has(x.key)), ...ops.map(o => ({ ...o, ts }))]);
+    state.queued = true;
+    return 'queued';
+  }
+  // Застосувати до даних з бази ще не відправлені зміни, щоб на екрані було видно відмічене
+  function withPending(table, rows, keep = () => true) {
+    const ops = loadQueue().filter(o => o.table === table)
+      .map(o => ({ ...o, row: o.op === 'upsert' ? o.rows[0] : o.match })).filter(o => keep(o.row));
+    if (!ops.length) return rows;
+    const keys = new Set(ops.map(o => o.key));
+    return [...rows.filter(r => !keys.has(opKey(table, r))),
+            ...ops.filter(o => o.op === 'upsert').map(o => ({ ...o.row, _pending: true }))];
+  }
+  function pendingKeys(table) { return new Set(loadQueue().filter(o => o.table === table).map(o => o.key)); }
+  let flushing = false;
+  async function flushQueue() {
+    if (flushing || !navigator.onLine || !signedIn) return;
+    if (!loadQueue().length) return;
+    flushing = true; updateOnline();
+    let sent = 0, failed = 0;
+    try {
+      await db.auth.getSession(); // оновлює вхід, якщо він протермінувався, поки не було зв'язку
+      for (const op of loadQueue()) {
+        const { error } = await runOp(op);
+        if (error && (isNetErr(error) || /jwt|token/i.test(error.message))) break; // спробуємо пізніше
+        if (error) failed++; else sent++;
+        storeQueue(loadQueue().filter(x => !(x.key === op.key && x.ts === op.ts)));
+      }
+    } finally { flushing = false; updateOnline(); }
+    if (sent) { toast(`✓ Відправлено змін: ${sent}`); render(); }
+    if (failed) toast(`Не вдалося відправити змін: ${failed}`, true);
   }
 
   function setActions(html) { $('#pageActions').innerHTML = html; }
@@ -601,7 +671,12 @@
       }
       const btn = form.querySelector('[type=submit]');
       btn.disabled = true;
-      try { await onSave(obj); dlg.close(); toast('Збережено'); render(); }
+      state.queued = false;
+      try {
+        await onSave(obj); dlg.close();
+        toast(state.queued ? '⏳ Збережено на телефоні — відправлю, коли буде інтернет' : 'Збережено');
+        render();
+      }
       catch (err) { /* помилку вже показано */ }
       finally { btn.disabled = false; }
     };
@@ -609,7 +684,8 @@
     const del = form.querySelector('[data-act=delete]');
     if (del) del.onclick = async () => {
       if (!confirm(deleteText || 'Точно видалити?')) return;
-      try { await onDelete(); dlg.close(); toast('Видалено'); render(); } catch (err) {}
+      state.queued = false;
+      try { await onDelete(); dlg.close(); toast(state.queued ? '⏳ Видалено на телефоні — відправлю, коли буде інтернет' : 'Видалено'); render(); } catch (err) {}
     };
     dlg.showModal();
   }
@@ -631,12 +707,14 @@
     const t = today();
     const [ath, att, pay, sch, ev, pl] = await Promise.all([
       q(db.from('athletes').select('id, full_name, active, birth_date, group_name')),
-      q(db.from('attendance').select('athlete_id').eq('date', t).eq('present', true)),
-      q(db.from('payments').select('athlete_id').eq('month', t.slice(0, 7) + '-01')),
+      q(db.from('attendance').select('athlete_id, date').eq('date', t).eq('present', true)),
+      q(db.from('payments').select('athlete_id, month').eq('month', t.slice(0, 7) + '-01')),
       q(db.from('schedule').select('*').eq('weekday', weekdayOf(t)).order('start_time')),
       q(db.from('events').select('title, date').gte('date', t).order('date').limit(1)),
       db.from('training_plans').select('group_name, title').eq('date', t),
-    ]);
+    ]).then(([a1, a2, a3, a4, a5, a6]) => [a1,
+      withPending('attendance', a2, r => r.date === t).filter(r => r.present !== false),
+      withPending('payments', a3, r => r.month === t.slice(0, 7) + '-01'), a4, a5, a6]);
     const plansToday = (pl.data || []);
     const active = ath.filter(isActive);
     const paid = new Set(pay.map(p => p.athlete_id));
@@ -863,7 +941,7 @@
         if (a) await q(db.from('athletes').update(obj).eq('id', a.id));
         else id = (await q(db.from('athletes').insert(obj).select('id').single())).id;
         if (weight !== null && weight !== lastWeight) {
-          await q(db.from('weights').upsert({ athlete_id: id, date: today(), weight }, { onConflict: 'athlete_id,date' }));
+          await write('weights', 'upsert', [{ athlete_id: id, date: today(), weight }]);
         }
       },
       onDelete: a ? async () => { await q(db.from('athletes').delete().eq('id', a.id)); location.hash = '#athletes'; } : null,
@@ -885,13 +963,17 @@
 
     const t = today(), ym = t.slice(0, 7), monthStart = ym + '-01';
     const firstMonth = shiftMonth(ym, -5);
-    const [att, pays, grs, wts, sch] = await Promise.all([
-      q(db.from('attendance').select('date').eq('athlete_id', a.id).eq('present', true).gte('date', firstMonth + '-01')),
-      q(db.from('payments').select('month, amount, paid_at').eq('athlete_id', a.id).gte('month', firstMonth + '-01')),
+    const [att0, pays0, grs, wts0, sch] = await Promise.all([
+      q(db.from('attendance').select('athlete_id, date').eq('athlete_id', a.id).eq('present', true).gte('date', firstMonth + '-01')),
+      q(db.from('payments').select('athlete_id, month, amount, paid_at').eq('athlete_id', a.id).gte('month', firstMonth + '-01')),
       q(db.from('gradings').select('date, belt, passed, note').eq('athlete_id', a.id).order('date', { ascending: false })),
-      q(db.from('weights').select('date, weight').eq('athlete_id', a.id).order('date', { ascending: false }).limit(20)),
+      q(db.from('weights').select('athlete_id, date, weight').eq('athlete_id', a.id).order('date', { ascending: false }).limit(20)),
       q(db.from('schedule').select('weekday, group_name')),
     ]);
+    const mine = r => String(r.athlete_id) === String(a.id);
+    const att = withPending('attendance', att0, r => mine(r) && r.date >= firstMonth + '-01').filter(r => r.present !== false);
+    const pays = withPending('payments', pays0, r => mine(r) && r.month >= firstMonth + '-01');
+    const wts = withPending('weights', wts0, mine).sort((x, y) => y.date.localeCompare(x.date)).slice(0, 20);
 
     // Відвідування цього місяця і % від тренувань за розкладом його групи
     const visits = att.filter(x => x.date >= monthStart).length;
@@ -1006,10 +1088,10 @@
         { name: 'date', label: 'Дата зважування', type: 'date', required: true, attrs: 'max="' + today() + '"' },
       ],
       onSave: async obj => {
-        await q(db.from('weights').upsert({ athlete_id: a.id, date: obj.date, weight: obj.weight }, { onConflict: 'athlete_id,date' }));
-        if (w && w.date !== obj.date) await q(db.from('weights').delete().eq('athlete_id', a.id).eq('date', w.date));
+        await write('weights', 'upsert', [{ athlete_id: a.id, date: obj.date, weight: obj.weight }]);
+        if (w && w.date !== obj.date) await write('weights', 'delete', { athlete_id: a.id, date: w.date });
       },
-      onDelete: w ? () => q(db.from('weights').delete().eq('athlete_id', a.id).eq('date', w.date)) : null,
+      onDelete: w ? () => write('weights', 'delete', { athlete_id: a.id, date: w.date }) : null,
       deleteText: 'Видалити це зважування?',
     });
   }
@@ -1093,11 +1175,14 @@
     const monthStart = state.date.slice(0, 7) + '-01';
     const monthEnd = shiftMonth(state.date.slice(0, 7), 1) + '-01';
 
-    const [ath, marks, monthMarks] = await Promise.all([
+    const [ath, marks0, monthMarks0] = await Promise.all([
       q(db.from('athletes').select('id, full_name, group_name, active, belt').order('full_name')),
-      q(db.from('attendance').select('athlete_id, present').eq('date', state.date)),
+      q(db.from('attendance').select('athlete_id, date, present').eq('date', state.date)),
       q(db.from('attendance').select('athlete_id, date').eq('present', true).gte('date', monthStart).lt('date', monthEnd)),
     ]);
+    const marks = withPending('attendance', marks0, r => r.date === state.date);
+    const monthMarks = withPending('attendance', monthMarks0, r => r.date >= monthStart && r.date < monthEnd).filter(m => m.present !== false);
+    const waiting = new Set(withPending('attendance', [], r => r.date === state.date).map(m => String(m.athlete_id)));
     const rows = ath.filter(a => isActive(a) && inGroup(a));
     const byId = new Map(rows.map(a => [String(a.id), a]));
     const present = new Set(marks.filter(m => m.present).map(m => String(m.athlete_id)));
@@ -1114,7 +1199,7 @@
       <div class="list" id="attList">
         ${rows.map(a => `
           <label class="row tick">
-            <span><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}</span></span>
+            <span><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}<i class="wait" ${waiting.has(String(a.id)) ? '' : 'hidden'}> · ⏳ чекає відправки</i></span></span>
             <input type="checkbox" data-id="${esc(a.id)}" ${present.has(String(a.id)) ? 'checked' : ''}>
           </label>`).join('') || '<div class="empty">У цій групі немає активних спортсменів</div>'}
       </div>
@@ -1144,7 +1229,12 @@
 
     const save = async (ids, isPresent) => {
       const payload = ids.map(id => ({ athlete_id: byId.get(id).id, date: state.date, present: isPresent }));
-      await q(db.from('attendance').upsert(payload, { onConflict: 'athlete_id,date' }));
+      const res = await write('attendance', 'upsert', payload);
+      ids.forEach(id => {
+        const w = $('#attList').querySelector(`input[data-id="${id}"]`)?.closest('.row')?.querySelector('.wait');
+        if (w) w.hidden = res !== 'queued';
+      });
+      return res;
     };
 
     $('#attList').onchange = async e => {
@@ -1157,7 +1247,7 @@
     const allBtn = $('#allBtn');
     if (allBtn) allBtn.onclick = async () => {
       allBtn.disabled = true;
-      try { await save(rows.map(a => String(a.id)), true); toast('Всіх відмічено'); render(); }
+      try { const r = await save(rows.map(a => String(a.id)), true); toast(r === 'queued' ? '⏳ Всіх відмічено на телефоні — відправлю, коли буде інтернет' : 'Всіх відмічено'); render(); }
       catch (err) { allBtn.disabled = false; }
     };
     $('#attDate').onchange = e => { if (e.target.value) { state.date = e.target.value; render(); } };
@@ -1169,10 +1259,11 @@
   async function paymentsView() {
     setActions('');
     const monthStart = state.month + '-01';
+    const waitPay = pendingKeys('payments');
     const [ath, pays] = await Promise.all([
       q(db.from('athletes').select('id, full_name, group_name, active, phone, parent_name').order('full_name')),
       q(db.from('payments').select('*').eq('month', monthStart)),
-    ]);
+    ]).then(([a, p]) => [a, withPending('payments', p, r => r.month === monthStart)]);
     const rows = ath.filter(a => isActive(a) && inGroup(a));
     const payOf = new Map(pays.map(p => [String(p.athlete_id), p]));
     const paidRows = rows.filter(a => payOf.has(String(a.id)));
@@ -1192,6 +1283,7 @@
           const p = payOf.get(String(a.id));
           return `<button class="row" data-id="${esc(a.id)}">
             <div><strong>${esc(a.full_name)}</strong><span>${esc(a.group_name || '')}${p && p.note ? ' · ' + esc(p.note) : ''}</span></div>
+            ${waitPay.has(opKey('payments', { athlete_id: a.id, month: monthStart })) ? '<span class="badge gold">⏳</span>' : ''}
             ${p ? `<span class="badge ok">✓ ${fmtMoney(p.amount)} · ${fmtDate(p.paid_at, { day: '2-digit', month: '2-digit' })}</span>`
                 : '<span class="badge bad">Не оплачено</span>'}
           </button>`;
@@ -1216,9 +1308,9 @@
         ],
         onSave: async obj => {
           try { localStorage.setItem('ft_last_amount', obj.amount); } catch (err) {}
-          await q(db.from('payments').upsert({ ...obj, athlete_id: a.id, month: monthStart }, { onConflict: 'athlete_id,month' }));
+          await write('payments', 'upsert', [{ ...obj, athlete_id: a.id, month: monthStart }]);
         },
-        onDelete: p ? () => q(db.from('payments').delete().eq('id', p.id)) : null,
+        onDelete: p ? () => write('payments', 'delete', { athlete_id: a.id, month: monthStart }) : null,
         deleteText: 'Скасувати цю оплату?',
       });
     };
@@ -1653,8 +1745,19 @@
   });
   window.addEventListener('appinstalled', () => { installEvent = null; const c = $('#installCard'); if (c) c.remove(); toast('Додаток встановлено'); });
 
-  function updateOnline() { $('#offline').hidden = navigator.onLine; }
-  window.addEventListener('online', () => { updateOnline(); if (signedIn) render(); });
+  function updateOnline() {
+    const bar = $('#offline'), n = loadQueue().length;
+    if (!navigator.onLine) {
+      bar.className = 'offline'; bar.hidden = false;
+      bar.textContent = n ? `Немає інтернету · ⏳ чекають відправки: ${n}` : 'Немає інтернету — показано збережені дані';
+    } else if (n) {
+      bar.className = 'offline sync'; bar.hidden = false;
+      bar.textContent = flushing ? `⏳ Відправляю зміни: ${n}…` : `⏳ Чекають відправки: ${n}`;
+    } else bar.hidden = true;
+  }
+  window.addEventListener('online', () => { updateOnline(); flushQueue().then(() => { if (signedIn) render(); }); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') flushQueue(); });
+  setInterval(flushQueue, 30000);
   window.addEventListener('offline', updateOnline);
   updateOnline();
 
@@ -1760,6 +1863,7 @@
       $('#view').innerHTML = '<p class="muted">Завантаження…</p>';
       state.role = await detectRole();
       render();
+      flushQueue();
     } else {
       state.role = null;
       drawTabbar('home');
