@@ -397,7 +397,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v2.1';
+  const APP_VERSION = 'v2.1.1';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -440,10 +440,10 @@
     const i = BELTS.indexOf(current);
     return i >= 0 && i < BELTS.length - 1 ? BELTS[i + 1] : (i === -1 ? BELTS[0] : BELTS[i]);
   }
-  // Кольори поясів. Смужка — колір наступного пояса (як у кіокушин), на 1 кю — золота.
+  // Кольори поясів. Смужка срібна, на 1 кю — золота.
   const BELT_COLORS = { 'білий': '#f8fafc', 'помаранчевий': '#f97316', 'синій': '#2563eb', 'жовтий': '#facc15',
                         'зелений': '#16a34a', 'коричневий': '#7c3f16', 'чорний': '#111111' };
-  const BELT_GOLD = '#d4a017';
+  const BELT_GOLD = '#d4a017', BELT_SILVER = '#c3c8d0';
   function beltMain(belt) {
     const name = Object.keys(BELT_COLORS).find(n => String(belt || '').toLowerCase().includes(n));
     return name ? BELT_COLORS[name] : null;
@@ -452,11 +452,7 @@
     const main = beltMain(belt);
     if (!main) return '';
     let stripe = main;
-    if (/смуж/i.test(belt)) {
-      const i = BELTS.indexOf(belt);
-      const next = i >= 0 && i < BELTS.length - 1 ? beltMain(BELTS[i + 1]) : null;
-      stripe = /коричн/i.test(belt) || !next ? BELT_GOLD : next;
-    }
+    if (/смуж/i.test(belt)) stripe = /^\s*1\s*кю/i.test(belt) ? BELT_GOLD : BELT_SILVER;
     return `<span class="belt ${big ? 'big' : ''}" style="--b:${main};--s:${stripe}" title="${esc(belt)}"></span>`;
   }
   function beltShort(belt) { return belt ? String(belt).split(' — ')[0] : ''; }
