@@ -207,11 +207,6 @@
   <dialog id="dlg"></dialog>
   <div id="toast" class="toast" hidden></div>
 
-  <datalist id="belts">
-    <option value="Білий"><option value="Жовтий"><option value="Помаранчевий">
-    <option value="Зелений"><option value="Синій"><option value="Фіолетовий">
-    <option value="Коричневий"><option value="Чорний">
-  </datalist>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -219,10 +214,25 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v1.6';
+  const APP_VERSION = 'v1.7';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   const GROUPS = ['Молодша', 'Середня', 'Старша'];
+  // Пояси від найнижчого до найвищого
+  const BELTS = [
+    '0 кю — білий', '10 кю — помаранчевий', '9 кю — помаранчевий зі смужкою',
+    '8 кю — синій', '7 кю — синій зі смужкою', '6 кю — жовтий', '5 кю — жовтий зі смужкою',
+    '4 кю — зелений', '3 кю — зелений зі смужкою', '2 кю — коричневий', '1 кю — коричневий зі смужкою',
+    '1 дан — чорний пояс',
+  ];
+  // Список для вибору; старе значення не зі списку теж лишається, щоб не загубилось
+  function beltOptions(current) {
+    return current && !BELTS.includes(current) ? [...BELTS, [current, current + ' (старий запис)']] : BELTS;
+  }
+  function nextBelt(current) {
+    const i = BELTS.indexOf(current);
+    return i >= 0 && i < BELTS.length - 1 ? BELTS[i + 1] : (i === -1 ? BELTS[0] : BELTS[i]);
+  }
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', weights: 'Зважування', gradings: 'Атестації', attendance: 'Відвідування',
@@ -533,7 +543,7 @@
         { name: 'group_name', label: 'Група', type: 'select', options: GROUPS, required: true },
         { name: 'birth_date', label: 'Дата народження' + (a && !a.birth_date && a.birth_year ? ` (зараз вказано лише рік: ${a.birth_year})` : ''), type: 'date', attrs: 'min="1990-01-01" max="' + today() + '"' },
         { name: 'weight', label: 'Вага, кг (зберігається в історію на сьогодні)', type: 'number', attrs: 'min="10" max="200" step="0.1" inputmode="decimal"' },
-        { name: 'belt', label: 'Пояс / кю', attrs: 'list="belts"' },
+        { name: 'belt', label: 'Пояс / кю', type: 'select', options: beltOptions(a && a.belt) },
         { name: 'parent_name', label: 'Батьки (імʼя)' },
         { name: 'phone', label: 'Телефон', type: 'tel' },
         { name: 'notes', label: 'Нотатки', type: 'textarea' },
@@ -660,7 +670,7 @@
       fields: [
         { name: 'athlete_id', label: 'Спортсмен', type: 'select', options, required: true, cast: numericId ? 'number' : '' },
         { name: 'date', label: 'Дата атестації', type: 'date', required: true },
-        { name: 'belt', label: 'На який пояс / кю', required: true, attrs: 'list="belts" placeholder="напр. Жовтий, 8 кю"' },
+        { name: 'belt', label: 'На який пояс / кю', type: 'select', required: true, options: beltOptions(g && g.belt) },
         { name: 'passed', label: 'Результат', type: 'select', required: true, options: [['yes', 'Здав'], ['no', 'Не здав']] },
         { name: 'note', label: 'Примітка (екзаменатор, оцінка…)' },
       ],
@@ -678,6 +688,14 @@
       },
       onDelete: g ? () => q(db.from('gradings').delete().eq('id', g.id)) : null,
     });
+    // Для нової атестації: при виборі спортсмена одразу підставляємо наступний пояс
+    if (!g) {
+      const sel = $('#dlg [name=athlete_id]'), belt = $('#dlg [name=belt]');
+      sel.onchange = () => {
+        const a = ath.find(x => String(x.id) === sel.value);
+        if (a) belt.value = nextBelt(a.belt);
+      };
+    }
   }
 
   // ----- Відвідування -----
