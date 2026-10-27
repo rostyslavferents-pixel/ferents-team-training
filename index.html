@@ -78,7 +78,14 @@
 
     .search { margin-bottom: 10px; }
     .bar { display: flex; gap: 8px; margin-bottom: 10px; }
-    .bar input { flex: 1; text-align: center; }
+    .picker {
+      position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
+      margin: 0; padding: 11px 12px; border: 1px solid #d1d5db; border-radius: 12px; background: #fff;
+      font-size: 16px; font-weight: 600; color: var(--ink);
+    }
+    label.picker { cursor: pointer; }
+    .picker input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+    .picker input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; cursor: pointer; }
 
     .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; }
     .chip {
@@ -236,9 +243,11 @@
   function fmtDate(iso, opts = { day: 'numeric', month: 'long' }) {
     return new Date(iso + 'T12:00').toLocaleDateString('uk-UA', opts);
   }
+  const MONTHS = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень',
+                  'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
   function fmtMonth(ym) {
-    const s = new Date(ym + '-15T12:00').toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
-    return s.charAt(0).toUpperCase() + s.slice(1);
+    const [y, m] = ym.split('-');
+    return MONTHS[Number(m) - 1] + ' ' + y;
   }
   function fmtMoney(n) { return Number(n || 0).toLocaleString('uk-UA') + ' грн'; }
   function hhmm(t) { return t ? String(t).slice(0, 5) : ''; }
@@ -461,7 +470,8 @@
     $('#view').innerHTML = `
       <div class="bar">
         <button class="btn light sq" data-shift="-1" aria-label="Попередній день">‹</button>
-        <input type="date" id="attDate" value="${state.date}">
+        <label class="picker"><span>${fmtDate(state.date, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+          <input type="date" id="attDate" value="${state.date}" aria-label="Обрати дату"></label>
         <button class="btn light sq" data-shift="1" aria-label="Наступний день">›</button>
       </div>
       ${chips()}
@@ -537,7 +547,7 @@
     $('#view').innerHTML = `
       <div class="bar">
         <button class="btn light sq" data-mshift="-1" aria-label="Попередній місяць">‹</button>
-        <input type="month" id="payMonth" value="${state.month}">
+        <div class="picker"><span>${fmtMonth(state.month)}</span></div>
         <button class="btn light sq" data-mshift="1" aria-label="Наступний місяць">›</button>
       </div>
       ${chips()}
@@ -585,7 +595,6 @@
       try { await navigator.clipboard.writeText(text); toast('Список скопійовано'); }
       catch (err) { prompt('Скопіюйте список:', text); }
     };
-    $('#payMonth').onchange = e => { if (e.target.value) { state.month = e.target.value; render(); } };
     document.querySelectorAll('[data-mshift]').forEach(b =>
       b.onclick = () => { state.month = shiftMonth(state.month, Number(b.dataset.mshift)); render(); });
   }
