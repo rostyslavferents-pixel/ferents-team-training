@@ -195,12 +195,18 @@
     .menu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
       padding: max(20px, env(safe-area-inset-top)) 18px 16px; background: var(--head); color: #fff; border-bottom: 4px solid var(--gold); }
     .menu-head span { display: block; color: #9ca3af; font-size: 13px; margin-top: 3px; }
-    .menu-close { background: transparent; border: 0; color: #d1d5db; font-size: 20px; cursor: pointer; padding: 0 4px; }
+    .menu-close { background: transparent; border: 0; color: #d1d5db; cursor: pointer; padding: 2px; display: flex; }
+    .menu-close svg { width: 22px; height: 22px; }
     .menu-item {
-      display: block; width: 100%; text-align: left; padding: 15px 18px; border: 0; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 15px 18px; border: 0; border-bottom: 1px solid var(--line);
       background: transparent; color: var(--ink); font: inherit; font-size: 16px; text-decoration: none; cursor: pointer;
     }
+    .menu-item svg {
+      width: 20px; height: 20px; flex: none; color: var(--muted);
+      fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    }
     .menu-item:active { background: var(--line); }
+    .menu-item:active svg { color: var(--gold); }
     .menu-foot { margin-top: auto; padding: 16px 18px; color: var(--muted); font-size: 12px; }
 
     /* Налаштування */
@@ -540,7 +546,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.1';
+  const APP_VERSION = 'v3.2';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -2331,19 +2337,31 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   }
 
   // ----- Меню ☰ -----
+  // Лінійні іконки (24×24, колір береться з тексту)
+  const MENU_ICONS = {
+    home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
+    chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+    install: '<rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 6.5v7"/><path d="m9 10.5 3 3 3-3"/><path d="M11 18h2"/>',
+    logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+    close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  };
+  const mIcon = n => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${MENU_ICONS[n]}</svg>`;
+
   function openMenu() {
     const m = $('#menu');
     m.innerHTML = `
       <div class="menu-head">
         <div><b>${esc(state.name && state.name !== 'Тренер' ? state.name : state.email)}</b><span>${state.role === 'coach' ? 'Тренер' : state.role === 'member' ? 'Учасник команди' : 'Без доступу'}</span></div>
-        <button type="button" class="menu-close" aria-label="Закрити">✕</button>
+        <button type="button" class="menu-close" aria-label="Закрити">${mIcon('close')}</button>
       </div>
-      <a class="menu-item" href="#home">🏠 Головна</a>
-      ${state.role ? '<a class="menu-item" href="#chat">💬 Чат команди</a>' : ''}
-      ${isCoach() ? '<a class="menu-item" href="#members">👥 Учасники та доступ</a>' : ''}
-      <a class="menu-item" href="#settings">⚙️ Налаштування</a>
-      ${isInstalled() ? '' : '<button type="button" class="menu-item" id="menuInstall">📲 Встановити додаток</button>'}
-      <button type="button" class="menu-item" id="menuLogout">🚪 Вийти</button>
+      <a class="menu-item" href="#home">${mIcon('home')}Головна</a>
+      ${state.role ? `<a class="menu-item" href="#chat">${mIcon('chat')}Чат команди</a>` : ''}
+      ${isCoach() ? `<a class="menu-item" href="#members">${mIcon('users')}Учасники та доступ</a>` : ''}
+      <a class="menu-item" href="#settings">${mIcon('settings')}Налаштування</a>
+      ${isInstalled() ? '' : `<button type="button" class="menu-item" id="menuInstall">${mIcon('install')}Встановити додаток</button>`}
+      <button type="button" class="menu-item" id="menuLogout">${mIcon('logout')}Вийти</button>
       <div class="menu-foot">Ferents Team Training · ${APP_VERSION}</div>`;
     m.onclick = e => {
       if (e.target === m || e.target.closest('.menu-close') || e.target.closest('a.menu-item')) m.close();
