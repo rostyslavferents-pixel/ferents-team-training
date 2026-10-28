@@ -565,7 +565,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.4';
+  const APP_VERSION = 'v3.5';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -1118,10 +1118,45 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   // ----- Головна для батьків і спортсменів -----
   async function memberHomeView() {
     const t = today();
-    const [sch, ev] = await Promise.all([
-      q(db.from('schedule').select('*').eq('weekday', weekdayOf(t)).order('start_time')),
+    const [schAll, ev] = await Promise.all([
+      q(db.from('schedule').select('*').order('start_time')),
       q(db.from('events').select('title, date, place').gte('date', t).order('date').limit(3)),
     ]);
+    const sch = schAll.filter(s => Number(s.weekday) === weekdayOf(t));
+
+    // «Моя група» — зберігається на телефоні, щоб показувати саме свої тренування
+    let my = {};
+    try { my = JSON.parse(localStorage.getItem('ft_my_group') || '{}'); } catch (e) {}
+    const mine = s => (!my.section || !s.section || s.section === my.section) && (!my.group || s.group_name === my.group);
+    const mins = s => { const [h, m] = String(s).split(':').map(Number); return h * 60 + m; };
+    const nowD = new Date(), nowM = nowD.getHours() * 60 + nowD.getMinutes();
+    // Найближчий день, де ще є тренування (сьогодні — лише ті, що не закінчились)
+    let nextDay = null;
+    for (let d = 0; d <= 7 && !nextDay; d++) {
+      const date = shiftDate(t, d);
+      const list = schAll.filter(s => Number(s.weekday) === weekdayOf(date) && mine(s))
+        .filter(s => d > 0 || (s.end_time ? mins(s.end_time) : mins(s.start_time) + 90) > nowM)
+        .sort((a, b) => mins(a.start_time) - mins(b.start_time));
+      if (list.length) nextDay = { date, d, list };
+    }
+    let nextBlock = '';
+    if (nextDay) {
+      const first = nextDay.list[0], st = mins(first.start_time);
+      let when;
+      if (nextDay.d === 0) {
+        if (nowM >= st) when = 'зараз іде';
+        else { const left = st - nowM; when = left >= 60 ? `сьогодні, через ${Math.floor(left / 60)} год${left % 60 ? ' ' + (left % 60) + ' хв' : ''}` : `сьогодні, через ${left} хв`; }
+      } else when = nextDay.d === 1 ? 'завтра, ' + fmtDate(nextDay.date, { weekday: 'long' }) : fmtDate(nextDay.date, { weekday: 'long', day: 'numeric', month: 'long' });
+      const lines = nextDay.list.map(s => `${hhmm(s.start_time)} — ${esc(schedLabel(s, true))}`).join('<br>');
+      nextBlock = `<a class="now soon" href="#schedule"><i class="dot"></i>
+        <div><b>Наступне тренування: ${when}</b><span>${lines}</span></div><i class="go">›</i></a>`;
+    }
+    const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === (cur || '') ? 'selected' : ''}>${esc(label || v)}</option>`;
+    const myPicker = `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;font-size:14px">
+        <span class="muted">Моя група:</span>
+        <select id="mySection">${opt('', my.section, 'Усі секції')}${SECTIONS.map(s => opt(s, my.section)).join('')}</select>
+        <select id="myGroup">${opt('', my.group, 'Усі групи')}${GROUPS.map(g => opt(g, my.group)).join('')}</select>
+      </div>`;
     const todayText = sch.length
       ? sch.map(s => `${hhmm(s.start_time)} — ${esc(schedLabel(s, true))}`).join('<br>')
       : 'Тренувань за розкладом немає';
@@ -1131,11 +1166,19 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       `<a class="card" href="#${route}"><strong>${title}</strong><span>${sub}</span></a>`;
     $('#view').innerHTML = `
       ${installCard()}
+      ${nextBlock}
+      ${myPicker}
       ${settings.showToday ? `<div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${events}</div>` : ''}
       ${card('chat', '💬 Чат команди', 'Спілкування з тренером і командою')}
       ${card('schedule', '📅 Розклад тренувань', 'Дні та час для кожної групи')}
       ${card('events', '🏆 Календар подій', 'Змагання, атестації, збори')}
       ${card('links', '🎬 Відео та посилання', 'Ката, техніка, корисні матеріали')}`;
+    const saveMy = () => {
+      try { localStorage.setItem('ft_my_group', JSON.stringify({ section: $('#mySection').value, group: $('#myGroup').value })); } catch (e) {}
+      memberHomeView();
+    };
+    $('#mySection').onchange = saveMy;
+    $('#myGroup').onchange = saveMy;
   }
 
   // Вік і підпис дати народження
