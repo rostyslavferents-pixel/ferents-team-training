@@ -999,16 +999,18 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     }
 
     const t = today();
-    const [ath, att, pay, sch, ev, pl] = await Promise.all([
+    let [ath, att, pay, sch, ev, pl] = await Promise.all([
       q(db.from('athletes').select('*')),
       q(db.from('attendance').select('athlete_id, date').eq('date', t).eq('present', true)),
       q(db.from('payments').select('athlete_id, month').eq('month', t.slice(0, 7) + '-01')),
-      q(db.from('schedule').select('*').eq('weekday', weekdayOf(t)).order('start_time')),
+      q(db.from('schedule').select('*').order('start_time')),
       q(db.from('events').select('title, date').gte('date', t).order('date').limit(1)),
       db.from('training_plans').select('group_name, title').eq('date', t),
     ]).then(([a1, a2, a3, a4, a5, a6]) => [a1,
       withPending('attendance', a2, r => r.date === t).filter(r => r.present !== false),
       withPending('payments', a3, r => r.month === t.slice(0, 7) + '-01'), a4, a5, a6]);
+    const schAll = sch;
+    sch = schAll.filter(s => Number(s.weekday) === weekdayOf(t));
     const plansToday = (pl.data || []);
     const active = ath.filter(isActive);
     const paid = new Set(pay.map(p => p.athlete_id));
@@ -1023,7 +1025,17 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       return { s, st, en };
     });
     const current = slots.find(x => nowM >= x.st - 30 && nowM <= x.en + 30);
-    const next = !current && slots.find(x => x.st > nowM);
+    let next = !current && slots.find(x => x.st > nowM);
+    if (next) next.date = t;
+    // Сьогодні більше немає — шукаємо найближчий день за розкладом (до тижня вперед)
+    if (!current && !next) {
+      for (let d = 1; d <= 7 && !next; d++) {
+        const date = shiftDate(t, d);
+        const s = schAll.filter(x => Number(x.weekday) === weekdayOf(date))
+          .sort((a, b) => mins(a.start_time) - mins(b.start_time))[0];
+        if (s) next = { s, st: mins(s.start_time), date, days: d };
+      }
+    }
     const groupCount = (g, sec) => {
       const inG = active.filter(a => (!g || a.group_name === g) && (!sec || !('section' in a) || a.section === sec));
       return [inG.filter(a => presentIds.has(String(a.id))).length, inG.length];
@@ -1036,8 +1048,13 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
         <div><b>Відмітити присутніх</b><span>${esc([current.s.section, current.s.group_name].filter(Boolean).join(' · '))} · ${hhmm(current.s.start_time)}${current.s.place ? ' · ' + esc(current.s.place) : ''} · відмічено ${n} з ${total}</span></div>
         <i class="go">›</i></a>`;
     } else if (next) {
-      const left = next.st - nowM;
-      const inTxt = left >= 60 ? `через ${Math.floor(left / 60)} год ${left % 60 ? (left % 60) + ' хв' : ''}` : `через ${left} хв`;
+      let inTxt;
+      if (next.days) {
+        inTxt = next.days === 1 ? 'завтра' : fmtDate(next.date, { weekday: 'long', day: 'numeric', month: 'long' });
+      } else {
+        const left = next.st - nowM;
+        inTxt = left >= 60 ? `через ${Math.floor(left / 60)} год ${left % 60 ? (left % 60) + ' хв' : ''}` : `через ${left} хв`;
+      }
       nowBlock = `<a class="now soon" href="#attendance" data-now-group="${esc(next.s.group_name || '')}" data-now-section="${esc(next.s.section || '')}">
         <i class="dot"></i>
         <div><b>Наступне: ${hhmm(next.s.start_time)} — ${esc([next.s.section, next.s.group_name].filter(Boolean).join(' · '))}</b><span>${inTxt}${next.s.place ? ' · ' + esc(next.s.place) : ''}</span></div>
