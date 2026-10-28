@@ -296,3 +296,54 @@ drop policy if exists "coach athlete photos" on storage.objects;
 create policy "coach athlete photos" on storage.objects for all to authenticated
   using (bucket_id = 'athlete-photos' and public.is_coach())
   with check (bucket_id = 'athlete-photos' and public.is_coach());
+
+
+-- =====================================================================
+-- 11. Батьки бачать лише свого спортсмена
+do $$
+declare id_type text;
+begin
+  select format_type(a.atttypid, a.atttypmod) into id_type
+  from pg_attribute a where a.attrelid = 'public.athletes'::regclass and a.attname = 'id';
+  execute format($f$
+    create table if not exists public.member_athletes (
+      email      text not null references public.members(email) on delete cascade on update cascade,
+      athlete_id %s not null references public.athletes(id) on delete cascade,
+      primary key (email, athlete_id)
+    )$f$, id_type);
+end $$;
+alter table public.member_athletes enable row level security;
+drop policy if exists coach_all on public.member_athletes;
+drop policy if exists own_read on public.member_athletes;
+create policy coach_all on public.member_athletes for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+create policy own_read on public.member_athletes for select to authenticated
+  using (email = lower(auth.jwt() ->> 'email'));
+revoke all on public.member_athletes from anon;
+
+create or replace function public.is_my_athlete(aid text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.member_athletes
+    where email = lower(auth.jwt() ->> 'email') and athlete_id::text = aid);
+$$;
+
+drop policy if exists member_read on public.athletes;
+drop policy if exists member_read on public.attendance;
+drop policy if exists member_read on public.gradings;
+drop policy if exists member_read on public.weights;
+create policy member_read on public.athletes   for select to authenticated using (public.is_my_athlete(id::text));
+create policy member_read on public.attendance for select to authenticated using (public.is_my_athlete(athlete_id::text));
+create policy member_read on public.gradings   for select to authenticated using (public.is_my_athlete(athlete_id::text));
+create policy member_read on public.weights    for select to authenticated using (public.is_my_athlete(athlete_id::text));
+
+-- Рейтинг команди: бачать усі учасники (лише імʼя, група, пояс, місце, заслуги)
+create or replace function public.team_rating()
+returns table (id text, full_name text, section text, group_name text, belt text, rating_place integer, achievements text)
+language sql stable security definer set search_path = public as $$
+  select a.id::text, a.full_name, a.section, a.group_name, a.belt, a.rating_place, a.achievements
+  from public.athletes a
+  where public.is_member() and a.rating_place is not null
+  order by a.rating_place;
+$$;
+revoke execute on function public.team_rating() from anon;
+notify pgrst, 'reload schema';

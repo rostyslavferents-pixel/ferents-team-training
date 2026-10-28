@@ -565,7 +565,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.5';
+  const APP_VERSION = 'v3.6';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -692,6 +692,55 @@
   }
   const MERITS_SQL = `alter table public.athletes add column if not exists achievements text;
 alter table public.athletes add column if not exists rating_place integer;`;
+  // Батьки/спортсмени бачать лише «своїх» спортсменів + загальний рейтинг
+  const KIDS_SQL = `-- Батьки бачать лише свого спортсмена
+do $$
+declare id_type text;
+begin
+  select format_type(a.atttypid, a.atttypmod) into id_type
+  from pg_attribute a where a.attrelid = 'public.athletes'::regclass and a.attname = 'id';
+  execute format($f$
+    create table if not exists public.member_athletes (
+      email      text not null references public.members(email) on delete cascade on update cascade,
+      athlete_id %s not null references public.athletes(id) on delete cascade,
+      primary key (email, athlete_id)
+    )$f$, id_type);
+end $$;
+alter table public.member_athletes enable row level security;
+drop policy if exists coach_all on public.member_athletes;
+drop policy if exists own_read on public.member_athletes;
+create policy coach_all on public.member_athletes for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+create policy own_read on public.member_athletes for select to authenticated
+  using (email = lower(auth.jwt() ->> 'email'));
+revoke all on public.member_athletes from anon;
+
+create or replace function public.is_my_athlete(aid text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.member_athletes
+    where email = lower(auth.jwt() ->> 'email') and athlete_id::text = aid);
+$$;
+
+drop policy if exists member_read on public.athletes;
+drop policy if exists member_read on public.attendance;
+drop policy if exists member_read on public.gradings;
+drop policy if exists member_read on public.weights;
+create policy member_read on public.athletes   for select to authenticated using (public.is_my_athlete(id::text));
+create policy member_read on public.attendance for select to authenticated using (public.is_my_athlete(athlete_id::text));
+create policy member_read on public.gradings   for select to authenticated using (public.is_my_athlete(athlete_id::text));
+create policy member_read on public.weights    for select to authenticated using (public.is_my_athlete(athlete_id::text));
+
+-- Рейтинг команди: бачать усі учасники (лише імʼя, група, пояс, місце, заслуги)
+create or replace function public.team_rating()
+returns table (id text, full_name text, section text, group_name text, belt text, rating_place integer, achievements text)
+language sql stable security definer set search_path = public as $$
+  select a.id::text, a.full_name, a.section, a.group_name, a.belt, a.rating_place, a.achievements
+  from public.athletes a
+  where public.is_member() and a.rating_place is not null
+  order by a.rating_place;
+$$;
+revoke execute on function public.team_rating() from anon;
+notify pgrst, 'reload schema';`;
   function sqlCard(title, sql) {
     return `<div class="info"><b>${esc(title)}</b><br>Щоб увімкнути, один раз виконайте в Supabase → SQL Editor:
       <code style="display:block;margin:8px 0;padding:8px;background:var(--card);border-radius:8px;font-size:12px;white-space:pre-wrap;word-break:break-all">${esc(sql)}</code>
@@ -1117,22 +1166,27 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
 
   // ----- Головна для батьків і спортсменів -----
   async function memberHomeView() {
-    const t = today();
-    const [schAll, ev] = await Promise.all([
+    const t = today(), ym = t.slice(0, 7), monthStart = ym + '-01';
+    // База сама віддає лише «своїх» спортсменів (прив'язку робить тренер в «Учасниках»)
+    const [kids0, schAll, ev, att, rating] = await Promise.all([
+      q(db.from('athletes').select('*').order('full_name')),
       q(db.from('schedule').select('*').order('start_time')),
-      q(db.from('events').select('title, date, place').gte('date', t).order('date').limit(3)),
+      q(db.from('events').select('*').gte('date', t).order('date').limit(5)),
+      q(db.from('attendance').select('athlete_id, date').eq('present', true).gte('date', monthStart)),
+      db.rpc('team_rating').then(r => r.data || []),
     ]);
-    const sch = schAll.filter(s => Number(s.weekday) === weekdayOf(t));
+    const kids = kids0.filter(isActive).length ? kids0.filter(isActive) : kids0;
+    state.kidIds = kids.map(a => String(a.id));
+    const placeOf = new Map(rating.map(r => [String(r.id), r.rating_place]));
 
-    // «Моя група» — зберігається на телефоні, щоб показувати саме свої тренування
-    let my = {};
-    try { my = JSON.parse(localStorage.getItem('ft_my_group') || '{}'); } catch (e) {}
-    const mine = s => (!my.section || !s.section || s.section === my.section) && (!my.group || s.group_name === my.group);
     const mins = s => { const [h, m] = String(s).split(':').map(Number); return h * 60 + m; };
     const nowD = new Date(), nowM = nowD.getHours() * 60 + nowD.getMinutes();
-    // Найближчий день, де ще є тренування (сьогодні — лише ті, що не закінчились)
+    const forKid = (s, a) => s.group_name === a.group_name && (!s.section || !a.section || s.section === a.section);
+    const mine = s => kids.some(a => forKid(s, a));
+
+    // Найближче тренування груп моїх спортсменів
     let nextDay = null;
-    for (let d = 0; d <= 7 && !nextDay; d++) {
+    for (let d = 0; d <= 7 && kids.length && !nextDay; d++) {
       const date = shiftDate(t, d);
       const list = schAll.filter(s => Number(s.weekday) === weekdayOf(date) && mine(s))
         .filter(s => d > 0 || (s.end_time ? mins(s.end_time) : mins(s.start_time) + 90) > nowM)
@@ -1141,44 +1195,52 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     }
     let nextBlock = '';
     if (nextDay) {
-      const first = nextDay.list[0], st = mins(first.start_time);
+      const st = mins(nextDay.list[0].start_time);
       let when;
       if (nextDay.d === 0) {
         if (nowM >= st) when = 'зараз іде';
         else { const left = st - nowM; when = left >= 60 ? `сьогодні, через ${Math.floor(left / 60)} год${left % 60 ? ' ' + (left % 60) + ' хв' : ''}` : `сьогодні, через ${left} хв`; }
       } else when = nextDay.d === 1 ? 'завтра, ' + fmtDate(nextDay.date, { weekday: 'long' }) : fmtDate(nextDay.date, { weekday: 'long', day: 'numeric', month: 'long' });
-      const lines = nextDay.list.map(s => `${hhmm(s.start_time)} — ${esc(schedLabel(s, true))}`).join('<br>');
-      nextBlock = `<a class="now soon" href="#schedule"><i class="dot"></i>
-        <div><b>Наступне тренування: ${when}</b><span>${lines}</span></div><i class="go">›</i></a>`;
+      const lines = nextDay.list.map(s => `${hhmm(s.start_time)}${s.end_time ? '–' + hhmm(s.end_time) : ''} — ${esc([kids.length > 1 ? s.group_name : '', s.place].filter(Boolean).join(' · ') || s.group_name)}`).join('<br>');
+      nextBlock = `<div class="now soon"><i class="dot"></i>
+        <div><b>Наступне тренування: ${when}</b><span>${lines}</span></div></div>`;
     }
-    const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === (cur || '') ? 'selected' : ''}>${esc(label || v)}</option>`;
-    const myPicker = `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;font-size:14px">
-        <span class="muted">Моя група:</span>
-        <select id="mySection">${opt('', my.section, 'Усі секції')}${SECTIONS.map(s => opt(s, my.section)).join('')}</select>
-        <select id="myGroup">${opt('', my.group, 'Усі групи')}${GROUPS.map(g => opt(g, my.group)).join('')}</select>
-      </div>`;
-    const todayText = sch.length
-      ? sch.map(s => `${hhmm(s.start_time)} — ${esc(schedLabel(s, true))}`).join('<br>')
-      : 'Тренувань за розкладом немає';
-    const events = ev.length
-      ? '<br><br><b>Найближчі події:</b><br>' + ev.map(e => `${fmtDate(e.date)} — ${esc(e.title)}`).join('<br>') : '';
+
+    // Картка кожного спортсмена: пояс, група, відвідування цього місяця, місце в рейтингу
+    const kidCard = a => {
+      const visits = att.filter(x => String(x.athlete_id) === String(a.id)).length;
+      const days = new Set(schAll.filter(s => forKid(s, a)).map(s => Number(s.weekday)));
+      let planned = 0;
+      for (let d = monthStart; d <= t; d = shiftDate(d, 1)) if (days.has(weekdayOf(d))) planned++;
+      const place = placeOf.get(String(a.id));
+      return `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">
+        <div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong>
+          <span>${esc([a.section, a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}</span>
+          <span>✅ ${visits}${planned ? ' з ' + planned : ''} тренувань у ${MONTHS_IN[Number(ym.slice(5)) - 1]}${place ? ` · 🏆 ${place} місце в рейтингу` : ''}</span></div>
+        <span class="chev">›</span></a>`;
+    };
+    const noKids = `<div class="info">Тренер ще не привʼязав ваш акаунт до спортсмена. Коли це буде зроблено,
+      тут зʼявляться його відвідування, пояси та найближчі тренування.</div>`;
+
+    const going = e => (Array.isArray(e.participants) ? e.participants.map(String) : []).filter(id => state.kidIds.includes(id));
+    const evHtml = ev.length ? `<h3>Найближчі події</h3><div class="list">${ev.slice(0, 3).map(e => {
+        const g = going(e).map(id => kids.find(a => String(a.id) === id)?.full_name.split(' ')[0]).filter(Boolean);
+        return `<a class="row" href="#events"><div><strong>${esc(e.title)}</strong>
+          <span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long' })}${e.place ? ' · ' + esc(e.place) : ''}</span>
+          ${g.length ? `<span style="color:var(--ok)">🥋 бере участь: ${esc(g.join(', '))}</span>` : ''}</div><span class="chev">›</span></a>`;
+      }).join('')}</div>` : '';
     const card = (route, title, sub) =>
       `<a class="card" href="#${route}"><strong>${title}</strong><span>${sub}</span></a>`;
+
     $('#view').innerHTML = `
       ${installCard()}
       ${nextBlock}
-      ${myPicker}
-      ${settings.showToday ? `<div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${events}</div>` : ''}
-      ${card('chat', '💬 Чат команди', 'Спілкування з тренером і командою')}
-      ${card('schedule', '📅 Розклад тренувань', 'Дні та час для кожної групи')}
-      ${card('events', '🏆 Календар подій', 'Змагання, атестації, збори')}
-      ${card('links', '🎬 Відео та посилання', 'Ката, техніка, корисні матеріали')}`;
-    const saveMy = () => {
-      try { localStorage.setItem('ft_my_group', JSON.stringify({ section: $('#mySection').value, group: $('#myGroup').value })); } catch (e) {}
-      memberHomeView();
-    };
-    $('#mySection').onchange = saveMy;
-    $('#myGroup').onchange = saveMy;
+      ${kids.length ? `<h3>${kids.length > 1 ? 'Мої спортсмени' : 'Мій спортсмен'}</h3><div class="list">${kids.map(kidCard).join('')}</div>` : noKids}
+      ${evHtml}
+      <div style="margin-top:16px"></div>
+      ${card('rating', '🏆 Рейтинг спортсменів', 'Місця та заслуги команди')}
+      ${card('events', '📅 Календар подій', 'Змагання, атестації, збори')}
+      ${card('chat', '💬 Чат команди', 'Спілкування з тренером і командою')}`;
   }
 
   // Вік і підпис дати народження
@@ -1287,7 +1349,24 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       if (rated[i].rating_place !== i + 1) await q(db.from('athletes').update({ rating_place: i + 1 }).eq('id', rated[i].id));
     }
   }
+  // Рейтинг для батьків і спортсменів: лише перегляд
+  async function memberRatingView() {
+    setActions('');
+    const { data, error } = await db.rpc('team_rating');
+    if (error) { $('#view').innerHTML = '<div class="empty">Рейтинг поки недоступний</div>'; return; }
+    const mine = new Set((await q(db.from('athletes').select('id'))).map(a => String(a.id)));
+    $('#view').innerHTML = `<div class="list rating">${(data || []).map((a, i) => {
+        const own = mine.has(String(a.id));
+        const body = `<span class="rank ${i < 3 ? 'r' + (i + 1) : ''}">${a.rating_place}</span>
+          <div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}${own ? ' <span class="badge ok">мій</span>' : ''}</strong>
+            <span>${esc([a.section, a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}</span>
+            ${a.achievements ? `<div class="merits">${esc(a.achievements)}</div>` : ''}</div>`;
+        return own ? `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">${body}<span class="chev">›</span></a>`
+                   : `<div class="row" style="cursor:default">${body}</div>`;
+      }).join('') || '<div class="empty">Рейтинг ще не складено</div>'}</div>`;
+  }
   async function ratingView() {
+    if (!isCoach()) return memberRatingView();
     const ath = await q(db.from('athletes').select('*').order('full_name'));
     noteSection(ath);
     if (!state.hasMerits) {
@@ -1504,18 +1583,26 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       $('#view').innerHTML = '<div class="empty">Спортсмена не знайдено. <a class="link" href="#athletes">До списку</a></div>';
       return;
     }
-    setActions('<button class="btn light" id="editBtn">Змінити</button>');
-    $('#editBtn').onclick = () => athleteForm(a);
+    const coach = isCoach();
+    if (coach) {
+      setActions('<button class="btn light" id="editBtn">Змінити</button>');
+      $('#editBtn').onclick = () => athleteForm(a);
+    }
 
     const t = today(), ym = t.slice(0, 7), monthStart = ym + '-01';
     const firstMonth = shiftMonth(ym, -5);
     const [att0, pays0, grs, wts0, sch] = await Promise.all([
       q(db.from('attendance').select('athlete_id, date').eq('athlete_id', a.id).eq('present', true).gte('date', firstMonth + '-01')),
-      q(db.from('payments').select('athlete_id, month, amount, paid_at').eq('athlete_id', a.id).gte('month', firstMonth + '-01')),
+      coach ? q(db.from('payments').select('athlete_id, month, amount, paid_at').eq('athlete_id', a.id).gte('month', firstMonth + '-01')) : [],
       q(db.from('gradings').select('*').eq('athlete_id', a.id).order('date', { ascending: false })),
       q(db.from('weights').select('athlete_id, date, weight').eq('athlete_id', a.id).order('date', { ascending: false }).limit(20)),
       q(db.from('schedule').select('weekday, group_name')),
     ]);
+    // Для батьків місце в рейтингу беремо із загального рейтингу
+    if (!coach && !a.rating_place) {
+      const r = await db.rpc('team_rating');
+      a.rating_place = ((r.data || []).find(x => String(x.id) === String(a.id)) || {}).rating_place || null;
+    }
     const evs = ((await db.from('events').select('*').gte('date', today()).order('date')).data || [])
       .filter(e => Array.isArray(e.participants) && e.participants.map(String).includes(String(a.id)));
     const mine = r => String(r.athlete_id) === String(a.id);
@@ -1584,38 +1671,56 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
           <div><h2>${esc(a.full_name)}</h2><span>${esc(sub)}${bdayLine}</span></div></div>
         <div class="hero-belt">${a.belt ? beltTag(a.belt, true) + esc(a.belt) : '<span class="muted">Пояс не вказано</span>'}</div>
         <div class="hero-w">⚖️ ${lastW ? `<b>${fmtKg(lastW.kg)}</b> <span class="muted small">· ${fmtDate(lastW.date)}${lastW.date.slice(0, 4) !== t.slice(0, 4) ? ' ' + lastW.date.slice(0, 4) : ''}</span>` : '<span class="muted">Вага не вказана</span>'}</div>
-        ${a.parent_name ? `<div class="note">Батьки: ${esc(a.parent_name)}${a.phone ? ' · ' + esc(a.phone) : ''}</div>` : ''}
-        ${a.notes ? `<div class="note">${esc(a.notes)}</div>` : ''}
+        ${coach && a.parent_name ? `<div class="note">Батьки: ${esc(a.parent_name)}${a.phone ? ' · ' + esc(a.phone) : ''}</div>` : ''}
+        ${coach && a.notes ? `<div class="note">${esc(a.notes)}</div>` : ''}
         ${a.achievements ? `<div class="merits-full"><b>🏆 ЗАСЛУГИ</b>${esc(a.achievements)}</div>` : ''}
-        ${state.hasMerits ? `<div style="margin-top:12px">${a.rating_place
+        ${!coach && a.rating_place ? `<div style="margin-top:12px"><a class="badge gold" href="#rating" style="text-decoration:none">🏆 ${a.rating_place} місце в рейтингу</a></div>` : ''}
+        ${coach && state.hasMerits ? `<div style="margin-top:12px">${a.rating_place
             ? `<a class="badge gold" href="#rating" style="text-decoration:none">🏆 ${a.rating_place} місце в рейтингу</a>
                <button type="button" class="linkbtn" id="rateOut" style="margin-left:8px">Прибрати з рейтингу</button>`
             : '<button type="button" class="btn light sm" id="rateIn">🏆 Додати до рейтингу</button>'}</div>` : ''}
-        ${phone ? `<a class="btn light wide" href="tel:${esc(phone)}">📞 Подзвонити${a.parent_name ? ' батькам' : ''}</a>` : ''}
+        ${coach && phone ? `<a class="btn light wide" href="tel:${esc(phone)}">📞 Подзвонити${a.parent_name ? ' батькам' : ''}</a>` : ''}
       </div>
       <div class="stats">
         <div class="stat"><b>${visits}</b><span>тренувань у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</span></div>
         <div class="stat"><b>${pct === null ? '—' : pct + '%'}</b><span>${pct === null ? 'немає розкладу групи' : `з ${planned} за розкладом`}</span></div>
-        <a class="stat ${paidNow ? '' : 'warn'}" href="#payments" data-month="${ym}"><b>${paidNow ? '✓' : '✗'}</b><span>${paidNow ? 'оплачено' : 'не оплачено'} за місяць</span></a>
+        ${coach ? `<a class="stat ${paidNow ? '' : 'warn'}" href="#payments" data-month="${ym}"><b>${paidNow ? '✓' : '✗'}</b><span>${paidNow ? 'оплачено' : 'не оплачено'} за місяць</span></a>`
+          : `<a class="stat" href="#rating"><b>${a.rating_place || '—'}</b><span>місце в рейтингу</span></a>`}
       </div>
       <h3>Відвідування за пів року</h3>
       <div class="panel">
         <div class="bars">${perMonth.map(n => `<div class="bcol ${n ? '' : 'zero'}"><span class="bval">${n}</span><div class="bbar" style="height:${n / maxV * 100}%"></div></div>`).join('')}</div>
         <div class="blabs">${months.map(m => `<span>${short(m)}</span>`).join('')}</div>
       </div>
-      <div class="sec"><h3>Вага</h3><button type="button" class="btn light sm" id="addW">+ Записати вагу</button></div>
+      <div class="sec"><h3>Вага</h3>${coach ? '<button type="button" class="btn light sm" id="addW">+ Записати вагу</button>' : ''}</div>
       <div class="panel">${weightHtml}</div>
-      <h3>Оплати</h3>
+      ${coach ? `<h3>Оплати</h3>
       <div class="months">${months.map(m => {
         const p = payOf.get(m);
         return `<a class="mcell ${p ? 'ok' : 'bad'}" href="#payments" data-month="${m}">${short(m)}<b>${p ? '✓' : '✗'}</b></a>`;
-      }).join('')}</div>
+      }).join('')}</div>` : ''}
       ${evs.length ? `<h3>Найближчі події</h3><div class="list">${evs.map(e => `<a class="row" href="#event/${encodeURIComponent(e.id)}">
           <div><strong>${esc(e.title)}</strong><span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long' })}${e.place ? ' · ' + esc(e.place) : ''}</span></div>
           <span class="chev">›</span></a>`).join('')}</div>` : ''}
-      <div class="sec"><h3>Атестації</h3><button type="button" class="btn light sm" id="addG">+ Атестація</button></div>
+      <div class="sec"><h3>Атестації</h3>${coach ? '<button type="button" class="btn light sm" id="addG">+ Атестація</button>' : ''}</div>
       <div class="list">${grHtml}</div>`;
 
+    if (!coach) {
+      // Батьки: лише перегляд (графік ваги можна потицяти)
+      if ($('#wcap')) $('#wcap').textContent = 'Натисніть на точку, щоб побачити дату й вагу';
+      $('#view').querySelectorAll('[data-wedit]').forEach(b => b.remove());
+      $('#view').querySelectorAll('a[href^="#event/"]').forEach(l => l.setAttribute('href', '#events'));
+      $('#view').onclick = e => {
+        const pt = e.target.closest('[data-i]');
+        if (pt && wl.length > 1) {
+          const i = Number(pt.dataset.i), w = wl[i], prev = wl[i - 1], diff = prev ? w.kg - prev.kg : 0;
+          $('#wcap').innerHTML = `<b style="color:var(--ink)">${fmtKg(w.kg)}</b> · ${fmtDate(w.date)} ${w.date.slice(0, 4)}` +
+            (prev && diff ? ` · ${diff > 0 ? '+' : ''}${diff.toFixed(1).replace('.', ',')} кг` : '');
+          document.querySelectorAll('.wchart .pt').forEach(c => c.classList.toggle('on', c.dataset.i === String(i)));
+        }
+      };
+      return;
+    }
     $('#addW').onclick = () => weightForm(a);
     const rIn = $('#rateIn'), rOut = $('#rateOut');
     if (rIn) rIn.onclick = async () => {
@@ -2068,7 +2173,12 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   async function eventsView() {
     setActions(isCoach() ? '<button class="btn" id="addBtn">+ Додати</button>' : '');
     if (isCoach()) $('#addBtn').onclick = () => eventForm();
-    const all = await q(db.from('events').select('*').order('date'));
+    const [all, myKids] = await Promise.all([
+      q(db.from('events').select('*').order('date')),
+      isCoach() ? [] : q(db.from('athletes').select('id, full_name')),
+    ]);
+    const kidsIn = e => (Array.isArray(e.participants) ? e.participants.map(String) : [])
+      .map(id => myKids.find(a => String(a.id) === id)).filter(Boolean).map(a => a.full_name);
     const t = today();
     const upcoming = all.filter(e => e.date >= t);
     const past = all.filter(e => e.date < t).reverse().slice(0, 10);
@@ -2081,7 +2191,8 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       const body = `<div><strong>${esc(e.title)}</strong>
         <span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}${e.place ? ' · ' + esc(e.place) : ''}</span>
         ${isCoach() && n ? `<span>👥 ${n} ${n % 10 === 1 && n % 100 !== 11 ? 'учасник' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'учасники' : 'учасників'}</span>` : ''}
-        ${!isCoach() && e.description ? `<span>${esc(e.description)}</span>` : ''}</div>${badge}`;
+        ${!isCoach() && e.description ? `<span>${esc(e.description)}</span>` : ''}
+        ${!isCoach() && kidsIn(e).length ? `<span style="color:var(--ok)">🥋 бере участь: ${esc(kidsIn(e).join(', '))}</span>` : ''}</div>${badge}`;
       return isCoach()
         ? `<a class="row" href="#event/${encodeURIComponent(e.id)}">${body}</a>`
         : `<div class="row" style="cursor:default">${body}</div>`;
@@ -2345,25 +2456,44 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   // ----- Учасники та доступ (тільки тренер) -----
   async function membersView() {
     setActions('<button class="btn" id="addBtn">+ Додати</button>');
-    $('#addBtn').onclick = () => memberForm();
-    const list = await q(db.from('members').select('*').order('role').order('full_name'));
+    const [list, ath, linksRes] = await Promise.all([
+      q(db.from('members').select('*').order('role').order('full_name')),
+      q(db.from('athletes').select('id, full_name, section, group_name, active').order('full_name')),
+      db.from('member_athletes').select('*'),
+    ]);
+    const linksOk = !linksRes.error;
+    const links = linksRes.data || [];
+    const nameOf = new Map(ath.map(a => [String(a.id), a.full_name]));
+    const kidsOf = email => links.filter(l => l.email === email).map(l => String(l.athlete_id));
+    $('#addBtn').onclick = () => memberForm(null, ath, [], linksOk);
     $('#view').innerHTML = `
+      ${linksOk ? '' : sqlCard('Батьки бачать лише свою дитину', KIDS_SQL)}
       <div class="info"><b>Як дати доступ:</b><br>
-        1. Додайте людину тут: імʼя, email і роль.<br>
+        1. Додайте людину тут: імʼя, email, роль і <b>чия це дитина</b>.<br>
         2. Людина відкриває сайт → «Зареєструватися» з цим самим email → підтверджує пошту.<br>
-        3. Батьки й спортсмени бачать чат, розклад, події та матеріали. Тренери бачать усе.</div>
-      <div class="list">${list.map(m => `
-        <button class="row" data-email="${esc(m.email)}">
-          <div><strong>${esc(m.full_name)}</strong><span>${esc(m.email)}</span></div>
+        3. Батьки й спортсмени бачать свою дитину (відвідування, пояси, вагу), рейтинг команди, події та чат. Тренери бачать усе.</div>
+      <div class="list">${list.map(m => {
+        const kids = kidsOf(m.email).map(id => nameOf.get(id)).filter(Boolean);
+        const warn = linksOk && m.role !== 'coach' && !kids.length;
+        return `<button class="row" data-email="${esc(m.email)}">
+          <div><strong>${esc(m.full_name)}</strong><span>${esc(m.email)}</span>
+            ${kids.length ? `<span>🥋 ${esc(kids.join(', '))}</span>` : warn ? '<span style="color:var(--bad)">⚠️ не вибрано спортсмена — нічого не побачить</span>' : ''}</div>
           <span class="badge ${m.role === 'coach' ? 'gold' : 'ok'}">${ROLES[m.role] || m.role}</span>
-        </button>`).join('') || '<div class="empty">Ще нікого не додано</div>'}</div>`;
+        </button>`;
+      }).join('') || '<div class="empty">Ще нікого не додано</div>'}</div>`;
     $('#view').onclick = e => {
       const r = e.target.closest('.row[data-email]');
-      if (r) memberForm(list.find(m => m.email === r.dataset.email));
+      if (r) memberForm(list.find(m => m.email === r.dataset.email), ath, kidsOf(r.dataset.email), linksOk);
     };
   }
 
-  function memberForm(m) {
+  function memberForm(m, ath = [], kids = [], linksOk = false) {
+    const chosen = new Set(kids.map(String));
+    const people = ath.filter(a => a.active !== false || chosen.has(String(a.id)));
+    const picker = linksOk ? `<div style="margin-top:4px"><b>Чия дитина / хто це</b>
+        <p class="muted small" style="margin:2px 0 6px">Батьки й спортсмен бачитимуть лише вибраних. Можна кількох (брати, сестри).</p>
+        <input type="search" id="kSearch" placeholder="Пошук за імʼям">
+        <div class="list pick-list" id="kList" style="max-height:260px;overflow:auto"></div></div>` : '';
     openForm({
       title: m ? m.full_name : 'Новий учасник',
       values: m || { role: 'parent' },
@@ -2372,13 +2502,40 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
         { name: 'email', label: 'Email', type: 'email', required: true },
         { name: 'role', label: 'Роль', type: 'select', required: true, options: Object.entries(ROLES) },
       ],
-      onSave: obj => {
+      extra: picker,
+      onSave: async obj => {
         obj.email = obj.email.toLowerCase();
-        return m ? q(db.from('members').update(obj).eq('email', m.email)) : q(db.from('members').insert(obj));
+        if (m) await q(db.from('members').update(obj).eq('email', m.email));
+        else await q(db.from('members').insert(obj));
+        if (linksOk) {
+          await q(db.from('member_athletes').delete().eq('email', obj.email));
+          const ids = [...chosen];
+          if (ids.length && obj.role !== 'coach') {
+            const numeric = ath.length && typeof ath[0].id === 'number';
+            await q(db.from('member_athletes').insert(ids.map(id => ({ email: obj.email, athlete_id: numeric ? Number(id) : id }))));
+          }
+        }
       },
       onDelete: m ? () => q(db.from('members').delete().eq('email', m.email)) : null,
       deleteText: 'Забрати доступ у цієї людини?',
     });
+    if (!linksOk) return;
+    let search = '';
+    const draw = () => {
+      const s = search.toLowerCase();
+      const rows = people.filter(a => chosen.has(String(a.id)) || !s || a.full_name.toLowerCase().includes(s))
+        .sort((x, y) => (chosen.has(String(y.id)) - chosen.has(String(x.id))) || x.full_name.localeCompare(y.full_name));
+      $('#kList').innerHTML = rows.map(a => `<label class="row tick">
+          <span><strong>${esc(a.full_name)}</strong><span>${esc([a.section, a.group_name].filter(Boolean).join(' · '))}</span></span>
+          <input type="checkbox" data-kid="${esc(a.id)}" ${chosen.has(String(a.id)) ? 'checked' : ''}></label>`).join('') || '<div class="empty">Нікого не знайдено</div>';
+    };
+    $('#kSearch').oninput = e => { search = e.target.value; draw(); };
+    $('#kSearch').onkeydown = e => { if (e.key === 'Enter') e.preventDefault(); };
+    $('#kList').onchange = e => {
+      const b = e.target.closest('[data-kid]'); if (!b) return;
+      if (b.checked) chosen.add(b.dataset.kid); else chosen.delete(b.dataset.kid);
+    };
+    draw();
   }
 
   // ----- Налаштування -----
@@ -2593,7 +2750,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     links: linksView, chat: chatView, members: membersView, settings: settingsView,
   };
   // Що бачать батьки і спортсмени
-  const MEMBER_ROUTES = ['home', 'schedule', 'events', 'materials', 'links', 'chat', 'settings'];
+  const MEMBER_ROUTES = ['home', 'athlete', 'rating', 'events', 'chat', 'settings'];
   const PARENT_ROUTE = { athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
@@ -2625,13 +2782,13 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     if (!state.role && route !== 'settings') route = 'home';
     const id = ++renderId;
     if (chatChannel) { db.removeChannel(chatChannel); chatChannel = null; }
-    $('#pageTitle').textContent = TITLES[route];
+    $('#pageTitle').textContent = route === 'rating' && !isCoach() ? 'Рейтинг спортсменів' : TITLES[route];
     document.body.classList.toggle('inner', route !== 'home');
     document.body.dataset.route = route;
     drawTabbar(route);
     const isTab = isCoach() && (TABS.some(([r]) => r === route) || route === 'rating');
     $('#backLink').hidden = route === 'home' || isTab;
-    const parent = isCoach() ? PARENT_ROUTE[route] : (['links', 'chat'].includes(route) ? 'home' : null);
+    const parent = isCoach() ? PARENT_ROUTE[route] : (['athlete', 'rating', 'events', 'chat'].includes(route) ? 'home' : null);
     $('#backLink').href = '#' + (parent || 'home');
     $('#view').onclick = null;
     const viewKey = location.hash;
