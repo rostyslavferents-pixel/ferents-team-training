@@ -567,7 +567,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.12';
+  const APP_VERSION = 'v3.13';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -1563,9 +1563,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       <input class="search" id="search" type="search" placeholder="Пошук за імʼям" value="${esc(state.search)}">
       ${chips(true)}
       <p class="muted small" id="count"></p>
-      <div class="list" id="athList"></div>
-      <p style="text-align:center;margin:14px 0 0"><button type="button" class="linkbtn" id="swapBtn">Переставити: спочатку прізвище, потім імʼя</button></p>`;
-    $('#swapBtn').onclick = () => swapNames(list);
+      <div class="list" id="athList"></div>`;
 
     const draw = () => {
       const s = state.search.toLowerCase();
