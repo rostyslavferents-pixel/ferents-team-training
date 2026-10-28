@@ -567,7 +567,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.9';
+  const APP_VERSION = 'v3.10';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -3147,7 +3147,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     loginMode = mode;
     const t = { login: ['Вхід', 'Увійти', 'Для тренерів, батьків і спортсменів команди.'],
                 signup: ['Реєстрація', 'Зареєструватися', 'Використайте email, який ви дали тренеру. Пароль — мінімум 6 символів.'],
-                reset: ['Відновлення пароля', 'Надіслати код', 'Ми надішлемо на пошту код для нового пароля.'],
+                reset: ['Відновлення пароля', 'Надіслати лист', 'Ми надішлемо на пошту посилання для нового пароля.'],
                 code: ['Код із пошти', 'Підтвердити', 'Ми надіслали лист із кодом. Введіть код нижче (якщо листа немає — гляньте в «Спам»).'] }[mode];
     $('#loginTitle').textContent = t[0];
     $('#loginBtn').textContent = t[1];
@@ -3186,20 +3186,18 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       if (loginMode === 'login') {
         const { error } = await db.auth.signInWithPassword({ email, password });
         if (error && /confirm/i.test(error.message)) {
-          // Пошту ще не підтверджено — надсилаємо код ще раз і просимо ввести його
-          codeType = 'signup';
-          await db.auth.resend({ type: 'signup', email });
-          setLoginMode('code');
-          say('Пошту ще не підтверджено. Ми надіслали код на ' + email, true);
+          // Пошту ще не підтверджено — надсилаємо лист ще раз
+          await db.auth.resend({ type: 'signup', email, options: { emailRedirectTo: redirect } });
+          say('Пошту ще не підтверджено. Ми надіслали лист на ' + email + ' — відкрийте посилання з нього.', true);
         } else if (error) say('Невірний email або пароль');
       } else if (loginMode === 'signup') {
         const { data, error } = await db.auth.signUp({ email, password, options: { emailRedirectTo: redirect } });
         if (error) say(/registered|exists/i.test(error.message) ? 'Цей email уже зареєстрований — увійдіть' : 'Помилка: ' + error.message);
-        else if (!data.session) { codeType = 'signup'; setLoginMode('code'); say('Надіслали код на ' + email, true); }
+        else if (!data.session) say(`Готово! Ми надіслали лист на ${email}. Відкрийте посилання з листа, щоб підтвердити пошту.`, true);
       } else if (loginMode === 'reset') {
         const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: redirect });
         if (error) say('Помилка: ' + error.message);
-        else { codeType = 'recovery'; setLoginMode('code'); say('Надіслали код на ' + email, true); }
+        else say('Лист надіслано на ' + email + '. Відкрийте посилання з листа на цьому пристрої — і задайте новий пароль.', true);
       } else {
         const token = $('#loginCode').value.replace(/\D/g, '');
         const { error } = await db.auth.verifyOtp({ email, token, type: codeType });
