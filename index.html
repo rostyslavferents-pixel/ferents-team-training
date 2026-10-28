@@ -567,7 +567,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.7';
+  const APP_VERSION = 'v3.8';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -652,6 +652,8 @@
   // Стан фільтрів (зберігається між екранами)
   const state = { group: 'Усі', search: '', date: today(), month: today().slice(0, 7), role: null, email: '' };
   function isCoach() { return state.role === 'coach'; }
+  // Спортсмен бачить більше, ніж батьки: розклад групи, завдання, відео, чат
+  function isAthleteM() { return state.role === 'member' && state.memberRole === 'athlete'; }
   const ROLES = { coach: 'Тренер', parent: 'Батьки', athlete: 'Спортсмен' };
 
   // ===== Допоміжні функції =====
@@ -742,6 +744,101 @@ language sql stable security definer set search_path = public as $$
   order by a.rating_place;
 $$;
 revoke execute on function public.team_rating() from anon;
+notify pgrst, 'reload schema';`;
+  // Запрошення за посиланням + доступ: батьки бачать мінімум, спортсмени — більше
+  const ACCESS_SQL = `-- Запрошення за посиланням і два рівні доступу (батьки / спортсмен)
+do $$
+declare id_type text;
+begin
+  select format_type(a.atttypid, a.atttypmod) into id_type
+  from pg_attribute a where a.attrelid = 'public.athletes'::regclass and a.attname = 'id';
+  execute format($f$
+    create table if not exists public.invites (
+      code       text primary key,
+      athlete_id %s not null references public.athletes(id) on delete cascade,
+      role       text not null check (role in ('parent','athlete')),
+      uses_left  integer not null default 2,
+      expires_at timestamptz not null default now() + interval '30 days',
+      created_at timestamptz not null default now()
+    )$f$, id_type);
+end $$;
+alter table public.invites enable row level security;
+drop policy if exists coach_all on public.invites;
+create policy coach_all on public.invites for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+revoke all on public.invites from anon;
+
+-- Роль поточного користувача: coach / parent / athlete
+create or replace function public.my_role()
+returns text language sql stable security definer set search_path = public as $$
+  select case when public.is_coach() then 'coach'
+    else (select role from public.members where email = lower(auth.jwt() ->> 'email')) end;
+$$;
+
+-- Спортсмен (або тренер)
+create or replace function public.is_athlete_member()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_coach() or exists (select 1 from public.members
+    where email = lower(auth.jwt() ->> 'email') and role = 'athlete');
+$$;
+
+-- Чи це група одного з «моїх» спортсменів
+create or replace function public.is_my_group(g text, s text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.member_athletes ma
+    join public.athletes a on a.id = ma.athlete_id
+    where ma.email = lower(auth.jwt() ->> 'email')
+      and (g is null or a.group_name = g)
+      and (s is null or a.section is null or a.section = s));
+$$;
+
+-- Вступ за посиланням: створює учасника і привʼязує до спортсмена
+create or replace function public.claim_invite(p_code text, p_name text)
+returns text language plpgsql security definer set search_path = public as $$
+declare
+  inv public.invites;
+  em text := lower(auth.jwt() ->> 'email');
+  aname text;
+begin
+  if em is null then raise exception 'not_signed_in'; end if;
+  select * into inv from public.invites where code = upper(trim(p_code)) for update;
+  if not found then raise exception 'invite_not_found'; end if;
+  select full_name into aname from public.athletes where id = inv.athlete_id;
+  if exists (select 1 from public.member_athletes where email = em and athlete_id = inv.athlete_id) then
+    return aname;
+  end if;
+  if inv.expires_at < now() or inv.uses_left <= 0 then raise exception 'invite_expired'; end if;
+  insert into public.members (email, full_name, role)
+    values (em, coalesce(nullif(trim(p_name), ''), em), inv.role)
+    on conflict (email) do nothing;
+  insert into public.member_athletes (email, athlete_id) values (em, inv.athlete_id)
+    on conflict do nothing;
+  update public.invites set uses_left = uses_left - 1 where code = inv.code;
+  return aname;
+end $$;
+revoke execute on function public.claim_invite(text, text) from anon;
+
+-- Розклад: лише своєї групи (тренер бачить усе через coach_all)
+drop policy if exists member_read on public.schedule;
+create policy member_read on public.schedule for select to authenticated
+  using (public.is_my_group(group_name, section));
+
+-- Завдання на тренування: лише спортсмени своєї групи
+drop policy if exists member_read on public.training_plans;
+create policy member_read on public.training_plans for select to authenticated
+  using (public.is_athlete_member() and public.is_my_group(group_name, null));
+
+-- Відео й матеріали: лише спортсмени
+drop policy if exists member_read on public.materials;
+create policy member_read on public.materials for select to authenticated
+  using (public.is_athlete_member());
+
+-- Чат: лише спортсмени й тренер
+drop policy if exists chat_read on public.chat_messages;
+drop policy if exists chat_write on public.chat_messages;
+create policy chat_read  on public.chat_messages for select to authenticated using (public.is_athlete_member());
+create policy chat_write on public.chat_messages for insert to authenticated with check (public.is_athlete_member());
+
 notify pgrst, 'reload schema';`;
   function sqlCard(title, sql) {
     return `<div class="info"><b>${esc(title)}</b><br>Щоб увімкнути, один раз виконайте в Supabase → SQL Editor:
@@ -1045,7 +1142,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     if (state.role === 'member') return memberHomeView();
     if (state.role !== 'coach') {
       $('#view').innerHTML = `<div class="info">Ваш email <b>${esc(state.email)}</b> ще не додано до команди.
-        Попросіть тренера додати вас у розділі «Учасники та доступ», а потім оновіть сторінку.</div>`;
+        Попросіть у тренера посилання-запрошення і відкрийте його.</div>`;
       return;
     }
 
@@ -1240,9 +1337,13 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       ${kids.length ? `<h3>${kids.length > 1 ? 'Мої спортсмени' : 'Мій спортсмен'}</h3><div class="list">${kids.map(kidCard).join('')}</div>` : noKids}
       ${evHtml}
       <div style="margin-top:16px"></div>
+      ${isAthleteM() ? `
+      ${card('plans', '📝 Завдання на тренування', 'Що робимо на тренуваннях моєї групи')}
+      ${card('schedule', '🗓️ Розклад моєї групи', 'Дні, час і зал')}
+      ${card('links', '🎬 Відео', 'Ката, техніка, корисні матеріали')}
+      ${card('chat', '💬 Чат команди', 'Спілкування з тренером і командою')}` : ''}
       ${card('rating', '🏆 Рейтинг спортсменів', 'Місця та заслуги команди')}
-      ${card('events', '📅 Календар подій', 'Змагання, атестації, збори')}
-      ${card('chat', '💬 Чат команди', 'Спілкування з тренером і командою')}`;
+      ${card('events', '📅 Календар подій', 'Змагання, атестації, збори')}`;
   }
 
   // Вік і підпис дати народження
@@ -1705,7 +1806,8 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
           <div><strong>${esc(e.title)}</strong><span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long' })}${e.place ? ' · ' + esc(e.place) : ''}</span></div>
           <span class="chev">›</span></a>`).join('')}</div>` : ''}
       <div class="sec"><h3>Атестації</h3>${coach ? '<button type="button" class="btn light sm" id="addG">+ Атестація</button>' : ''}</div>
-      <div class="list">${grHtml}</div>`;
+      <div class="list">${grHtml}</div>
+      ${coach ? '<h3>Доступ до застосунку</h3><div id="accessBox" class="panel"><span class="muted small">Завантаження…</span></div>' : ''}`;
 
     if (!coach) {
       // Батьки: лише перегляд (графік ваги можна потицяти)
@@ -1724,6 +1826,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       return;
     }
     $('#addW').onclick = () => weightForm(a);
+    drawAccess(a);
     const rIn = $('#rateIn'), rOut = $('#rateOut');
     if (rIn) rIn.onclick = async () => {
       const top = await q(db.from('athletes').select('rating_place').not('rating_place', 'is', null).order('rating_place', { ascending: false }).limit(1));
@@ -1752,6 +1855,54 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
         document.querySelectorAll('.wchart .pt').forEach(c => c.classList.toggle('on', c.dataset.i === String(i)));
       }
     };
+  }
+
+  // ----- Доступ до застосунку: хто привʼязаний + посилання-запрошення -----
+  async function drawAccess(a) {
+    const box = $('#accessBox'); if (!box) return;
+    const [links, inv] = await Promise.all([
+      db.from('member_athletes').select('email').eq('athlete_id', a.id),
+      db.from('invites').select('code').limit(1),
+    ]);
+    if (inv.error || links.error) { box.innerHTML = sqlCard('Запрошення за посиланням', ACCESS_SQL); return; }
+    const emails = (links.data || []).map(l => l.email);
+    const people = emails.length ? await q(db.from('members').select('email, full_name, role').in('email', emails)) : [];
+    box.innerHTML = `${people.length ? people.map(m => `<div style="margin-bottom:6px">
+        ${m.role === 'athlete' ? '🥋' : '👪'} <b>${esc(m.full_name)}</b> <span class="muted small">· ${ROLES[m.role] || m.role} · ${esc(m.email)}</span></div>`).join('')
+        : '<p class="muted small" style="margin:0 0 8px">Ще ніхто не має доступу до цієї картки.</p>'}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button type="button" class="btn light sm" data-invite="parent">👪 Запросити батьків</button>
+        <button type="button" class="btn light sm" data-invite="athlete">🥋 Запросити спортсмена</button>
+      </div>`;
+    box.onclick = e => { const b = e.target.closest('[data-invite]'); if (b) makeInvite(a, b.dataset.invite); };
+  }
+  async function makeInvite(a, role) {
+    const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const rnd = crypto.getRandomValues(new Uint32Array(8));
+    const code = [...rnd].map(n => abc[n % abc.length]).join('');
+    try { await q(db.from('invites').insert({ code, athlete_id: a.id, role, uses_left: role === 'parent' ? 2 : 1 })); }
+    catch (e) { return; }
+    const link = location.origin + location.pathname + '#join/' + code;
+    const who = role === 'parent' ? 'батьків' : 'спортсмена';
+    const first = a.full_name.split(' ')[0];
+    const text = role === 'parent'
+      ? `Вітаю! Це застосунок нашої команди Ferents Team. Тут ви бачитимете відвідування ${first}, пояси, рейтинг і події. Відкрийте посилання і зареєструйтесь:\n${link}`
+      : `Привіт! Це застосунок Ferents Team: розклад, завдання на тренування, відео і чат команди. Відкрий посилання і зареєструйся:\n${link}`;
+    const dlg = $('#dlg');
+    dlg.innerHTML = `<form><h3>Запрошення для ${who}</h3>
+      <p class="muted small" style="margin:4px 0 8px">${esc(a.full_name)} · діє 30 днів · ${role === 'parent' ? 'для 2 людей (мама й тато)' : 'для 1 людини'}</p>
+      <textarea readonly rows="5" style="width:100%">${esc(text)}</textarea>
+      <div class="dlg-actions"><span class="spacer"></span>
+        <button type="button" class="btn light" data-act="cancel">Закрити</button>
+        ${navigator.share ? '<button type="button" class="btn light" data-act="share">Надіслати…</button>' : ''}
+        <button type="button" class="btn" data-act="copy">Скопіювати</button></div></form>`;
+    dlg.querySelector('form').onclick = async e => {
+      const act = e.target.closest('[data-act]')?.dataset.act;
+      if (act === 'cancel') dlg.close();
+      if (act === 'copy') copyText(text, 'Скопійовано — вставте у Viber чи Telegram');
+      if (act === 'share') { try { await navigator.share({ text }); } catch (err) {} }
+    };
+    dlg.showModal();
   }
 
   // Запис ваги спортсмена (нова або виправлення наявної)
@@ -2067,9 +2218,9 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     if (isCoach()) $('#addBtn').onclick = () => scheduleForm();
     const all = await q(db.from('schedule').select('*').order('weekday').order('start_time'));
     if (all.length) state.schedSection = 'section' in all[0];
-    const rows = all.filter(s => inGroup(s) && inSectionS(s));
+    const rows = isCoach() ? all.filter(s => inGroup(s) && inSectionS(s)) : all;
 
-    let html = chips(state.schedSection);
+    let html = isCoach() ? chips(state.schedSection) : '';
     for (let d = 1; d <= 7; d++) {
       const items = rows.filter(s => s.weekday === d);
       if (!items.length) continue;
@@ -2121,10 +2272,11 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
 
   // ----- Завдання на тренування -----
   async function plansView() {
-    setActions('<button class="btn" id="addBtn">+ Додати</button>');
-    $('#addBtn').onclick = () => planForm();
+    const coach = isCoach();
+    setActions(coach ? '<button class="btn" id="addBtn">+ Додати</button>' : '');
+    if (coach) $('#addBtn').onclick = () => planForm();
     const all = await q(db.from('training_plans').select('*').order('date'));
-    const rows = all.filter(p => state.group === 'Усі' || !p.group_name || p.group_name === state.group);
+    const rows = coach ? all.filter(p => state.group === 'Усі' || !p.group_name || p.group_name === state.group) : all;
     const t = today();
     const upcoming = rows.filter(p => p.date >= t);
     const past = rows.filter(p => p.date < t).reverse().slice(0, 15);
@@ -2138,12 +2290,12 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
         ${p.date === t ? '<span class="badge gold">сьогодні</span>' : ''}
       </button>`;
 
-    $('#view').innerHTML = `${chips()}
-      <div class="list">${upcoming.map(item).join('') || '<div class="empty">Запланованих завдань немає. Натисніть «+ Додати».</div>'}</div>
+    $('#view').innerHTML = `${coach ? chips() : ''}
+      <div class="list">${upcoming.map(item).join('') || `<div class="empty">Запланованих завдань немає.${coach ? ' Натисніть «+ Додати».' : ''}</div>`}</div>
       ${past.length ? `<h3>Минулі</h3><div class="list">${past.map(item).join('')}</div>` : ''}`;
     $('#view').onclick = e => {
       const r = e.target.closest('.row[data-id]');
-      if (r) planForm(all.find(x => String(x.id) === r.dataset.id));
+      if (r && coach) planForm(all.find(x => String(x.id) === r.dataset.id));
     };
   }
 
@@ -2458,10 +2610,11 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   // ----- Учасники та доступ (тільки тренер) -----
   async function membersView() {
     setActions('<button class="btn" id="addBtn">+ Додати</button>');
-    const [list, ath, linksRes] = await Promise.all([
+    const [list, ath, linksRes, invRes] = await Promise.all([
       q(db.from('members').select('*').order('role').order('full_name')),
       q(db.from('athletes').select('id, full_name, section, group_name, active').order('full_name')),
       db.from('member_athletes').select('*'),
+      db.from('invites').select('code').limit(1),
     ]);
     const linksOk = !linksRes.error;
     const links = linksRes.data || [];
@@ -2470,10 +2623,12 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     $('#addBtn').onclick = () => memberForm(null, ath, [], linksOk);
     $('#view').innerHTML = `
       ${linksOk ? '' : sqlCard('Батьки бачать лише свою дитину', KIDS_SQL)}
+      ${linksOk && invRes.error ? sqlCard('Запрошення за посиланням і доступ спортсменів', ACCESS_SQL) : ''}
       <div class="info"><b>Як дати доступ:</b><br>
         1. Додайте людину тут: імʼя, email, роль і <b>чия це дитина</b>.<br>
         2. Людина відкриває сайт → «Зареєструватися» з цим самим email → підтверджує пошту.<br>
-        3. Батьки й спортсмени бачать свою дитину (відвідування, пояси, вагу), рейтинг команди, події та чат. Тренери бачать усе.</div>
+        3. <b>Батьки</b> бачать свою дитину (відвідування, пояси, вагу), рейтинг і події. <b>Спортсмени</b> — ще розклад і завдання своєї групи, відео та чат. Тренери бачать усе.<br>
+        <b>Простіше:</b> відкрийте картку спортсмена → «Запросити батьків» і надішліть посилання — пошту вписувати не треба.</div>
       <div class="list">${list.map(m => {
         const kids = kidsOf(m.email).map(id => nameOf.get(id)).filter(Boolean);
         const warn = linksOk && m.role !== 'coach' && !kids.length;
@@ -2594,12 +2749,12 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     const m = $('#menu');
     m.innerHTML = `
       <div class="menu-head">
-        <div><b>${esc(state.name && state.name !== 'Тренер' ? state.name : state.email)}</b><span>${state.role === 'coach' ? 'Тренер' : state.role === 'member' ? 'Учасник команди' : 'Без доступу'}</span></div>
+        <div><b>${esc(state.name && state.name !== 'Тренер' ? state.name : state.email)}</b><span>${state.role === 'coach' ? 'Тренер' : state.role === 'member' ? (isAthleteM() ? 'Спортсмен' : 'Батьки') : 'Без доступу'}</span></div>
         <button type="button" class="menu-close" aria-label="Закрити">${svgI('close', 1.8)}</button>
       </div>
       <nav class="menu-list">
       <a class="menu-item" href="#home">${mIcon('home')}Головна${mChev}</a>
-      ${state.role ? `<a class="menu-item" href="#chat">${mIcon('chat')}Чат команди${mChev}</a>` : ''}
+      ${isCoach() || isAthleteM() ? `<a class="menu-item" href="#chat">${mIcon('chat')}Чат команди${mChev}</a>` : ''}
       ${isCoach() ? `<a class="menu-item" href="#members">${mIcon('users')}Учасники та доступ${mChev}</a>` : ''}
       <a class="menu-item" href="#settings">${mIcon('settings')}Налаштування${mChev}</a>
       ${isInstalled() ? '' : `<button type="button" class="menu-item" id="menuInstall">${mIcon('install')}Встановити додаток${mChev}</button>`}
@@ -2752,7 +2907,8 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     links: linksView, chat: chatView, members: membersView, settings: settingsView,
   };
   // Що бачать батьки і спортсмени
-  const MEMBER_ROUTES = ['home', 'athlete', 'rating', 'events', 'chat', 'settings'];
+  const MEMBER_ROUTES = ['home', 'athlete', 'rating', 'events', 'settings'];
+  const ATHLETE_ROUTES = [...MEMBER_ROUTES, 'chat', 'schedule', 'plans', 'links'];
   const PARENT_ROUTE = { athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
@@ -2780,7 +2936,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     const [key, param] = location.hash.slice(1).split('/');
     let route = VIEWS[key] ? key : 'home';
     state.param = param ? decodeURIComponent(param) : null;
-    if (!isCoach() && !MEMBER_ROUTES.includes(route)) route = 'home';
+    if (!isCoach() && !(isAthleteM() ? ATHLETE_ROUTES : MEMBER_ROUTES).includes(route)) route = 'home';
     if (!state.role && route !== 'settings') route = 'home';
     const id = ++renderId;
     if (chatChannel) { db.removeChannel(chatChannel); chatChannel = null; }
@@ -2790,7 +2946,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     drawTabbar(route);
     const isTab = isCoach() && (TABS.some(([r]) => r === route) || route === 'rating');
     $('#backLink').hidden = route === 'home' || isTab;
-    const parent = isCoach() ? PARENT_ROUTE[route] : (['athlete', 'rating', 'events', 'chat'].includes(route) ? 'home' : null);
+    const parent = isCoach() ? PARENT_ROUTE[route] : (['athlete', 'rating', 'events', 'chat', 'schedule', 'plans', 'links'].includes(route) ? 'home' : null);
     $('#backLink').href = '#' + (parent || 'home');
     $('#view').onclick = null;
     const viewKey = location.hash;
@@ -2824,14 +2980,19 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     const { data: coach, error } = await db.rpc('is_coach');
     // Без інтернету беремо роль, збережену минулого разу
     if (error && !navigator.onLine) {
-      try { const c = JSON.parse(localStorage.getItem('ft_role') || 'null'); if (c && c.email === state.email) { state.name = c.name; return c.role; } } catch (e) {}
+      try { const c = JSON.parse(localStorage.getItem('ft_role') || 'null'); if (c && c.email === state.email) { state.name = c.name; state.memberRole = c.memberRole || 'parent'; return c.role; } } catch (e) {}
     }
     const { data: name } = await db.rpc('my_name');
     state.name = name || '';
     let role = null;
     if (coach) role = 'coach';
     else { const { data: member } = await db.rpc('is_member'); role = member ? 'member' : null; }
-    try { localStorage.setItem('ft_role', JSON.stringify({ email: state.email, role, name: state.name })); } catch (e) {}
+    state.memberRole = 'parent';
+    if (role === 'member') {
+      const { data: r } = await db.rpc('my_role');
+      if (r === 'athlete') state.memberRole = 'athlete';
+    }
+    try { localStorage.setItem('ft_role', JSON.stringify({ email: state.email, role, name: state.name, memberRole: state.memberRole })); } catch (e) {}
     return role;
   }
 
@@ -2847,6 +3008,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       state.email = (session.user.email || '').toLowerCase();
       $('#view').innerHTML = skeleton();
       state.role = await detectRole();
+      if (pendingJoin() && state.role !== 'coach') await claimJoin();
       render();
       flushQueue();
     } else {
@@ -2854,6 +3016,48 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       drawTabbar('home');
       document.body.classList.remove('inner');
     }
+  }
+
+  // ===== Запрошення за посиланням: …/#join/КОД =====
+  function pendingJoin() { try { return localStorage.getItem('ft_join') || ''; } catch (e) { return ''; } }
+  function setJoin(code) { try { code ? localStorage.setItem('ft_join', code) : localStorage.removeItem('ft_join'); } catch (e) {} }
+  if (location.hash.startsWith('#join/')) {
+    setJoin(decodeURIComponent(location.hash.slice(6)).toUpperCase());
+    history.replaceState(null, '', location.pathname);
+  }
+  // Після входу: питаємо імʼя і привʼязуємо акаунт до спортсмена
+  function claimJoin() {
+    return new Promise(resolve => {
+      const dlg = $('#dlg');
+      dlg.innerHTML = `<form><h3>Ласкаво просимо в Ferents Team 🥋</h3>
+        <p class="muted small" style="margin:4px 0 10px">Вас запросив тренер. Як вас звати?</p>
+        <label>Імʼя<input name="name" required maxlength="60" placeholder="напр. Олена, мама Івана" value="${esc(state.name || '')}"></label>
+        <p class="err small" id="joinErr"></p>
+        <div class="dlg-actions"><span class="spacer"></span>
+          <button type="button" class="btn light" data-act="cancel">Пізніше</button>
+          <button type="submit" class="btn">Готово</button></div></form>`;
+      const form = dlg.querySelector('form');
+      const done = () => { dlg.close(); resolve(); };
+      form.querySelector('[data-act=cancel]').onclick = done;
+      form.onsubmit = async e => {
+        e.preventDefault();
+        const btn = form.querySelector('[type=submit]'); btn.disabled = true;
+        const { data, error } = await db.rpc('claim_invite', { p_code: pendingJoin(), p_name: form.name.value });
+        if (error) {
+          btn.disabled = false;
+          const m = error.message || '';
+          $('#joinErr').textContent = /expired/.test(m) ? 'Посилання вже не діє. Попросіть тренера надіслати нове.'
+            : /not_found/.test(m) ? 'Посилання неправильне. Попросіть тренера надіслати нове.' : 'Не вдалося: ' + m;
+          if (/expired|not_found/.test(m)) setJoin('');
+          return;
+        }
+        setJoin('');
+        state.role = await detectRole();
+        toast(`Готово! Ваш акаунт привʼязано: ${data || 'спортсмен'}`);
+        done();
+      };
+      dlg.showModal();
+    });
   }
 
   // Вхід / реєстрація / відновлення пароля
@@ -2925,6 +3129,10 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     } finally { btn.disabled = false; }
   });
 
+  if (pendingJoin()) {
+    setLoginMode('signup');
+    $('#loginHint').textContent = 'Вас запросив тренер. Введіть будь-яку свою пошту й придумайте пароль (мінімум 6 символів). Якщо акаунт уже є — натисніть «Назад до входу».';
+  }
   (async function boot() {
     const { data: { session } } = await db.auth.getSession();
     showApp(session);

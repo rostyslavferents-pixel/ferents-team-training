@@ -347,3 +347,100 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke execute on function public.team_rating() from anon;
 notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+-- 12. Запрошення за посиланням і два рівні доступу (батьки / спортсмен)
+do $$
+declare id_type text;
+begin
+  select format_type(a.atttypid, a.atttypmod) into id_type
+  from pg_attribute a where a.attrelid = 'public.athletes'::regclass and a.attname = 'id';
+  execute format($f$
+    create table if not exists public.invites (
+      code       text primary key,
+      athlete_id %s not null references public.athletes(id) on delete cascade,
+      role       text not null check (role in ('parent','athlete')),
+      uses_left  integer not null default 2,
+      expires_at timestamptz not null default now() + interval '30 days',
+      created_at timestamptz not null default now()
+    )$f$, id_type);
+end $$;
+alter table public.invites enable row level security;
+drop policy if exists coach_all on public.invites;
+create policy coach_all on public.invites for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+revoke all on public.invites from anon;
+
+-- Роль поточного користувача: coach / parent / athlete
+create or replace function public.my_role()
+returns text language sql stable security definer set search_path = public as $$
+  select case when public.is_coach() then 'coach'
+    else (select role from public.members where email = lower(auth.jwt() ->> 'email')) end;
+$$;
+
+-- Спортсмен (або тренер)
+create or replace function public.is_athlete_member()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_coach() or exists (select 1 from public.members
+    where email = lower(auth.jwt() ->> 'email') and role = 'athlete');
+$$;
+
+-- Чи це група одного з «моїх» спортсменів
+create or replace function public.is_my_group(g text, s text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.member_athletes ma
+    join public.athletes a on a.id = ma.athlete_id
+    where ma.email = lower(auth.jwt() ->> 'email')
+      and (g is null or a.group_name = g)
+      and (s is null or a.section is null or a.section = s));
+$$;
+
+-- Вступ за посиланням: створює учасника і привʼязує до спортсмена
+create or replace function public.claim_invite(p_code text, p_name text)
+returns text language plpgsql security definer set search_path = public as $$
+declare
+  inv public.invites;
+  em text := lower(auth.jwt() ->> 'email');
+  aname text;
+begin
+  if em is null then raise exception 'not_signed_in'; end if;
+  select * into inv from public.invites where code = upper(trim(p_code)) for update;
+  if not found then raise exception 'invite_not_found'; end if;
+  select full_name into aname from public.athletes where id = inv.athlete_id;
+  if exists (select 1 from public.member_athletes where email = em and athlete_id = inv.athlete_id) then
+    return aname;
+  end if;
+  if inv.expires_at < now() or inv.uses_left <= 0 then raise exception 'invite_expired'; end if;
+  insert into public.members (email, full_name, role)
+    values (em, coalesce(nullif(trim(p_name), ''), em), inv.role)
+    on conflict (email) do nothing;
+  insert into public.member_athletes (email, athlete_id) values (em, inv.athlete_id)
+    on conflict do nothing;
+  update public.invites set uses_left = uses_left - 1 where code = inv.code;
+  return aname;
+end $$;
+revoke execute on function public.claim_invite(text, text) from anon;
+
+-- Розклад: лише своєї групи (тренер бачить усе через coach_all)
+drop policy if exists member_read on public.schedule;
+create policy member_read on public.schedule for select to authenticated
+  using (public.is_my_group(group_name, section));
+
+-- Завдання на тренування: лише спортсмени своєї групи
+drop policy if exists member_read on public.training_plans;
+create policy member_read on public.training_plans for select to authenticated
+  using (public.is_athlete_member() and public.is_my_group(group_name, null));
+
+-- Відео й матеріали: лише спортсмени
+drop policy if exists member_read on public.materials;
+create policy member_read on public.materials for select to authenticated
+  using (public.is_athlete_member());
+
+-- Чат: лише спортсмени й тренер
+drop policy if exists chat_read on public.chat_messages;
+drop policy if exists chat_write on public.chat_messages;
+create policy chat_read  on public.chat_messages for select to authenticated using (public.is_athlete_member());
+create policy chat_write on public.chat_messages for insert to authenticated with check (public.is_athlete_member());
+
+notify pgrst, 'reload schema';
