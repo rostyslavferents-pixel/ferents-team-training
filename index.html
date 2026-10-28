@@ -567,7 +567,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.10';
+  const APP_VERSION = 'v3.11';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -3176,7 +3176,10 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   $('#loginForm').addEventListener('submit', async e => {
     e.preventDefault();
     const msg = $('#loginMessage');
-    const say = (text, ok) => { msg.textContent = text; msg.className = 'small ' + (ok ? 'msg-ok' : 'err'); };
+    const say = (text, ok) => {
+      if (/rate limit|too many/i.test(text)) text = 'Забагато листів за короткий час. Зачекайте близько години й спробуйте ще раз.';
+      msg.textContent = text; msg.className = 'small ' + (ok ? 'msg-ok' : 'err');
+    };
     const email = $('#loginEmail').value.trim().toLowerCase();
     const password = $('#loginPassword').value;
     const redirect = location.origin + location.pathname;
