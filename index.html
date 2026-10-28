@@ -567,7 +567,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.14';
+  const APP_VERSION = 'v3.15';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -2578,10 +2578,16 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
         await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(VAPID_PUBLIC) });
       const j = sub.toJSON();
       const { error } = await db.from('push_subscriptions').upsert({ endpoint: j.endpoint, email: state.email, sub: j });
-      if (error) throw error;
+      if (error) { await sub.unsubscribe().catch(() => {}); throw error; }
       toast('🔔 Сповіщення увімкнено');
       return true;
-    } catch (e) { toast('Не вдалося увімкнути: ' + (e.message || e), true); return false; }
+    } catch (e) {
+      const m = String(e.message || e);
+      toast(/push_subscriptions|does not exist|schema cache/i.test(m)
+        ? 'Не вдалося: у базі ще немає таблиці для сповіщень — тренеру треба запустити SQL з розділу «Оголошення»'
+        : 'Не вдалося увімкнути: ' + m, true);
+      return false;
+    }
   }
   async function disablePush() {
     try {
