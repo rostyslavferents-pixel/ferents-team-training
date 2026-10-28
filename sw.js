@@ -1,6 +1,6 @@
 // Ferents Team Training — сервіс-воркер: додаток відкривається без інтернету
 // і завжди бере свіжу версію сайту, коли інтернет є.
-const VERSION = 'ft-v3.13';
+const VERSION = 'ft-v3.14';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/karate-192.png', 'icons/karate-512.png', 'icons/karate-apple-180.png', 'fonts/manrope.woff'];
 const SUPABASE_LIB = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
 
@@ -53,4 +53,31 @@ self.addEventListener('fetch', e => {
   if (url.hostname.endsWith('.supabase.co') && url.pathname.startsWith('/rest/v1/')) {
     e.respondWith(networkFirst(req));
   }
+});
+
+// ===== Сповіщення на телефон =====
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'Ferents Team', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Ferents Team', {
+    body: d.body || '',
+    icon: 'icons/karate-192.png',
+    badge: 'icons/karate-192.png',
+    tag: d.tag || undefined,
+    renotify: !!d.tag,
+    data: { url: d.url || './' },
+  }));
+});
+
+// Натиснули на сповіщення — відкриваємо застосунок на потрібній сторінці
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const target = new URL(e.notification.data && e.notification.data.url || './', self.registration.scope).href;
+  e.waitUntil((async () => {
+    const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const w of wins) {
+      if (w.url.startsWith(self.registration.scope)) { await w.focus(); try { await w.navigate(target); } catch (err) {} return; }
+    }
+    await clients.openWindow(target);
+  })());
 });
