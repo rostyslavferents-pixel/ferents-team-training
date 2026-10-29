@@ -525,6 +525,7 @@
         <h2 id="loginTitle">Вхід</h2>
         <p class="muted small" id="loginHint">Для тренерів, батьків і спортсменів команди.</p>
         <label>Email<input id="loginEmail" type="email" autocomplete="username" required></label>
+        <label id="email2Label" hidden>Повторіть email<input id="loginEmail2" type="email" autocomplete="off"></label>
         <label id="pwLabel">Пароль<input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required></label>
         <label id="codeLabel" hidden>Код із листа<input id="loginCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456" style="letter-spacing:4px;font-size:20px;text-align:center"></label>
         <button class="btn" type="submit" id="loginBtn">Увійти</button>
@@ -3472,6 +3473,8 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     $('#loginHint').textContent = t[2];
     $('#pwLabel').hidden = mode === 'reset' || mode === 'code';
     $('#loginPassword').required = mode === 'login' || mode === 'signup';
+    $('#email2Label').hidden = mode !== 'signup';
+    $('#loginEmail2').required = mode === 'signup';
     $('#codeLabel').hidden = mode !== 'code';
     $('#loginCode').required = mode === 'code';
     $('#resendBtn').hidden = mode !== 'code';
@@ -3512,6 +3515,10 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
           say('Пошту ще не підтверджено. Ми надіслали лист на ' + email + ' — відкрийте посилання з нього.', true);
         } else if (error) say('Невірний email або пароль');
       } else if (loginMode === 'signup') {
+        if ($('#loginEmail2').value.trim().toLowerCase() !== email) {
+          say('Email не збігається. Перевірте адресу — на неї прийде лист, якщо забудете пароль.');
+          return;
+        }
         const { data, error } = await db.auth.signUp({ email, password, options: { emailRedirectTo: redirect } });
         if (error) say(/registered|exists/i.test(error.message) ? 'Цей email уже зареєстрований — увійдіть' : 'Помилка: ' + error.message);
         else if (!data.session) say(`Готово! Ми надіслали лист на ${email}. Відкрийте посилання з листа, щоб підтвердити пошту.`, true);
@@ -3530,7 +3537,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
 
   if (pendingJoin()) {
     setLoginMode('signup');
-    $('#loginHint').textContent = 'Вас запросив тренер. Введіть будь-яку свою пошту й придумайте пароль (мінімум 6 символів). Якщо акаунт уже є — натисніть «Назад до входу».';
+    $('#loginHint').textContent = 'Вас запросив тренер. Введіть свою пошту (двічі, щоб не помилитися) й придумайте пароль (мінімум 6 символів). Якщо акаунт уже є — натисніть «Назад до входу».';
   }
   (async function boot() {
     const { data: { session } } = await db.auth.getSession();
