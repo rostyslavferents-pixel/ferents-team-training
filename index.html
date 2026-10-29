@@ -1243,7 +1243,11 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       const st = mins(s.start_time), en = s.end_time ? mins(s.end_time) : st + 90;
       return { s, st, en };
     });
-    const current = slots.find(x => nowM >= x.st - 30 && nowM <= x.en + 30);
+    // Якщо вікна груп перекриваються — беремо ту, що вже почалася найпізніше
+    const inWin = slots.filter(x => nowM >= x.st - 30 && nowM <= x.en + 30);
+    const current = inWin.filter(x => x.st <= nowM).sort((a, b) => b.st - a.st)[0] || inWin[0];
+    // Наступна група сьогодні після поточної
+    const after = current && slots.filter(x => x.st > current.st).sort((a, b) => a.st - b.st)[0];
     let next = !current && slots.find(x => x.st > nowM);
     if (next) next.date = t;
     // Сьогодні більше немає — шукаємо найближчий день за розкладом (до тижня вперед)
@@ -1262,10 +1266,27 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     let nowBlock = '';
     if (current) {
       const [n, total] = groupCount(current.s.group_name, current.s.section);
-      nowBlock = `<a class="now" href="#attendance" data-now-group="${esc(current.s.group_name || '')}" data-now-section="${esc(current.s.section || '')}">
-        <i class="dot"></i>
-        <div><b>Відмітити присутніх</b><span>${esc([current.s.section, current.s.group_name].filter(Boolean).join(' · '))} · ${hhmm(current.s.start_time)}${current.s.place ? ' · ' + esc(current.s.place) : ''} · відмічено ${n} з ${total}</span></div>
-        <i class="go">›</i></a>`;
+      const curLabel = esc([current.s.section, current.s.group_name].filter(Boolean).join(' · '));
+      if (n > 0 && after) {
+        // Поточну групу вже відмічено — пропонуємо наступну
+        const [n2, total2] = groupCount(after.s.group_name, after.s.section);
+        nowBlock = `<a class="now" href="#attendance" data-now-group="${esc(after.s.group_name || '')}" data-now-section="${esc(after.s.section || '')}">
+          <i class="dot"></i>
+          <div><b>Відмітити наступну групу</b><span>${esc([after.s.section, after.s.group_name].filter(Boolean).join(' · '))} · ${hhmm(after.s.start_time)}${after.s.place ? ' · ' + esc(after.s.place) : ''} · відмічено ${n2} з ${total2}</span>
+          <span>✓ ${curLabel}: відмічено ${n} з ${total}</span></div>
+          <i class="go">›</i></a>`;
+      } else if (n > 0) {
+        // Остання група на сьогодні вже відмічена
+        nowBlock = `<a class="now soon" href="#attendance" data-now-group="${esc(current.s.group_name || '')}" data-now-section="${esc(current.s.section || '')}">
+          <i class="dot"></i>
+          <div><b>✓ Відмічено: ${curLabel}</b><span>${n} з ${total} · на сьогодні все</span></div>
+          <i class="go">›</i></a>`;
+      } else {
+        nowBlock = `<a class="now" href="#attendance" data-now-group="${esc(current.s.group_name || '')}" data-now-section="${esc(current.s.section || '')}">
+          <i class="dot"></i>
+          <div><b>Відмітити присутніх</b><span>${curLabel} · ${hhmm(current.s.start_time)}${current.s.place ? ' · ' + esc(current.s.place) : ''} · відмічено ${n} з ${total}</span></div>
+          <i class="go">›</i></a>`;
+      }
     } else if (next) {
       let inTxt;
       if (next.days) {
