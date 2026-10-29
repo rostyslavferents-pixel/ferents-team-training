@@ -568,7 +568,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.18';
+  const APP_VERSION = 'v3.19';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -3060,10 +3060,11 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       ${pend.length ? `<div class="info"><b>⏳ Запит надіслано тренеру</b><br>
         ${pend.map(r => esc(r.child_name)).join(', ')}<br>
         Щойно тренер підтвердить — ${member ? 'дитина зʼявиться на головній' : 'ви побачите свою дитину'}.
-        <div style="margin-top:8px"><button type="button" class="btn light sm" id="jRefresh">Оновити</button></div></div>` : ''}
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn light sm" id="jRefresh">Оновити</button>
+          ${member ? '' : '<button type="button" class="btn light sm" id="jMore">+ Ще одна дитина</button>'}</div></div>` : ''}
       ${!member && !pend.length ? `<div class="info"><b>Ласкаво просимо в Ferents Team 🥋</b><br>
         Вкажіть, хто ви і чия дитина. Тренер підтвердить — і ви побачите свою дитину в застосунку.</div>` : ''}
-      <form id="jForm">
+      <form id="jForm" ${pend.length && !member ? 'hidden' : ''}>
         ${member ? `<h3 style="margin:8px 0 0">Додати ще дитину</h3>` : `<h3 style="margin:8px 0 0">${pend.length ? 'Ще одна дитина?' : 'Хто ви'}</h3>
         <label>Я<select name="role">
           <option value="parent" ${role0 === 'parent' ? 'selected' : ''}>Мама / тато (батьки)</option>
@@ -3082,6 +3083,8 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       if (form.name) form.name.placeholder = ath ? 'напр. Іван' : 'напр. Олена, мама Івана';
     };
     if (form.role) { form.role.onchange = relabel; relabel(); }
+    const more = $('#jMore');
+    if (more) more.onclick = () => { form.hidden = false; more.remove(); form.child.focus(); };
     const refresh = $('#jRefresh');
     if (refresh) refresh.onclick = async () => {
       state.role = await detectRole();
