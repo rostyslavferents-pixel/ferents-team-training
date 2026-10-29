@@ -655,3 +655,85 @@ revoke execute on function public.push_targets(text,text,text,text,text) from pu
 grant execute on function public.push_targets(text,text,text,text,text) to service_role;
 
 notify pgrst, 'reload schema';
+
+
+-- ===================================================================== (повна версія сповіщень)
+-- Оголошення від тренера + сповіщення на телефон
+create table if not exists public.announcements (
+  id          bigint generated always as identity primary key,
+  created_at  timestamptz not null default now(),
+  title       text not null check (char_length(title) between 1 and 120),
+  body        text check (char_length(body) <= 3000),
+  audience    text not null default 'all' check (audience in ('all','parents','athletes')),
+  section     text,     -- null = обидві секції
+  group_name  text,     -- null = усі групи
+  important   boolean not null default false
+);
+alter table public.announcements enable row level security;
+drop policy if exists coach_all on public.announcements;
+drop policy if exists member_read on public.announcements;
+create policy coach_all on public.announcements for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+create policy member_read on public.announcements for select to authenticated
+  using (public.is_member()
+    and (audience = 'all' or audience = public.my_role() || 's')
+    and public.is_my_group(group_name, section));
+revoke all on public.announcements from anon;
+
+-- Підписки на сповіщення (кожен пристрій — окремий рядок)
+create table if not exists public.push_subscriptions (
+  endpoint    text primary key,
+  email       text not null default lower(auth.jwt() ->> 'email'),
+  sub         jsonb not null,
+  created_at  timestamptz not null default now()
+);
+alter table public.push_subscriptions enable row level security;
+drop policy if exists own_all on public.push_subscriptions;
+create policy own_all on public.push_subscriptions for all to authenticated
+  using (email = lower(auth.jwt() ->> 'email'))
+  with check (email = lower(auth.jwt() ->> 'email'));
+revoke all on public.push_subscriptions from anon;
+
+-- Кому надсилати (викликає лише серверна функція notify)
+create or replace function public.push_targets(p_kind text, p_audience text, p_section text, p_group text, p_exclude text)
+returns table (endpoint text, sub jsonb)
+language sql stable security definer set search_path = public as $$
+  with coaches_all as (
+    select email from public.coaches
+    union select email from public.members where role = 'coach'
+  ),
+  linked as (
+    select m.email, m.role, a.section, a.group_name
+    from public.members m
+    join public.member_athletes ma on ma.email = m.email
+    join public.athletes a on a.id = ma.athlete_id
+    where m.role in ('parent','athlete')
+  ),
+  who as (
+    select email from linked where p_kind = 'announcement'
+      and (p_audience = 'all' or role || 's' = p_audience)
+      and (p_group is null or group_name = p_group)
+      and (p_section is null or section is null or section = p_section)
+    union select email from linked where p_kind = 'event'
+    union select email from linked where p_kind = 'plan' and role = 'athlete'
+      and (p_group is null or group_name = p_group)
+    union select email from linked where p_kind = 'chat' and role = 'athlete'
+    union select email from coaches_all where p_kind in ('chat','joined','request')
+  )
+  select s.endpoint, s.sub from public.push_subscriptions s
+  join who on who.email = s.email
+  where s.email is distinct from lower(p_exclude);
+$$;
+revoke execute on function public.push_targets(text,text,text,text,text) from public, anon, authenticated;
+grant execute on function public.push_targets(text,text,text,text,text) to service_role;
+
+-- Сповіщення тренеру про новий запит на доступ
+create or replace function public.has_join_request()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.join_requests
+    where email = lower(auth.jwt() ->> 'email') and created_at > now() - interval '10 minutes');
+$$;
+revoke execute on function public.has_join_request() from public, anon;
+grant execute on function public.has_join_request() to authenticated;
+
+notify pgrst, 'reload schema';
