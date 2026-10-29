@@ -517,3 +517,58 @@ revoke execute on function public.push_targets(text,text,text,text,text) from pu
 grant execute on function public.push_targets(text,text,text,text,text) to service_role;
 
 notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+-- Запити на доступ за одним спільним посиланням
+create table if not exists public.join_requests (
+  id          bigint generated always as identity primary key,
+  email       text not null,
+  full_name   text not null,
+  role        text not null check (role in ('parent','athlete')),
+  child_name  text not null,
+  child_birth text,
+  athlete_id  text,
+  created_at  timestamptz not null default now()
+);
+alter table public.join_requests enable row level security;
+drop policy if exists coach_all on public.join_requests;
+create policy coach_all on public.join_requests for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+drop policy if exists own_read on public.join_requests;
+create policy own_read on public.join_requests for select to authenticated
+  using (email = lower(auth.jwt() ->> 'email'));
+revoke all on public.join_requests from anon;
+
+-- Імʼя без зайвих пробілів, апострофів і великих літер
+create or replace function public.ft_norm(t text) returns text language sql immutable as $$
+  select lower(regexp_replace(translate(trim(coalesce(t, '')), '’ʼ''', ''), '[[:space:]]+', ' ', 'g'));
+$$;
+
+-- Надіслати запит: шукає дитину за прізвищем, імʼям і датою народження
+create or replace function public.request_join(p_name text, p_role text, p_child text, p_birth text)
+returns text language plpgsql security definer set search_path = public as $$
+declare
+  em  text := lower(auth.jwt() ->> 'email');
+  n   text := public.ft_norm(p_child);
+  rev text;
+  ids text[];
+begin
+  if em is null then raise exception 'not_signed_in'; end if;
+  if p_role not in ('parent','athlete') then raise exception 'bad_role'; end if;
+  if length(n) < 3 or length(n) > 80 or length(coalesce(p_name, '')) > 60 then raise exception 'bad_input'; end if;
+  if (select count(*) from public.join_requests where email = em) >= 5 then raise exception 'too_many'; end if;
+  rev := split_part(n, ' ', 2) || ' ' || split_part(n, ' ', 1);
+  select array_agg(a.id::text) into ids from public.athletes a
+   where public.ft_norm(a.full_name) in (n, rev)
+     and (nullif(p_birth, '') is null or a.birth_date is null or a.birth_date::text = p_birth);
+  delete from public.join_requests where email = em and public.ft_norm(child_name) = n;
+  insert into public.join_requests (email, full_name, role, child_name, child_birth, athlete_id)
+  values (em, coalesce(nullif(trim(p_name), ''), em), p_role, trim(p_child), nullif(p_birth, ''),
+          case when cardinality(ids) = 1 then ids[1] end);
+  return 'ok';
+end $$;
+revoke execute on function public.request_join(text, text, text, text) from public, anon;
+grant execute on function public.request_join(text, text, text, text) to authenticated;
+
+notify pgrst, 'reload schema';
