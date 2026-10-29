@@ -26,6 +26,7 @@ Deno.serve(async (req) => {
     const rpc = async (fn: string) => (await asUser.rpc(fn)).data === true;
     const allowed = kind === "chat" ? await rpc("is_athlete_member")
       : kind === "joined" ? await rpc("is_member")
+      : kind === "request" ? await rpc("has_join_request")
       : ["announcement", "event", "plan"].includes(kind) ? await rpc("is_coach")
       : false;
     if (!allowed) return json({ error: "forbidden" }, 403);

@@ -609,3 +609,49 @@ revoke execute on function public.set_my_athlete_photo(text, text) from public, 
 grant execute on function public.set_my_athlete_photo(text, text) to authenticated;
 
 notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+-- Сповіщення тренеру про новий запит на доступ
+create or replace function public.has_join_request()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.join_requests
+    where email = lower(auth.jwt() ->> 'email') and created_at > now() - interval '10 minutes');
+$$;
+revoke execute on function public.has_join_request() from public, anon;
+grant execute on function public.has_join_request() to authenticated;
+
+-- Кому надсилати (викликає лише серверна функція notify)
+create or replace function public.push_targets(p_kind text, p_audience text, p_section text, p_group text, p_exclude text)
+returns table (endpoint text, sub jsonb)
+language sql stable security definer set search_path = public as $$
+  with coaches_all as (
+    select email from public.coaches
+    union select email from public.members where role = 'coach'
+  ),
+  linked as (
+    select m.email, m.role, a.section, a.group_name
+    from public.members m
+    join public.member_athletes ma on ma.email = m.email
+    join public.athletes a on a.id = ma.athlete_id
+    where m.role in ('parent','athlete')
+  ),
+  who as (
+    select email from linked where p_kind = 'announcement'
+      and (p_audience = 'all' or role || 's' = p_audience)
+      and (p_group is null or group_name = p_group)
+      and (p_section is null or section is null or section = p_section)
+    union select email from linked where p_kind = 'event'
+    union select email from linked where p_kind = 'plan' and role = 'athlete'
+      and (p_group is null or group_name = p_group)
+    union select email from linked where p_kind = 'chat' and role = 'athlete'
+    union select email from coaches_all where p_kind in ('chat','joined','request')
+  )
+  select s.endpoint, s.sub from public.push_subscriptions s
+  join who on who.email = s.email
+  where s.email is distinct from lower(p_exclude);
+$$;
+revoke execute on function public.push_targets(text,text,text,text,text) from public, anon, authenticated;
+grant execute on function public.push_targets(text,text,text,text,text) to service_role;
+
+notify pgrst, 'reload schema';
