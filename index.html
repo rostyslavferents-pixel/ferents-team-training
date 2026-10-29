@@ -407,6 +407,13 @@
     /* Фото спортсменів */
     .av { flex: none; width: 42px; height: 42px; border-radius: 50%; overflow: hidden; background: var(--gold-soft); color: var(--gold-ink);
       display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+    .hero-top .avatar, .hero-top .av-cam { display: flex; margin-top: 0; }
+    .hero-top .avatar { color: var(--gold-ink); }
+    .av-edit { position: relative; cursor: pointer; flex: none; margin: 0; }
+    .av-edit .avatar { width: 64px; height: 64px; font-size: 22px; }
+    .av-cam { position: absolute; right: -4px; bottom: -4px; width: 26px; height: 26px; border-radius: 50%; background: var(--card);
+      box-shadow: 0 1px 4px #0003; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+    .av-lg { width: 52px; height: 52px; font-size: 18px; }
     .av img, .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .avatar { overflow: hidden; }
     .row .grow { flex: 1; min-width: 0; }
@@ -568,7 +575,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.19';
+  const APP_VERSION = 'v3.20';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -641,6 +648,9 @@
     events: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
     links: '<rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/>',
     members: '<circle cx="10" cy="8" r="4"/><path d="M3 21v-1a7 7 0 0 1 11-5.7M19 15v6M16 18h6"/>',
+    kid: '<circle cx="12" cy="7.5" r="4.5"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/>',
+    news: '<path d="M3 10v4a1 1 0 0 0 1 1h3l6 4V5L7 9H4a1 1 0 0 0-1 1z"/><path d="M17 8a5 5 0 0 1 0 8M20 5a9 9 0 0 1 0 14"/>',
+    plans: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
   };
   function icon(name) { return `<svg class="ic-svg" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; }
 
@@ -992,9 +1002,15 @@ notify pgrst, 'reload schema';`;
     return p => photoCache.get(p)?.url || '';
   }
   function initialsOf(name) { return String(name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
+  // Колір кола з ініціалами — свій для кожного імені
+  function avatarColor(name) {
+    let x = 0; for (const ch of String(name || '')) x = (x * 31 + ch.codePointAt(0)) >>> 0;
+    const hue = [8, 28, 45, 145, 175, 200, 220, 255, 285, 330][x % 10];
+    return `background:hsl(${hue} 70% 55% / .2);color:hsl(${hue} 55% 42%)`;
+  }
   function avatarHtml(a, url, cls = 'av') {
     const ini = esc(initialsOf(a.full_name));
-    return `<span class="${cls}">${url ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode('${ini}'))">` : ini}</span>`;
+    return `<span class="${cls}"${url ? '' : ` style="${avatarColor(a.full_name)}"`}>${url ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode('${ini}'))">` : ini}</span>`;
   }
   // Квадрат 480×480, JPEG ≈ 40–80 КБ
   async function compressPhoto(file) {
@@ -1016,6 +1032,59 @@ drop policy if exists "coach athlete photos" on storage.objects;
 create policy "coach athlete photos" on storage.objects for all to authenticated
   using (bucket_id = 'athlete-photos' and public.is_coach())
   with check (bucket_id = 'athlete-photos' and public.is_coach());`;
+  // Батьки й спортсмен можуть самі завантажити фото «свого» спортсмена
+  const MEMBER_PHOTO_SQL = `-- Фото від батьків і спортсменів (лише для своєї дитини)
+alter table public.athletes add column if not exists photo text;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('athlete-photos', 'athlete-photos', false, 1048576, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+drop policy if exists "coach athlete photos" on storage.objects;
+create policy "coach athlete photos" on storage.objects for all to authenticated
+  using (bucket_id = 'athlete-photos' and public.is_coach())
+  with check (bucket_id = 'athlete-photos' and public.is_coach());
+drop policy if exists "member athlete photos read" on storage.objects;
+create policy "member athlete photos read" on storage.objects for select to authenticated
+  using (bucket_id = 'athlete-photos' and public.is_my_athlete((storage.foldername(name))[1]));
+drop policy if exists "member athlete photos add" on storage.objects;
+create policy "member athlete photos add" on storage.objects for insert to authenticated
+  with check (bucket_id = 'athlete-photos' and public.is_my_athlete((storage.foldername(name))[1]));
+drop policy if exists "member athlete photos delete" on storage.objects;
+create policy "member athlete photos delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'athlete-photos' and public.is_my_athlete((storage.foldername(name))[1]));
+
+-- Записати шлях до фото у картку (повертає старий шлях, щоб прибрати старий файл)
+create or replace function public.set_my_athlete_photo(p_athlete text, p_path text)
+returns text language plpgsql security definer set search_path = public as $$
+declare old text;
+begin
+  if not (public.is_coach() or public.is_my_athlete(p_athlete)) then raise exception 'not_mine'; end if;
+  if p_path is not null and p_path not like p_athlete || '/%' then raise exception 'bad_path'; end if;
+  select photo into old from public.athletes where id::text = p_athlete;
+  update public.athletes set photo = p_path where id::text = p_athlete;
+  return old;
+end $$;
+revoke execute on function public.set_my_athlete_photo(text, text) from public, anon;
+grant execute on function public.set_my_athlete_photo(text, text) to authenticated;
+
+notify pgrst, 'reload schema';`;
+  // Батьки/спортсмен: вибрати фото → стиснути → завантажити → записати в картку
+  async function memberPhotoUpload(a, file) {
+    try {
+      const blob = await compressPhoto(file);
+      const path = `${a.id}/${Date.now()}.jpg`;
+      const up = await db.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: 'image/jpeg' });
+      if (up.error) throw up.error;
+      const { data: old, error } = await db.rpc('set_my_athlete_photo', { p_athlete: String(a.id), p_path: path });
+      if (error) { db.storage.from(PHOTO_BUCKET).remove([path]); throw error; }
+      if (old && old !== path) db.storage.from(PHOTO_BUCKET).remove([old]);
+      toast('Фото оновлено');
+      render();
+    } catch (e) {
+      const m = (e && e.message) || '';
+      toast(/function|not_mine|row-level|policy|Bucket|not found/i.test(m)
+        ? 'Завантаження фото ще не увімкнено. Напишіть тренеру.' : isNetErr(e) ? 'Немає інтернету' : 'Не вдалося: ' + m, true);
+    }
+  }
   function inSection(a) { return !state.hasSection || state.section === 'Усі' || a.section === state.section; }
   function inFilter(a) { return inGroup(a) && inSection(a); }
   // Розклад: тренування без секції показуємо в обох
@@ -1429,6 +1498,8 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     ]);
     const kids = kids0.filter(isActive).length ? kids0.filter(isActive) : kids0;
     state.kidIds = kids.map(a => String(a.id));
+    drawTabbar('home');
+    const urlOf = await photoUrls(kids.map(a => a.photo)).catch(() => () => '');
     const placeOf = new Map(rating.map(r => [String(r.id), r.rating_place]));
 
     const mins = s => { const [h, m] = String(s).split(':').map(Number); return h * 60 + m; };
@@ -1466,6 +1537,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       for (let d = monthStart; d <= t; d = shiftDate(d, 1)) if (days.has(weekdayOf(d))) planned++;
       const place = placeOf.get(String(a.id));
       return `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">
+        ${avatarHtml(a, urlOf(a.photo), 'av av-lg')}
         <div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong>
           <span>${esc([a.section, a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}</span>
           <span>✅ ${visits}${planned ? ' з ' + planned : ''} тренувань у ${MONTHS_IN[Number(ym.slice(5)) - 1]}${place ? ` · 🏆 ${place} місце в рейтингу` : ''}</span></div>
@@ -1481,25 +1553,27 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
           <span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long' })}${e.place ? ' · ' + esc(e.place) : ''}</span>
           ${g.length ? `<span style="color:var(--ok)">🥋 бере участь: ${esc(g.join(', '))}</span>` : ''}</div><span class="chev">›</span></a>`;
       }).join('')}</div>` : '';
-    const card = (route, title, sub) =>
-      `<a class="card" href="#${route}"><strong>${title}</strong><span>${sub}</span></a>`;
+    // Оголошення: важливі за 3 тижні + звичайні за тиждень, максимум 2; решта — у вкладці «Оголошення»
+    const fresh = news.filter(n => n.important || Date.now() - new Date(n.created_at) < 7 * 864e5).slice(0, 2);
+    const newsHtml = fresh.length ? `<div class="sec"><h3>Оголошення</h3><a class="link small" href="#news">усі ›</a></div>
+      <div class="list">${fresh.map(n => annItem(n, false)).join('')}</div>` : '';
+    const tile = (route, ic, title, sub) =>
+      `<a class="tile" href="#${route}"><span class="ic">${icon(ic)}</span><span><strong>${title}</strong><small>${sub}</small></span></a>`;
 
     $('#view').innerHTML = `
       ${installCard()}
       ${pushC}
-      ${news.length ? `<div class="list" style="margin-bottom:12px">${news.map(n => annItem(n, false)).join('')}</div>` : ''}
       ${nextBlock}
-      ${kids.length ? `<h3>${kids.length > 1 ? 'Мої спортсмени' : 'Мій спортсмен'}</h3><div class="list">${kids.map(kidCard).join('')}</div>` : noKids}
+      ${kids.length ? `<h3>${kids.length > 1 ? 'Мої спортсмени' : (isAthleteM() ? 'Моя картка' : 'Мій спортсмен')}</h3><div class="list">${kids.map(kidCard).join('')}</div>` : noKids}
+      ${newsHtml}
       ${evHtml}
-      <div style="margin-top:16px"></div>
-      ${isAthleteM() ? `
-      ${card('plans', '📝 Завдання на тренування', 'Що робимо на тренуваннях моєї групи')}
-      ${card('schedule', '🗓️ Розклад моєї групи', 'Дні, час і зал')}
-      ${card('links', '🎬 Відео', 'Ката, техніка, корисні матеріали')}
-      ${card('chat', '💬 Чат команди', 'Спілкування з тренером і командою')}` : ''}
-      ${card('news', '📢 Оголошення', 'Новини та повідомлення від тренера')}
-      ${card('rating', '🏆 Рейтинг спортсменів', 'Місця та заслуги команди')}
-      ${card('events', '📅 Календар подій', 'Змагання, атестації, збори')}`;
+      <div class="tiles">
+        ${isAthleteM() ? `
+        ${tile('schedule', 'training', 'Розклад', 'Дні, час і зал')}
+        ${tile('links', 'links', 'Відео', 'Ката і техніка')}` : ''}
+        ${tile('rating', 'events', 'Рейтинг', 'Місця та заслуги')}
+        ${tile('news', 'news', 'Оголошення', 'Усі новини')}
+      </div>`;
   }
 
   // Вік і підпис дати народження
@@ -2071,8 +2145,10 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
 
     $('#view').innerHTML = `
       <div class="hero">
-        <div class="hero-top">${avatarHtml(a, photoUrl, 'avatar')}
-          <div><h2>${esc(a.full_name)}</h2><span>${esc(sub)}${bdayLine}</span></div></div>
+        <div class="hero-top">${coach ? avatarHtml(a, photoUrl, 'avatar') : `<label class="av-edit" title="Змінити фото">${avatarHtml(a, photoUrl, 'avatar')}
+            <span class="av-cam">📷</span><input type="file" accept="image/*" id="myPhoto" hidden></label>`}
+          <div><h2>${esc(a.full_name)}</h2><span>${esc(sub)}${bdayLine}</span>
+          ${coach ? '' : `<label class="link small" style="display:inline-block;margin-top:4px;cursor:pointer" for="myPhoto">${a.photo ? 'Змінити фото' : '📷 Додати фото'}</label>`}</div></div>
         <div class="hero-belt">${a.belt ? beltTag(a.belt, true) + esc(a.belt) : '<span class="muted">Пояс не вказано</span>'}</div>
         <div class="hero-w">⚖️ ${lastW ? `<b>${fmtKg(lastW.kg)}</b> <span class="muted small">· ${fmtDate(lastW.date)}${lastW.date.slice(0, 4) !== t.slice(0, 4) ? ' ' + lastW.date.slice(0, 4) : ''}</span>` : '<span class="muted">Вага не вказана</span>'}</div>
         ${coach && a.parent_name ? `<div class="note">Батьки: ${esc(a.parent_name)}${a.phone ? ' · ' + esc(a.phone) : ''}</div>` : ''}
@@ -2111,6 +2187,8 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
       ${coach ? '<h3>Доступ до застосунку</h3><div id="accessBox" class="panel"><span class="muted small">Завантаження…</span></div>' : ''}`;
 
     if (!coach) {
+      const ph = $('#myPhoto');
+      if (ph) ph.onchange = () => { if (ph.files[0]) memberPhotoUpload(a, ph.files[0]); };
       // Батьки: лише перегляд (графік ваги можна потицяти)
       if ($('#wcap')) $('#wcap').textContent = 'Натисніть на точку, щоб побачити дату й вагу';
       $('#view').querySelectorAll('[data-wedit]').forEach(b => b.remove());
@@ -3157,12 +3235,13 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   // ----- Учасники та доступ (тільки тренер) -----
   async function membersView() {
     setActions('<button class="btn" id="addBtn">+ Додати</button>');
-    const [list, ath, linksRes, invRes, reqRes] = await Promise.all([
+    const [list, ath, linksRes, invRes, reqRes, photoRes] = await Promise.all([
       q(db.from('members').select('*').order('role').order('full_name')),
       q(db.from('athletes').select('id, full_name, section, group_name, active').order('full_name')),
       db.from('member_athletes').select('*'),
       db.from('invites').select('code').limit(1),
       db.from('join_requests').select('*').order('created_at'),
+      db.rpc('set_my_athlete_photo', { p_athlete: '__probe', p_path: null }),
     ]);
     const reqs = reqRes.data || [];
     const teamUrl = location.origin + location.pathname + '#team';
@@ -3179,6 +3258,7 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
         Надішліть його в чат батьків чи спортсменів. Людина реєструється, вказує прізвище, імʼя та дату народження дитини — а ви підтверджуєте запит тут.
         <div style="margin-top:8px"><button type="button" class="btn sm" id="teamLinkBtn">📋 Скопіювати посилання</button></div></div>` : ''}
       ${requestsBlock(reqs, ath)}
+      ${linksOk && photoRes.error && /function|schema cache/i.test(photoRes.error.message || '') ? sqlCard('Фото від батьків і спортсменів', MEMBER_PHOTO_SQL) : ''}
       <div class="info"><b>Хто що бачить:</b>
         <b>батьки</b> — свою дитину (відвідування, пояси, вагу), рейтинг і події; <b>спортсмени</b> — ще розклад і завдання своєї групи, відео та чат. Тренери бачать усе.<br>
         Можна й окремо: картка спортсмена → «Запросити батьків», або «+ Додати» тут з email людини.</div>
@@ -3486,22 +3566,34 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
+  // Нижня панель для батьків і спортсменів: [посилання, підпис, іконка]
+  function memberTabs() {
+    const ids = state.kidIds || [];
+    const kid = ids.length ? 'athlete/' + encodeURIComponent(ids[0]) : 'home';
+    return isAthleteM()
+      ? [['home', 'Головна', 'home'], [kid, 'Я', 'kid'], ['plans', 'Завдання', 'plans'], ['chat', 'Чат', 'chat'], ['events', 'Події', 'training']]
+      : [['home', 'Головна', 'home'], [kid, ids.length > 1 ? 'Діти' : 'Дитина', 'kid'], ['events', 'Події', 'training'], ['news', 'Оголошення', 'news']];
+  }
+  const MEMBER_TAB_OF = { rating: 'home', schedule: 'home', links: 'home', join: 'home', settings: 'home' };
+  function tabsNow() { return isCoach() ? TABS.map(([r, l]) => [r, l, r]) : state.role === 'member' ? memberTabs() : null; }
   function drawTabbar(route) {
-    const bar = $('#tabbar'), on = isCoach();
+    const bar = $('#tabbar'), tabs = tabsNow(), on = !!tabs;
     bar.hidden = !on;
     document.body.classList.toggle('has-tabs', on);
     if (!on) return;
-    const cur = TABS.some(([r]) => r === route) ? route : (TAB_OF[route] || 'home');
-    bar.firstElementChild.innerHTML = TABS.map(([r, label]) =>
-      `<a class="tab ${r === cur ? 'on' : ''}" href="#${r}" data-tab="${r}" ${r === cur ? 'aria-current="page"' : ''}>${icon(r)}<span>${label}</span></a>`).join('');
+    const keys = tabs.map(([href]) => href.split('/')[0]);
+    const cur = keys.includes(route) ? route : ((isCoach() ? TAB_OF : MEMBER_TAB_OF)[route] || 'home');
+    bar.firstElementChild.innerHTML = tabs.map(([href, label, ic], i) => { const on = keys[i] === cur;
+      return `<a class="tab ${on ? 'on' : ''}" href="#${href}" data-tab="${keys[i]}" ${on ? 'aria-current="page"' : ''}>${icon(ic)}<span>${label}</span></a>`; }).join('');
   }
+  function isTabRoute(route) { const t = tabsNow(); return !!t && t.some(([href]) => href.split('/')[0] === route); }
   // Вкладка завжди відкриває «сьогодні» і поточний місяць
   $('#tabbar').addEventListener('click', e => {
     const t = e.target.closest('[data-tab]');
     if (!t) return;
     if (t.dataset.tab === 'attendance') state.date = today();
     if (t.dataset.tab === 'payments') state.month = today().slice(0, 7);
-    if (location.hash === '#' + t.dataset.tab) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); render(); }
+    if (location.hash === t.getAttribute('href')) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); render(); }
   });
 
   let renderId = 0;
@@ -3513,11 +3605,12 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     if (!state.role && route !== 'settings' && route !== 'join') route = 'home';
     const id = ++renderId;
     if (chatChannel) { db.removeChannel(chatChannel); chatChannel = null; }
-    $('#pageTitle').textContent = route === 'rating' && !isCoach() ? 'Рейтинг спортсменів' : TITLES[route];
+    $('#pageTitle').textContent = route === 'rating' && !isCoach() ? 'Рейтинг спортсменів'
+      : route === 'athlete' && !isCoach() ? (isAthleteM() ? 'Моя картка' : 'Моя дитина') : TITLES[route];
     document.body.classList.toggle('inner', route !== 'home');
     document.body.dataset.route = route;
     drawTabbar(route);
-    const isTab = isCoach() && (TABS.some(([r]) => r === route) || route === 'rating');
+    const isTab = isCoach() ? (TABS.some(([r]) => r === route) || route === 'rating') : isTabRoute(route);
     $('#backLink').hidden = route === 'home' || isTab;
     const parent = isCoach() ? PARENT_ROUTE[route] : (['athlete', 'rating', 'events', 'news', 'chat', 'schedule', 'plans', 'links', 'join'].includes(route) ? 'home' : null);
     $('#backLink').href = '#' + (parent || 'home');
@@ -3562,8 +3655,10 @@ create policy "coach athlete photos" on storage.objects for all to authenticated
     else { const { data: member } = await db.rpc('is_member'); role = member ? 'member' : null; }
     state.memberRole = 'parent';
     if (role === 'member') {
-      const { data: r } = await db.rpc('my_role');
+      const [{ data: r }, { data: ks }] = await Promise.all([db.rpc('my_role'), db.from('athletes').select('id, active').order('full_name')]);
       if (r === 'athlete') state.memberRole = 'athlete';
+      const act = (ks || []).filter(isActive);
+      state.kidIds = (act.length ? act : ks || []).map(x => String(x.id));
     }
     try { localStorage.setItem('ft_role', JSON.stringify({ email: state.email, role, name: state.name, memberRole: state.memberRole })); } catch (e) {}
     return role;

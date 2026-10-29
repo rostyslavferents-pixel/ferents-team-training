@@ -572,3 +572,40 @@ revoke execute on function public.request_join(text, text, text, text) from publ
 grant execute on function public.request_join(text, text, text, text) to authenticated;
 
 notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+-- Фото від батьків і спортсменів (лише для своєї дитини)
+alter table public.athletes add column if not exists photo text;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('athlete-photos', 'athlete-photos', false, 1048576, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+drop policy if exists "coach athlete photos" on storage.objects;
+create policy "coach athlete photos" on storage.objects for all to authenticated
+  using (bucket_id = 'athlete-photos' and public.is_coach())
+  with check (bucket_id = 'athlete-photos' and public.is_coach());
+drop policy if exists "member athlete photos read" on storage.objects;
+create policy "member athlete photos read" on storage.objects for select to authenticated
+  using (bucket_id = 'athlete-photos' and public.is_my_athlete((storage.foldername(name))[1]));
+drop policy if exists "member athlete photos add" on storage.objects;
+create policy "member athlete photos add" on storage.objects for insert to authenticated
+  with check (bucket_id = 'athlete-photos' and public.is_my_athlete((storage.foldername(name))[1]));
+drop policy if exists "member athlete photos delete" on storage.objects;
+create policy "member athlete photos delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'athlete-photos' and public.is_my_athlete((storage.foldername(name))[1]));
+
+-- Записати шлях до фото у картку (повертає старий шлях, щоб прибрати старий файл)
+create or replace function public.set_my_athlete_photo(p_athlete text, p_path text)
+returns text language plpgsql security definer set search_path = public as $$
+declare old text;
+begin
+  if not (public.is_coach() or public.is_my_athlete(p_athlete)) then raise exception 'not_mine'; end if;
+  if p_path is not null and p_path not like p_athlete || '/%' then raise exception 'bad_path'; end if;
+  select photo into old from public.athletes where id::text = p_athlete;
+  update public.athletes set photo = p_path where id::text = p_athlete;
+  return old;
+end $$;
+revoke execute on function public.set_my_athlete_photo(text, text) from public, anon;
+grant execute on function public.set_my_athlete_photo(text, text) to authenticated;
+
+notify pgrst, 'reload schema';
