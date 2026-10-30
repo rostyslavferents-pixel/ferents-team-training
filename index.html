@@ -422,6 +422,22 @@
     .photo-edit .acts { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
     .photo-edit label.btn { margin: 0; color: var(--ink); font-size: 14px; }
     .photo-note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+    /* Вибір кадру з фото: масштаб пальцями / колесом, перетягування */
+    dialog.crop { border: 0; padding: 0; margin: auto; background: transparent; color: #fff; max-width: 100vw; max-height: 100dvh; overflow: visible; }
+    dialog.crop::backdrop { background: #000e; }
+    .crop-box { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 16px; }
+    .crop-title { font-weight: 600; font-size: 16px; }
+    .crop-hint { font-size: 13px; color: #fffb; text-align: center; max-width: 340px; }
+    .crop-vp { position: relative; width: min(88vw, 62dvh, 440px); aspect-ratio: 1; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; border-radius: 12px; overflow: hidden; background: #111; }
+    .crop-vp.drag { cursor: grabbing; }
+    .crop-vp canvas { width: 100%; height: 100%; display: block; }
+    .crop-vp .ring { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 999px #0009; border: 2px solid #fffc; pointer-events: none; }
+    .crop-zoom { display: flex; align-items: center; gap: 10px; width: min(88vw, 440px); }
+    .crop-zoom input { flex: 1; accent-color: var(--gold); }
+    .crop-zoom button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #fff5; background: #fff1; color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+    .crop-acts { display: flex; gap: 12px; width: min(88vw, 440px); }
+    .crop-acts button { flex: 1; height: 46px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; border: 1px solid #fff5; background: transparent; color: #fff; }
+    .crop-acts button.ok { background: var(--gold); border-color: var(--gold); color: #111; }
     .rem-list { margin-top: 14px; border-top: 1px solid var(--line); }
     .rem-row { padding: 12px 0; border-bottom: 1px solid var(--line); }
     .rem-who b { display: block; font-size: 15px; }
@@ -575,7 +591,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.22';
+  const APP_VERSION = 'v3.23';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -1094,17 +1110,110 @@ Deno.serve(async (req) => {
     const ini = esc(initialsOf(a.full_name));
     return `<span class="${cls}"${url ? '' : ` style="${avatarColor(a.full_name)}"`}>${url ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode('${ini}'))">` : ini}</span>`;
   }
-  // Квадрат 480×480, JPEG ≈ 40–80 КБ
-  async function compressPhoto(file) {
-    let img;
-    try { img = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  async function loadImage(file) {
+    try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }
     catch (e) {
-      img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); });
+      return await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); });
     }
-    const w = img.width, h = img.height, side = Math.min(w, h), size = Math.min(480, side);
-    const c = document.createElement('canvas'); c.width = c.height = size;
-    c.getContext('2d').drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, size, size);
-    return new Promise(res => c.toBlob(res, 'image/jpeg', 0.82));
+  }
+  // Вікно вибору кадру: можна збільшити загальне фото й вибрати одну людину.
+  // Повертає JPEG-квадрат до 480×480 (≈40–80 КБ) або null, якщо скасували.
+  async function compressPhoto(file) {
+    const img = await loadImage(file);
+    const W = img.width, H = img.height;
+    const dlg = document.createElement('dialog');
+    dlg.className = 'crop';
+    dlg.innerHTML = `<div class="crop-box">
+        <div class="crop-title">Виберіть кадр</div>
+        <div class="crop-vp"><canvas></canvas><div class="ring"></div></div>
+        <div class="crop-hint">Зведіть або розведіть пальці, щоб зменшити чи збільшити, і перетягніть фото так, щоб потрібна людина була в колі</div>
+        <div class="crop-zoom"><button type="button" data-z="-1" aria-label="Зменшити">−</button>
+          <input type="range" min="0" max="1000" value="0" aria-label="Масштаб">
+          <button type="button" data-z="1" aria-label="Збільшити">+</button></div>
+        <div class="crop-acts"><button type="button" class="no">Скасувати</button><button type="button" class="ok">Готово</button></div>
+      </div>`;
+    document.body.appendChild(dlg);
+    dlg.showModal();
+    const vp = dlg.querySelector('.crop-vp'), cv = dlg.querySelector('canvas'), range = dlg.querySelector('input');
+    const ctx = cv.getContext('2d');
+    let V = 0, minS = 1, maxS = 1, s = 1, tx = 0, ty = 0; // s — екранних пікселів на піксель фото; tx,ty — положення фото
+    const clamp = () => {
+      s = Math.min(maxS, Math.max(minS, s));
+      tx = Math.min(0, Math.max(V - W * s, tx));
+      ty = Math.min(0, Math.max(V - H * s, ty));
+    };
+    const draw = () => {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#111'; ctx.fillRect(0, 0, cv.width, cv.height);
+      const k = cv.width / V;
+      ctx.setTransform(s * k, 0, 0, s * k, tx * k, ty * k);
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0);
+      range.value = Math.round(1000 * Math.log(s / minS) / Math.log(maxS / minS || 2));
+    };
+    const zoomAt = (ns, px, py) => {
+      ns = Math.min(maxS, Math.max(minS, ns));
+      tx = px - (px - tx) * ns / s; ty = py - (py - ty) * ns / s; s = ns;
+      clamp(); draw();
+    };
+    const layout = () => {
+      const old = V;
+      V = vp.clientWidth || 300;
+      const dpr = Math.min(3, window.devicePixelRatio || 1);
+      cv.width = cv.height = Math.round(V * dpr);
+      minS = V / Math.min(W, H);                  // фото заповнює коло повністю
+      maxS = Math.max(minS * 3, V / 120);         // до ~120 пікселів оригіналу в колі
+      if (!old) { s = minS; tx = (V - W * s) / 2; ty = (V - H * s) / 2; }
+      else { const r = V / old; s = s * r; tx *= r; ty *= r; }
+      clamp(); draw();
+    };
+    layout();
+    const onResize = () => layout();
+    window.addEventListener('resize', onResize);
+
+    // Жести: один палець — перетягнути, два — масштаб
+    const pts = new Map();
+    let last = null;
+    const rel = e => { const r = vp.getBoundingClientRect(); return { x: (e.clientX - r.left) * V / r.width, y: (e.clientY - r.top) * V / r.height }; };
+    const snapshot = () => {
+      const p = [...pts.values()];
+      if (p.length >= 2) return { n: 2, x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2, d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) };
+      if (p.length === 1) return { n: 1, x: p[0].x, y: p[0].y };
+      return null;
+    };
+    vp.addEventListener('pointerdown', e => { vp.setPointerCapture(e.pointerId); pts.set(e.pointerId, rel(e)); last = snapshot(); vp.classList.add('drag'); });
+    vp.addEventListener('pointermove', e => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, rel(e));
+      const cur = snapshot();
+      if (!cur || !last || cur.n !== last.n) { last = cur; return; }
+      tx += cur.x - last.x; ty += cur.y - last.y;
+      if (cur.n === 2 && last.d > 0) { zoomAt(s * cur.d / last.d, cur.x, cur.y); }
+      else { clamp(); draw(); }
+      last = cur;
+    });
+    const up = e => { pts.delete(e.pointerId); last = snapshot(); if (!pts.size) vp.classList.remove('drag'); };
+    vp.addEventListener('pointerup', up); vp.addEventListener('pointercancel', up);
+    vp.addEventListener('wheel', e => { e.preventDefault(); const p = rel(e); zoomAt(s * Math.exp(-e.deltaY * 0.0015), p.x, p.y); }, { passive: false });
+    vp.addEventListener('dblclick', e => { const p = rel(e); zoomAt(s * 2, p.x, p.y); });
+    range.addEventListener('input', () => zoomAt(minS * Math.pow(maxS / minS, range.value / 1000), V / 2, V / 2));
+    dlg.querySelectorAll('[data-z]').forEach(b => b.onclick = () => zoomAt(s * (b.dataset.z > 0 ? 1.4 : 1 / 1.4), V / 2, V / 2));
+
+    const result = await new Promise(resolve => {
+      dlg.querySelector('.no').onclick = () => resolve(null);
+      dlg.addEventListener('cancel', e => { e.preventDefault(); resolve(null); });
+      dlg.querySelector('.ok').onclick = () => {
+        const side = V / s, sx = -tx / s, sy = -ty / s, size = Math.max(64, Math.min(480, Math.round(side)));
+        const c = document.createElement('canvas'); c.width = c.height = size;
+        const cx = c.getContext('2d'); cx.imageSmoothingQuality = 'high';
+        cx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+        c.toBlob(resolve, 'image/jpeg', 0.85);
+      };
+    });
+    window.removeEventListener('resize', onResize);
+    dlg.close(); dlg.remove();
+    if (img.close) img.close();
+    return result;
   }
   const PHOTO_SQL = `alter table public.athletes add column if not exists photo text;
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -1153,6 +1262,7 @@ notify pgrst, 'reload schema';`;
   async function memberPhotoUpload(a, file) {
     try {
       const blob = await compressPhoto(file);
+      if (!blob) return; // скасували вибір кадру
       const path = `${a.id}/${Date.now()}.jpg`;
       const up = await db.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: 'image/jpeg' });
       if (up.error) throw up.error;
@@ -2126,9 +2236,12 @@ notify pgrst, 'reload schema';`;
     const fileIn = $('#phFile');
     if (fileIn) fileIn.onchange = async () => {
       const f = fileIn.files[0];
+      fileIn.value = '';
       if (!f) return;
       try {
-        photoNew = await compressPhoto(f); photoRemove = false;
+        const blob = await compressPhoto(f);
+        if (!blob) return;
+        photoNew = blob; photoRemove = false;
         $('#dlg .photo-edit .avatar').innerHTML = `<img src="${URL.createObjectURL(photoNew)}" alt="">`;
       } catch (e) { toast('Не вдалося відкрити фото', true); }
     };
@@ -2275,7 +2388,7 @@ notify pgrst, 'reload schema';`;
 
     if (!coach) {
       const ph = $('#myPhoto');
-      if (ph) ph.onchange = () => { if (ph.files[0]) memberPhotoUpload(a, ph.files[0]); };
+      if (ph) ph.onchange = () => { const f = ph.files[0]; ph.value = ''; if (f) memberPhotoUpload(a, f); };
       // Батьки: лише перегляд (графік ваги можна потицяти)
       if ($('#wcap')) $('#wcap').textContent = 'Натисніть на точку, щоб побачити дату й вагу';
       $('#view').querySelectorAll('[data-wedit]').forEach(b => b.remove());
