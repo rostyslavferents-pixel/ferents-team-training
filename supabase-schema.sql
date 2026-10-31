@@ -545,7 +545,7 @@ create or replace function public.ft_norm(t text) returns text language sql immu
   select lower(regexp_replace(translate(trim(coalesce(t, '')), '’ʼ''', ''), '[[:space:]]+', ' ', 'g'));
 $$;
 
--- Надіслати запит: шукає дитину за прізвищем, імʼям і датою народження
+-- Надіслати запит: шукає дитину за прізвищем та імʼям (у будь-якому порядку)
 create or replace function public.request_join(p_name text, p_role text, p_child text, p_birth text)
 returns text language plpgsql security definer set search_path = public as $$
 declare

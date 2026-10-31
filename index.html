@@ -591,7 +591,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.23';
+  const APP_VERSION = 'v3.24';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -973,7 +973,7 @@ create or replace function public.ft_norm(t text) returns text language sql immu
   select lower(regexp_replace(translate(trim(coalesce(t, '')), '’ʼ''', ''), '[[:space:]]+', ' ', 'g'));
 $$;
 
--- Надіслати запит: шукає дитину за прізвищем, імʼям і датою народження
+-- Надіслати запит: шукає дитину за прізвищем та імʼям (у будь-якому порядку)
 create or replace function public.request_join(p_name text, p_role text, p_child text, p_birth text)
 returns text language plpgsql security definer set search_path = public as $$
 declare
@@ -3366,7 +3366,7 @@ notify pgrst, 'reload schema';`;
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn light sm" id="jRefresh">Оновити</button>
           ${member ? '' : '<button type="button" class="btn light sm" id="jMore">+ Ще одна дитина</button>'}</div></div>` : ''}
       ${!member && !pend.length ? `<div class="info"><b>Ласкаво просимо в Ferents Team 🥋</b><br>
-        Вкажіть, хто ви і чия дитина. Тренер підтвердить — і ви побачите свою дитину в застосунку.</div>` : ''}
+        Вкажіть, хто ви, і прізвище та імʼя дитини. Застосунок сам знайде дитину в команді, тренер лише підтвердить — і ви її побачите.</div>` : ''}
       <form id="jForm" ${pend.length && !member ? 'hidden' : ''}>
         ${member ? `<h3 style="margin:8px 0 0">Додати ще дитину</h3>` : `<h3 style="margin:8px 0 0">${pend.length ? 'Ще одна дитина?' : 'Хто ви'}</h3>
         <label>Я<select name="role">
@@ -3374,7 +3374,6 @@ notify pgrst, 'reload schema';`;
           <option value="athlete" ${role0 === 'athlete' ? 'selected' : ''}>Спортсмен (сам займаюсь)</option></select></label>
         <label>Ваше імʼя<input name="name" required maxlength="60" placeholder="напр. Олена, мама Івана" value="${esc(state.name || '')}"></label>`}
         <label><span id="jChildLbl">Прізвище та імʼя дитини</span><input name="child" required maxlength="80" placeholder="напр. Петренко Іван" autocomplete="off"></label>
-        <label><span id="jBirthLbl">Дата народження дитини</span><input name="birth" type="date" required></label>
         <p class="err small" id="jErr"></p>
         <button type="submit" class="btn wide">Надіслати тренеру</button>
       </form>`;
@@ -3382,7 +3381,6 @@ notify pgrst, 'reload schema';`;
     const relabel = () => {
       const ath = form.role && form.role.value === 'athlete';
       $('#jChildLbl').textContent = ath ? 'Ваше прізвище та імʼя' : 'Прізвище та імʼя дитини';
-      $('#jBirthLbl').textContent = ath ? 'Ваша дата народження' : 'Дата народження дитини';
       if (form.name) form.name.placeholder = ath ? 'напр. Іван' : 'напр. Олена, мама Івана';
     };
     if (form.role) { form.role.onchange = relabel; relabel(); }
@@ -3400,7 +3398,7 @@ notify pgrst, 'reload schema';`;
       const role = form.role ? form.role.value : state.memberRole;
       const { error: err } = await db.rpc('request_join', {
         p_name: form.name ? form.name.value : state.name, p_role: role,
-        p_child: form.child.value, p_birth: form.birth.value,
+        p_child: form.child.value, p_birth: '',
       });
       btn.disabled = false;
       if (err) {
