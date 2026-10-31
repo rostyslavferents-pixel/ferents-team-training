@@ -737,3 +737,44 @@ revoke execute on function public.has_join_request() from public, anon;
 grant execute on function public.has_join_request() to authenticated;
 
 notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+-- Керування командою: секції, групи, пояси, тексти, хто що бачить
+create table if not exists public.team_settings (
+  key        text primary key,
+  value      jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.team_settings enable row level security;
+drop policy if exists all_read on public.team_settings;
+create policy all_read on public.team_settings for select to anon, authenticated using (true);
+drop policy if exists coach_all on public.team_settings;
+create policy coach_all on public.team_settings for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+grant select on public.team_settings to anon, authenticated;
+
+-- Чи бачить поточний користувач розділ (тренер — усе)
+create or replace function public.can_see(p_part text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_coach() or coalesce(
+    (select (value -> 'access' -> public.my_role() ->> p_part)::boolean
+       from public.team_settings where key = 'team'),
+    public.my_role() = 'athlete', false);
+$$;
+revoke execute on function public.can_see(text) from public, anon;
+grant execute on function public.can_see(text) to authenticated;
+
+-- Завдання, відео й чат — за перемикачами «Хто що бачить»
+drop policy if exists member_read on public.training_plans;
+create policy member_read on public.training_plans for select to authenticated
+  using (public.can_see('plans') and public.is_my_group(group_name, null));
+drop policy if exists member_read on public.materials;
+create policy member_read on public.materials for select to authenticated
+  using (public.can_see('links'));
+drop policy if exists chat_read on public.chat_messages;
+drop policy if exists chat_write on public.chat_messages;
+create policy chat_read  on public.chat_messages for select to authenticated using (public.can_see('chat'));
+create policy chat_write on public.chat_messages for insert to authenticated with check (public.can_see('chat'));
+
+notify pgrst, 'reload schema';

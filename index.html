@@ -231,6 +231,16 @@
     /* Налаштування */
     .set-block { background: var(--card); border-radius: 14px; padding: 2px 16px 16px; margin-bottom: 12px; box-shadow: 0 2px 8px #0000000d; }
     .set-block h3 { margin: 14px 0 10px; }
+    .tlist { display: flex; flex-direction: column; gap: 6px; }
+    .tlist .trow { display: flex; gap: 6px; align-items: center; }
+    .tlist .trow input { flex: 1; min-width: 0; margin: 0; }
+    .tlist .trow button { flex: none; width: 38px; height: 38px; padding: 0; border-radius: 10px; border: 1px solid var(--line, #0002); background: transparent; color: inherit; font-size: 16px; }
+    .acc { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .acc th { font-weight: 600; font-size: 12px; text-align: center; padding: 4px; }
+    .acc td { padding: 8px 4px; border-top: 1px solid var(--line, #0001); }
+    .acc td.c { text-align: center; width: 72px; }
+    .acc input { width: 22px; height: 22px; }
+    .team-save { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom)); margin-top: 6px; }
     .chip { background: var(--card); }
     .swatches { display: flex; gap: 12px; flex-wrap: wrap; }
     .swatch { width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; }
@@ -591,7 +601,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.24';
+  const APP_VERSION = 'v3.25';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -608,7 +618,6 @@
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
     document.documentElement.style.setProperty('--gold', settings.accent);
     document.body.style.zoom = settings.zoom;
-    document.getElementById('motto').textContent = settings.motto || 'Дисципліна. Праця. Результат.';
     document.querySelector('meta[name=theme-color]').content = dark ? '#05080d' : '#111827';
   }
   function saveSettings() {
@@ -638,7 +647,66 @@
   // Кольори поясів. Смужка срібна, на 1 кю — золота.
   const BELT_COLORS = { 'білий': '#f8fafc', 'помаранчевий': '#f97316', 'синій': '#2563eb', 'жовтий': '#facc15',
                         'зелений': '#16a34a', 'коричневий': '#7c3f16', 'чорний': '#111111' };
+  Object.assign(BELT_COLORS, { 'червоний': '#dc2626', 'фіолетовий': '#7c3aed', 'сірий': '#9ca3af', 'рожевий': '#ec4899', 'блакитний': '#38bdf8' });
   const BELT_GOLD = '#d4a017', BELT_SILVER = '#c3c8d0';
+
+  // ===== Налаштування команди (спільні для всіх; редагує тренер у «Керування командою») =====
+  // Розділи, які можна вмикати/вимикати для батьків і спортсменів
+  const ACCESS_PARTS = [['rating', '🏆 Рейтинг'], ['events', '📅 Календар подій'], ['news', '📣 Оголошення'],
+    ['schedule', '🕒 Розклад тренувань'], ['plans', '📝 Завдання на тренування'], ['links', '🎬 Відео та посилання'], ['chat', '💬 Чат команди']];
+  const TEAM_DEFAULTS = {
+    brand: 'FERENTS TEAM', title: 'Training', motto: 'Дисципліна. Праця. Результат.',
+    welcome: 'Вкажіть, хто ви, і прізвище та імʼя дитини. Застосунок сам знайде дитину в команді, тренер лише підтвердить — і ви її побачите.',
+    sections: [...SECTIONS], groups: [...GROUPS], belts: [...BELTS], amount: '',
+    access: {
+      parent: { rating: true, events: true, news: true, schedule: false, plans: false, links: false, chat: false },
+      athlete: { rating: true, events: true, news: true, schedule: true, plans: true, links: true, chat: true },
+    },
+  };
+  function mergeTeam(v) {
+    const t = { ...TEAM_DEFAULTS, ...(v || {}) };
+    const list = (x, d) => Array.isArray(x) && x.filter(Boolean).length ? x.map(String).filter(Boolean) : [...d];
+    t.sections = list(t.sections, TEAM_DEFAULTS.sections);
+    t.groups = list(t.groups, TEAM_DEFAULTS.groups);
+    t.belts = list(t.belts, TEAM_DEFAULTS.belts);
+    t.access = {
+      parent: { ...TEAM_DEFAULTS.access.parent, ...((v && v.access && v.access.parent) || {}) },
+      athlete: { ...TEAM_DEFAULTS.access.athlete, ...((v && v.access && v.access.athlete) || {}) },
+    };
+    return t;
+  }
+  let TEAM = (() => { try { return mergeTeam(JSON.parse(localStorage.getItem('ft_team') || 'null')); } catch (e) { return mergeTeam(null); } })();
+  let teamTableOk = true;
+  function applyTeam() {
+    GROUPS.splice(0, GROUPS.length, ...TEAM.groups);
+    SECTIONS.splice(0, SECTIONS.length, ...TEAM.sections);
+    BELTS.splice(0, BELTS.length, ...TEAM.belts);
+    document.querySelector('header .brand').textContent = TEAM.brand || TEAM_DEFAULTS.brand;
+    document.querySelector('header h1').textContent = TEAM.title || '';
+    document.getElementById('motto').textContent = TEAM.motto || '';
+  }
+  async function loadTeam() {
+    const { data, error } = await db.from('team_settings').select('value').eq('key', 'team').maybeSingle();
+    if (error) { if (navigator.onLine && !isNetErr(error)) teamTableOk = false; return false; }
+    teamTableOk = true;
+    const next = mergeTeam(data && data.value);
+    const changed = JSON.stringify(next) !== JSON.stringify(TEAM);
+    TEAM = next;
+    try { localStorage.setItem('ft_team', JSON.stringify(TEAM)); } catch (e) {}
+    applyTeam();
+    return changed;
+  }
+  // Чи бачить поточний користувач розділ
+  function canSee(part) {
+    if (isCoach()) return true;
+    if (state.role !== 'member') return false;
+    return !!(TEAM.access[isAthleteM() ? 'athlete' : 'parent'] || {})[part];
+  }
+  function allSecLabel() { return SECTIONS.length === 2 ? 'Обидві секції' : 'Усі секції'; }
+  function defaultAmount() {
+    if (TEAM.amount) return String(TEAM.amount);
+    try { return localStorage.getItem('ft_last_amount') || ''; } catch (e) { return ''; }
+  }
   function beltMain(belt) {
     const name = Object.keys(BELT_COLORS).find(n => String(belt || '').toLowerCase().includes(n));
     return name ? BELT_COLORS[name] : null;
@@ -673,7 +741,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -1074,6 +1142,44 @@ Deno.serve(async (req) => {
 });
 `;
 
+  const TEAM_SQL = `-- Керування командою: секції, групи, пояси, тексти, хто що бачить
+create table if not exists public.team_settings (
+  key        text primary key,
+  value      jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.team_settings enable row level security;
+drop policy if exists all_read on public.team_settings;
+create policy all_read on public.team_settings for select to anon, authenticated using (true);
+drop policy if exists coach_all on public.team_settings;
+create policy coach_all on public.team_settings for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+grant select on public.team_settings to anon, authenticated;
+
+-- Чи бачить поточний користувач розділ (тренер — усе)
+create or replace function public.can_see(p_part text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_coach() or coalesce(
+    (select (value -> 'access' -> public.my_role() ->> p_part)::boolean
+       from public.team_settings where key = 'team'),
+    public.my_role() = 'athlete', false);
+$$;
+revoke execute on function public.can_see(text) from public, anon;
+grant execute on function public.can_see(text) to authenticated;
+
+-- Завдання, відео й чат — за перемикачами «Хто що бачить»
+drop policy if exists member_read on public.training_plans;
+create policy member_read on public.training_plans for select to authenticated
+  using (public.can_see('plans') and public.is_my_group(group_name, null));
+drop policy if exists member_read on public.materials;
+create policy member_read on public.materials for select to authenticated
+  using (public.can_see('links'));
+drop policy if exists chat_read on public.chat_messages;
+drop policy if exists chat_write on public.chat_messages;
+create policy chat_read  on public.chat_messages for select to authenticated using (public.can_see('chat'));
+create policy chat_write on public.chat_messages for insert to authenticated with check (public.can_see('chat'));
+
+notify pgrst, 'reload schema';`;
   function sqlCard(title, sql) {
     return `<div class="info"><b>${esc(title)}</b><br>Щоб увімкнути, один раз виконайте в Supabase → SQL Editor:
       <code style="display:block;margin:8px 0;padding:8px;background:var(--card);border-radius:8px;font-size:12px;white-space:pre-wrap;word-break:break-all">${esc(sql)}</code>
@@ -1441,7 +1547,7 @@ notify pgrst, 'reload schema';`;
   function chips(withSection = false) {
     const sec = withSection && state.hasSection
       ? `<div class="chips seg">${['Усі', ...SECTIONS].map(x =>
-          `<button type="button" class="chip ${state.section === x ? 'on' : ''}" data-section="${x}">${x === 'Усі' ? 'Обидві секції' : x}</button>`).join('')}</div>`
+          `<button type="button" class="chip ${state.section === x ? 'on' : ''}" data-section="${x}">${x === 'Усі' ? allSecLabel() : x}</button>`).join('')}</div>`
       : '';
     return sec + `<div class="chips">${['Усі', ...GROUPS].map(g =>
       `<button type="button" class="chip ${state.group === g ? 'on' : ''}" data-group="${g}">${g}</button>`).join('')}</div>`;
@@ -1744,7 +1850,7 @@ notify pgrst, 'reload schema';`;
       тут зʼявляться його відвідування, пояси та найближчі тренування.</div>`;
 
     const going = e => (Array.isArray(e.participants) ? e.participants.map(String) : []).filter(id => state.kidIds.includes(id));
-    const evHtml = ev.length ? `<h3>Найближчі події</h3><div class="list">${ev.slice(0, 3).map(e => {
+    const evHtml = ev.length && canSee('events') ? `<h3>Найближчі події</h3><div class="list">${ev.slice(0, 3).map(e => {
         const g = going(e).map(id => kids.find(a => String(a.id) === id)?.full_name).filter(Boolean).map(firstNameOf);
         return `<a class="row" href="#events"><div><strong>${esc(e.title)}</strong>
           <span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long' })}${e.place ? ' · ' + esc(e.place) : ''}</span>
@@ -1752,7 +1858,7 @@ notify pgrst, 'reload schema';`;
       }).join('')}</div>` : '';
     // Оголошення: важливі за 3 тижні + звичайні за тиждень, максимум 2; решта — у вкладці «Оголошення»
     const fresh = news.filter(n => n.important || Date.now() - new Date(n.created_at) < 7 * 864e5).slice(0, 2);
-    const newsHtml = fresh.length ? `<div class="sec"><h3>Оголошення</h3><a class="link small" href="#news">усі ›</a></div>
+    const newsHtml = fresh.length && canSee('news') ? `<div class="sec"><h3>Оголошення</h3><a class="link small" href="#news">усі ›</a></div>
       <div class="list">${fresh.map(n => annItem(n, false)).join('')}</div>` : '';
     const tile = (route, ic, title, sub) =>
       `<a class="tile" href="#${route}"><span class="ic">${icon(ic)}</span><span><strong>${title}</strong><small>${sub}</small></span></a>`;
@@ -1765,11 +1871,12 @@ notify pgrst, 'reload schema';`;
       ${newsHtml}
       ${evHtml}
       <div class="tiles">
-        ${isAthleteM() ? `
-        ${tile('schedule', 'training', 'Розклад', 'Дні, час і зал')}
-        ${tile('links', 'links', 'Відео', 'Ката і техніка')}` : ''}
-        ${tile('rating', 'events', 'Рейтинг', 'Місця та заслуги')}
-        ${tile('news', 'news', 'Оголошення', 'Усі новини')}
+        ${canSee('schedule') ? tile('schedule', 'training', 'Розклад', 'Дні, час і зал') : ''}
+        ${canSee('links') ? tile('links', 'links', 'Відео', 'Ката і техніка') : ''}
+        ${canSee('plans') && !isAthleteM() ? tile('plans', 'plans', 'Завдання', 'На тренування') : ''}
+        ${canSee('chat') && !isAthleteM() ? tile('chat', 'chat', 'Чат', 'Чат команди') : ''}
+        ${canSee('rating') ? tile('rating', 'events', 'Рейтинг', 'Місця та заслуги') : ''}
+        ${canSee('news') ? tile('news', 'news', 'Оголошення', 'Усі новини') : ''}
       </div>`;
   }
 
@@ -2688,8 +2795,7 @@ notify pgrst, 'reload schema';`;
       if (!r) return;
       const a = rows.find(x => String(x.id) === r.dataset.id);
       const p = payOf.get(r.dataset.id);
-      let lastAmount = '';
-      try { lastAmount = localStorage.getItem('ft_last_amount') || ''; } catch (err) {}
+      const lastAmount = defaultAmount();
       openForm({
         title: `${a.full_name} — ${fmtMonth(state.month).toLowerCase()}`,
         values: p || { amount: lastAmount, paid_at: today() },
@@ -2732,7 +2838,7 @@ notify pgrst, 'reload schema';`;
     let tpl = REMIND_TPL, amount = '', marks = {};
     try {
       tpl = (localStorage.getItem('ft_remind_tpl') || REMIND_TPL).replace('{, батьки}', ', {батьки}');
-      amount = localStorage.getItem('ft_last_amount') || '';
+      amount = defaultAmount();
       marks = JSON.parse(localStorage.getItem(remindedKey(ym)) || '{}');
     } catch (e) {}
     const monthWord = fmtMonth(ym).split(' ')[0].toLowerCase();
@@ -3031,7 +3137,7 @@ notify pgrst, 'reload schema';`;
         { name: 'title', label: 'Заголовок', required: true, attrs: 'maxlength="120" placeholder="Завтра тренування не буде"' },
         { name: 'body', label: 'Текст (необовʼязково)', type: 'textarea', rows: 5, attrs: 'maxlength="3000"' },
         { name: 'audience', label: 'Кому', type: 'select', required: true, options: Object.entries(AUDIENCE) },
-        { name: 'section', label: 'Секція (порожньо — обидві)', type: 'select', options: SECTIONS },
+        { name: 'section', label: SECTIONS.length === 2 ? 'Секція (порожньо — обидві)' : 'Секція (порожньо — усі)', type: 'select', options: SECTIONS },
         { name: 'group_name', label: 'Група (порожньо — усі)', type: 'select', options: GROUPS },
         { name: 'important', label: 'Важливе (виділити червоним)', type: 'checkbox' },
       ],
@@ -3171,7 +3277,7 @@ notify pgrst, 'reload schema';`;
         <button type="submit" class="btn">Зберегти</button></div></form>`;
     const draw = () => {
       $('#pFilters').innerHTML =
-        (state.hasSection ? `<div class="chips seg">${chip('section', 'Усі', 'Обидві секції')}${SECTIONS.map(x => chip('section', x, x)).join('')}</div>` : '') +
+        (state.hasSection ? `<div class="chips seg">${chip('section', 'Усі', allSecLabel())}${SECTIONS.map(x => chip('section', x, x)).join('')}</div>` : '') +
         `<div class="chips">${chip('group', 'Усі', 'Усі')}${GROUPS.map(g => chip('group', g, g)).join('')}</div>`;
       $('#pList').innerHTML = shown().map(a => `<label class="row tick">
           <span><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([a.section, a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}</span></span>
@@ -3366,7 +3472,7 @@ notify pgrst, 'reload schema';`;
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn light sm" id="jRefresh">Оновити</button>
           ${member ? '' : '<button type="button" class="btn light sm" id="jMore">+ Ще одна дитина</button>'}</div></div>` : ''}
       ${!member && !pend.length ? `<div class="info"><b>Ласкаво просимо в Ferents Team 🥋</b><br>
-        Вкажіть, хто ви, і прізвище та імʼя дитини. Застосунок сам знайде дитину в команді, тренер лише підтвердить — і ви її побачите.</div>` : ''}
+        ${esc(TEAM.welcome)}</div>` : ''}
       <form id="jForm" ${pend.length && !member ? 'hidden' : ''}>
         ${member ? `<h3 style="margin:8px 0 0">Додати ще дитину</h3>` : `<h3 style="margin:8px 0 0">${pend.length ? 'Ще одна дитина?' : 'Хто ви'}</h3>
         <label>Я<select name="role">
@@ -3567,10 +3673,102 @@ notify pgrst, 'reload schema';`;
   }
 
   // ----- Налаштування -----
+  // ----- Керування командою (тільки тренер): усе, що раніше було «зашито» в код -----
+  async function teamView() {
+    setActions('');
+    if (!isCoach()) { location.hash = '#home'; return; }
+    await loadTeam().catch(() => {});
+    if (!teamTableOk) { $('#view').innerHTML = sqlCard('Керування командою', TEAM_SQL); return; }
+    const T = JSON.parse(JSON.stringify(TEAM));
+    const listEd = (key, items, ph) => `<div class="tlist" data-list="${key}">${items.map(v => rowEd(v, v, ph)).join('')}</div>
+      <button type="button" class="btn light sm" data-add="${key}" data-ph="${esc(ph)}" style="margin-top:8px">+ Додати</button>`;
+    const rowEd = (val, old, ph) => `<div class="trow"><input value="${esc(val)}" data-old="${esc(old)}" maxlength="60" placeholder="${esc(ph)}">
+      <button type="button" data-up title="Вище" aria-label="Вище">↑</button><button type="button" data-del title="Прибрати" aria-label="Прибрати">✕</button></div>`;
+    $('#view').innerHTML = `
+      <div class="info">Тут усе, що бачать батьки й спортсмени. Зміни застосовуються для всіх після натискання «Зберегти».</div>
+      <div class="set-block"><h3>✍️ Тексти команди</h3>
+        <label>Назва (вгорі)<input id="tBrand" maxlength="40" value="${esc(T.brand)}"></label>
+        <label>Підзаголовок<input id="tTitle" maxlength="40" value="${esc(T.title)}"></label>
+        <label>Девіз<input id="tMotto" maxlength="80" value="${esc(T.motto)}"></label>
+        <label>Привітання для нових батьків<textarea id="tWelcome" rows="3" maxlength="400">${esc(T.welcome)}</textarea></label></div>
+      <div class="set-block"><h3>📍 Секції</h3>${listEd('sections', T.sections, 'напр. Наварія')}
+        <p class="muted small">Перейменування оновить усіх спортсменів і розклад цієї секції.</p></div>
+      <div class="set-block"><h3>👥 Групи</h3>${listEd('groups', T.groups, 'напр. Молодша')}
+        <p class="muted small">Однакові для всіх секцій. Перейменування оновить спортсменів, розклад і завдання.</p></div>
+      <div class="set-block"><h3>🥋 Пояси</h3>${listEd('belts', T.belts, 'напр. 8 кю — синій')}
+        <p class="muted small">Від найнижчого до найвищого. Колір береться зі слова (білий, синій, зелений…), «зі смужкою» додає смужку.</p></div>
+      <div class="set-block"><h3>💵 Сума оплати за місяць</h3>
+        <input id="tAmount" type="number" min="0" inputmode="numeric" placeholder="напр. 800" value="${esc(T.amount)}">
+        <p class="muted small">Підставляється в оплати й нагадування. Порожньо — остання введена сума.</p></div>
+      <div class="set-block"><h3>👁 Хто що бачить</h3>
+        <table class="acc"><thead><tr><th style="text-align:left">Розділ</th><th>Батьки</th><th>Спортсмени</th></tr></thead><tbody>
+        ${ACCESS_PARTS.map(([k, l]) => `<tr><td>${l}</td>
+          <td class="c"><input type="checkbox" data-acc="parent" data-part="${k}" ${T.access.parent[k] ? 'checked' : ''} aria-label="${esc(l)} — батьки"></td>
+          <td class="c"><input type="checkbox" data-acc="athlete" data-part="${k}" ${T.access.athlete[k] ? 'checked' : ''} aria-label="${esc(l)} — спортсмени"></td></tr>`).join('')}
+        </tbody></table>
+        <p class="muted small">Головна, картка своєї дитини та налаштування видно завжди. Списки груп і оплати бачите тільки ви.</p></div>
+      <button type="button" class="btn wide team-save" id="tSave">💾 Зберегти</button>`;
+
+    $('#view').onclick = e => {
+      const add = e.target.closest('[data-add]');
+      if (add) {
+        const box = $(`[data-list="${add.dataset.add}"]`);
+        box.insertAdjacentHTML('beforeend', rowEd('', '', add.dataset.ph));
+        box.lastElementChild.querySelector('input').focus();
+        return;
+      }
+      const row = e.target.closest('.trow');
+      if (!row) return;
+      if (e.target.closest('[data-del]')) row.remove();
+      else if (e.target.closest('[data-up]') && row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
+    };
+
+    $('#tSave').onclick = async () => {
+      const btn = $('#tSave');
+      const read = key => [...document.querySelectorAll(`[data-list="${key}"] input`)]
+        .map(i => ({ v: i.value.trim().replace(/\s+/g, ' '), old: i.dataset.old })).filter(x => x.v);
+      const lists = { sections: read('sections'), groups: read('groups'), belts: read('belts') };
+      for (const [k, name] of [['sections', 'секцію'], ['groups', 'групу'], ['belts', 'пояс']]) {
+        if (!lists[k].length) { toast(`Додайте хоча б одну ${name}`, true); return; }
+        const vals = lists[k].map(x => x.v.toLowerCase());
+        if (new Set(vals).size !== vals.length) { toast(`Дві однакові назви в «${{ sections: 'Секції', groups: 'Групи', belts: 'Пояси' }[k]}»`, true); return; }
+      }
+      const access = { parent: {}, athlete: {} };
+      document.querySelectorAll('[data-acc]').forEach(c => { access[c.dataset.acc][c.dataset.part] = c.checked; });
+      const value = {
+        brand: $('#tBrand').value.trim(), title: $('#tTitle').value.trim(), motto: $('#tMotto').value.trim(),
+        welcome: $('#tWelcome').value.trim() || TEAM_DEFAULTS.welcome,
+        sections: lists.sections.map(x => x.v), groups: lists.groups.map(x => x.v), belts: lists.belts.map(x => x.v),
+        amount: $('#tAmount').value.trim(), access,
+      };
+      const renames = k => lists[k].filter(x => x.old && x.old !== x.v);
+      const ren = { sections: renames('sections'), groups: renames('groups'), belts: renames('belts') };
+      const nRen = ren.sections.length + ren.groups.length + ren.belts.length;
+      if (nRen && !(await confirmSheet({ title: 'Перейменувати?', ok: 'Так, перейменувати', danger: false,
+        text: [...ren.sections, ...ren.groups, ...ren.belts].map(x => `${x.old} → ${x.v}`).join(' · ') + '. Це оновить усі записи з цією назвою.' }))) return;
+      btn.disabled = true; btn.textContent = '⏳ Зберігаю…';
+      try {
+        const { error } = await db.from('team_settings').upsert({ key: 'team', value, updated_at: new Date().toISOString() });
+        if (error) throw error;
+        // Перейменування в усіх записах (таблиць, яких ще немає, просто пропускаємо)
+        const upd = async (table, col, from, to) => { const r = await db.from(table).update({ [col]: to }).eq(col, from); if (r.error && table === 'athletes') throw r.error; };
+        for (const x of ren.sections) for (const t of ['athletes', 'schedule', 'announcements']) await upd(t, 'section', x.old, x.v);
+        for (const x of ren.groups) for (const t of ['athletes', 'schedule', 'training_plans', 'announcements']) await upd(t, 'group_name', x.old, x.v);
+        for (const x of ren.belts) for (const t of ['athletes', 'gradings']) await upd(t, 'belt', x.old, x.v);
+        if (state.group !== 'Усі' && !value.groups.includes(state.group)) state.group = 'Усі';
+        if (state.section && state.section !== 'Усі' && !value.sections.includes(state.section)) state.section = 'Усі';
+        await loadTeam();
+        toast('Збережено для всіх');
+        teamView();
+      } catch (e) {
+        btn.disabled = false; btn.textContent = '💾 Зберегти';
+        toast(isNetErr(e) ? 'Немає інтернету' : 'Не вдалося: ' + (e.message || e), true);
+      }
+    };
+  }
+
   async function settingsView() {
     setActions('');
-    let lastAmount = '';
-    try { lastAmount = localStorage.getItem('ft_last_amount') || ''; } catch (e) {}
     const seg = (key, opts) => `<div class="chips">${opts.map(([v, l]) =>
       `<button type="button" class="chip ${String(settings[key]) === String(v) ? 'on' : ''}" data-set="${key}" data-val="${v}">${l}</button>`).join('')}</div>`;
     $('#view').innerHTML = `
@@ -3580,19 +3778,16 @@ notify pgrst, 'reload schema';`;
           `<button type="button" class="swatch ${settings.accent === c ? 'on' : ''}" data-set="accent" data-val="${c}" style="background:${c}" title="${l}" aria-label="${l}"></button>`).join('')}</div></div>
       <div class="set-block"><h3>🔠 Розмір тексту</h3>${seg('zoom', [[1, 'Звичайний'], [1.12, 'Великий'], [1.25, 'Дуже великий']])}
         <p class="muted small">Великий зручно, коли телефон лежить на лавці в залі.</p></div>
-      <div class="set-block"><h3>✍️ Девіз у шапці</h3>
-        <input id="setMotto" maxlength="60" placeholder="Дисципліна. Праця. Результат." value="${esc(settings.motto)}"></div>
+      ${isCoach() ? `<a class="card" href="#manage" style="display:block;margin-bottom:12px"><strong>⚙️ Керування командою</strong><span>Секції, групи, пояси, сума оплати, тексти й хто що бачить</span></a>` : ''}
       <div class="set-block"><h3>🏠 Що показувати на головній</h3>
         ${[['showToday', 'Блок «Сьогодні»'], ...(isCoach() ? [['showStats', 'Цифри: спортсмени, присутні, боржники'], ['showBdays', 'Дні народження']] : [])]
           .map(([k, l]) => `<label class="check"><input type="checkbox" data-check="${k}" ${settings[k] ? 'checked' : ''}>${l}</label>`).join('')}</div>
-      ${isCoach() ? `<div class="set-block"><h3>💵 Сума оплати за замовчуванням</h3>
-        <input id="setAmount" type="number" min="0" inputmode="numeric" placeholder="напр. 800" value="${esc(lastAmount)}"></div>` : ''}
       ${isCoach() ? `<div class="set-block"><h3>📦 Резервна копія в Excel</h3>
         <p class="muted small" style="margin:0 0 8px">Спортсмени, оплати, відвідування, вага, атестації й доступи — в одному файлі. Робіть раз на місяць.</p>
         <button type="button" class="btn" id="expBtn">⬇️ Скачати все в Excel</button>
         <p class="muted small" id="expLast">${lastExport() ? 'Остання копія: ' + fmtDate(lastExport(), { day: 'numeric', month: 'long', year: 'numeric' }) : 'Копій ще не було'}</p></div>` : ''}
       <div class="set-block"><h3>🔔 Сповіщення на телефон</h3><div id="pushSet" class="muted small">Перевіряю…</div></div>
-      <p class="muted small">Налаштування зберігаються на цьому пристрої.</p>`;
+      <p class="muted small">Ці налаштування зберігаються на цьому пристрої.</p>`;
     pushStatus().catch(() => 'unsupported').then(st => {
       const box = $('#pushSet'); if (!box) return;
       box.innerHTML = {
@@ -3612,7 +3807,6 @@ notify pgrst, 'reload schema';`;
       settings[b.dataset.set] = b.dataset.set === 'zoom' ? Number(b.dataset.val) : b.dataset.val;
       saveSettings(); settingsView();
     };
-    $('#setMotto').oninput = e => { settings.motto = e.target.value.trim(); saveSettings(); };
     document.querySelectorAll('[data-check]').forEach(c => c.onchange = () => { settings[c.dataset.check] = c.checked; saveSettings(); });
     const exp = $('#expBtn');
     if (exp) exp.onclick = async () => {
@@ -3622,8 +3816,6 @@ notify pgrst, 'reload schema';`;
       exp.disabled = false; exp.textContent = '⬇️ Скачати все в Excel';
       $('#expLast').textContent = lastExport() ? 'Остання копія: ' + fmtDate(lastExport(), { day: 'numeric', month: 'long', year: 'numeric' }) : '';
     };
-    const amt = $('#setAmount');
-    if (amt) amt.oninput = () => { try { localStorage.setItem('ft_last_amount', amt.value); } catch (e) {} };
   }
 
   // ===== Резервна копія в Excel (.xlsx без сторонніх бібліотек) =====
@@ -3755,9 +3947,10 @@ notify pgrst, 'reload schema';`;
       </div>
       <nav class="menu-list">
       <a class="menu-item" href="#home">${mIcon('home')}Головна${mChev}</a>
-      ${state.role ? `<a class="menu-item" href="#news">${mIcon('news')}Оголошення${mChev}</a>` : ''}
-      ${isCoach() || isAthleteM() ? `<a class="menu-item" href="#chat">${mIcon('chat')}Чат команди${mChev}</a>` : ''}
+      ${isCoach() || canSee('news') ? `<a class="menu-item" href="#news">${mIcon('news')}Оголошення${mChev}</a>` : ''}
+      ${canSee('chat') ? `<a class="menu-item" href="#chat">${mIcon('chat')}Чат команди${mChev}</a>` : ''}
       ${isCoach() ? `<a class="menu-item" href="#members">${mIcon('users')}Учасники та доступ${mChev}</a>` : ''}
+      ${isCoach() ? `<a class="menu-item" href="#manage">${mIcon('settings')}Керування командою${mChev}</a>` : ''}
       ${state.role === 'member' && !isAthleteM() ? `<a class="menu-item" href="#join">${mIcon('users')}Додати ще дитину${mChev}</a>` : ''}
       <a class="menu-item" href="#settings">${mIcon('settings')}Налаштування${mChev}</a>
       ${isInstalled() ? '' : `<button type="button" class="menu-item" id="menuInstall">${mIcon('install')}Встановити додаток${mChev}</button>`}
@@ -3907,12 +4100,12 @@ notify pgrst, 'reload schema';`;
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
-    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView,
   };
   // Що бачать батьки і спортсмени
-  const MEMBER_ROUTES = ['home', 'athlete', 'rating', 'events', 'news', 'settings', 'join'];
-  const ATHLETE_ROUTES = [...MEMBER_ROUTES, 'chat', 'schedule', 'plans', 'links'];
-  const PARENT_ROUTE = { athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  // Завжди доступні; решта — за перемикачами в «Керування командою»
+  function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
+  const PARENT_ROUTE = { manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
@@ -3920,11 +4113,13 @@ notify pgrst, 'reload schema';`;
   function memberTabs() {
     const ids = state.kidIds || [];
     const kid = ids.length ? 'athlete/' + encodeURIComponent(ids[0]) : 'home';
-    return isAthleteM()
-      ? [['home', 'Головна', 'home'], [kid, 'Я', 'kid'], ['plans', 'Завдання', 'plans'], ['chat', 'Чат', 'chat'], ['events', 'Події', 'training']]
-      : [['home', 'Головна', 'home'], [kid, ids.length > 1 ? 'Діти' : 'Дитина', 'kid'], ['events', 'Події', 'training'], ['news', 'Оголошення', 'news']];
+    const extra = (isAthleteM()
+      ? [['plans', 'Завдання', 'plans'], ['chat', 'Чат', 'chat'], ['events', 'Події', 'training'], ['news', 'Оголошення', 'news']]
+      : [['events', 'Події', 'training'], ['news', 'Оголошення', 'news'], ['plans', 'Завдання', 'plans'], ['chat', 'Чат', 'chat']])
+      .filter(([r]) => canSee(r)).slice(0, 3);
+    return [['home', 'Головна', 'home'], [kid, isAthleteM() ? 'Я' : ids.length > 1 ? 'Діти' : 'Дитина', 'kid'], ...extra];
   }
-  const MEMBER_TAB_OF = { rating: 'home', schedule: 'home', links: 'home', join: 'home', settings: 'home' };
+  const MEMBER_TAB_OF = { rating: 'home', schedule: 'home', links: 'home', join: 'home', settings: 'home', plans: 'home', chat: 'home', events: 'home', news: 'home' };
   function tabsNow() { return isCoach() ? TABS.map(([r, l]) => [r, l, r]) : state.role === 'member' ? memberTabs() : null; }
   function drawTabbar(route) {
     const bar = $('#tabbar'), tabs = tabsNow(), on = !!tabs;
@@ -3951,7 +4146,7 @@ notify pgrst, 'reload schema';`;
     const [key, param] = location.hash.slice(1).split('/');
     let route = VIEWS[key] ? key : 'home';
     state.param = param ? decodeURIComponent(param) : null;
-    if (!isCoach() && !(isAthleteM() ? ATHLETE_ROUTES : MEMBER_ROUTES).includes(route)) route = 'home';
+    if (!isCoach() && !memberRoutes().includes(route)) route = 'home';
     if (!state.role && route !== 'settings' && route !== 'join') route = 'home';
     const id = ++renderId;
     if (chatChannel) { db.removeChannel(chatChannel); chatChannel = null; }
@@ -3962,7 +4157,7 @@ notify pgrst, 'reload schema';`;
     drawTabbar(route);
     const isTab = isCoach() ? (TABS.some(([r]) => r === route) || route === 'rating') : isTabRoute(route);
     $('#backLink').hidden = route === 'home' || isTab;
-    const parent = isCoach() ? PARENT_ROUTE[route] : (['athlete', 'rating', 'events', 'news', 'chat', 'schedule', 'plans', 'links', 'join'].includes(route) ? 'home' : null);
+    const parent = isCoach() ? PARENT_ROUTE[route] : (route !== 'home' && route !== 'settings' ? 'home' : null);
     $('#backLink').href = '#' + (parent || 'home');
     $('#view').onclick = null;
     const viewKey = location.hash;
@@ -4165,8 +4360,10 @@ notify pgrst, 'reload schema';`;
     setLoginMode('signup');
     $('#loginHint').textContent = 'Ласкаво просимо в Ferents Team! Введіть свою пошту (двічі, щоб не помилитися) й придумайте пароль (мінімум 6 символів). Далі вкажете свою дитину — і тренер підтвердить. Якщо акаунт уже є — натисніть «Назад до входу».';
   }
+  applyTeam();
   (async function boot() {
     const { data: { session } } = await db.auth.getSession();
+    loadTeam().then(changed => { if (changed && signedIn) render(); }).catch(() => {});
     showApp(session);
     db.auth.onAuthStateChange((event, s) => {
       setTimeout(() => {
