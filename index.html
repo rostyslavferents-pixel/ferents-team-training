@@ -601,7 +601,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.25';
+  const APP_VERSION = 'v3.26';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -1071,8 +1071,8 @@ notify pgrst, 'reload schema';`;
 
   // Сповіщення тренеру про новий запит на доступ (SQL + оновлена функція notify)
   const REQUEST_PUSH_SQL = NEWS_SQL; // оголошення + підписки + сповіщення про запити — одним SQL
-  const NOTIFY_FN_CODE = `// Ferents Team Training — надсилає сповіщення на телефони (Web Push).
-// Supabase → Edge Functions → назва «notify». Секрети: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY.
+  const NOTIFY_FN_CODE = `// Ferents Team Training — надсилає сповіщення на телефони (Web Push + Telegram).
+// Supabase → Edge Functions → назва «notify». Секрети: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, TELEGRAM_BOT_TOKEN.
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -1135,12 +1135,276 @@ Deno.serve(async (req) => {
     }));
     // Пристрої, які відписались, прибираємо
     if (gone.length) await admin.from("push_subscriptions").delete().in("endpoint", gone);
-    return json({ sent, removed: gone.length });
+
+    // Telegram (якщо бот налаштований)
+    let tgSent = 0;
+    const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    if (token) {
+      const { data: chats } = await admin.rpc("telegram_targets", {
+        p_kind: kind,
+        p_audience: b.audience ?? "all",
+        p_section: b.section || null,
+        p_group: b.group || null,
+        p_exclude: user.email,
+      });
+      if (chats?.length) {
+        const { data: cfg } = await admin.from("team_settings").select("value").eq("key", "telegram").maybeSingle();
+        const app = String((cfg?.value as { app?: string } | null)?.app || "");
+        const link = app ? new URL(String(b.url || "./"), app).href : "";
+        const e = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+        const title = String(b.title || "Ferents Team").slice(0, 120);
+        const body = String(b.body || "").slice(0, 1000);
+        const text = \`<b>\${e(title)}</b>\` + (body ? \`\\n\\n\${e(body)}\` : "");
+        const blocked: number[] = [];
+        for (const c of chats as { chat_id: number }[]) {
+          const r = await fetch(\`https://api.telegram.org/bot\${token}/sendMessage\`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: c.chat_id, text, parse_mode: "HTML", disable_web_page_preview: true,
+              ...(link.startsWith("https://") ? { reply_markup: { inline_keyboard: [[{ text: "Відкрити застосунок", url: link }]] } } : {}),
+            }),
+          }).then((x) => x.json()).catch(() => null);
+          if (r?.ok) tgSent++;
+          else if (r?.error_code === 403 || r?.error_code === 400 && /chat not found/i.test(r?.description || "")) blocked.push(c.chat_id);
+          await new Promise((res) => setTimeout(res, 40)); // ліміт Telegram ~30 повідомлень/с
+        }
+        // Хто заблокував бота — прибираємо
+        if (blocked.length) await admin.from("telegram_links").delete().in("chat_id", blocked);
+      }
+    }
+    return json({ sent, removed: gone.length, telegram: tgSent });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
 });
 `;
+  const TELEGRAM_FN_CODE = `// Ferents Team Training — Telegram-бот (сповіщення в Telegram).
+// Supabase → Edge Functions → назва «telegram», вимкнути «Verify JWT».
+// Секрет: TELEGRAM_BOT_TOKEN (від @BotFather).
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { ...cors, "Content-Type": "application/json" } });
+
+const TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
+const URL_ = Deno.env.get("SUPABASE_URL")!;
+const admin = createClient(URL_, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+const tg = async (method: string, body: unknown) => {
+  const r = await fetch(\`https://api.telegram.org/bot\${TOKEN}/\${method}\`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  return await r.json();
+};
+const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+
+// Секрет вебхука виводимо з токена — окремо задавати не треба
+async function hookSecret() {
+  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("ft-hook:" + TOKEN));
+  return Array.from(new Uint8Array(h)).map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 48);
+}
+
+async function appUrl() {
+  const { data } = await admin.from("team_settings").select("value").eq("key", "telegram").maybeSingle();
+  return (data?.value as { app?: string } | null)?.app || "";
+}
+const openBtn = (url: string) => url ? { reply_markup: { inline_keyboard: [[{ text: "Відкрити застосунок", url }]] } } : {};
+
+// Повідомлення від людей у боті
+async function onUpdate(u: any) {
+  const msg = u.message;
+  if (!msg?.chat || msg.chat.type !== "private") return;
+  const chat = msg.chat.id as number;
+  const text = String(msg.text || "").trim();
+  const app = await appUrl();
+
+  if (text.startsWith("/start")) {
+    const code = text.split(/\\s+/)[1] || "";
+    if (!code) {
+      await tg("sendMessage", { chat_id: chat, parse_mode: "HTML", ...openBtn(app),
+        text: "👋 Це бот <b>Ferents Team</b>.\\n\\nЩоб отримувати сповіщення, відкрийте застосунок → <b>Налаштування</b> → <b>Підключити Telegram</b>." });
+      return;
+    }
+    const { data: row } = await admin.from("telegram_codes").select("email, created_at").eq("code", code).maybeSingle();
+    if (!row || Date.now() - new Date(row.created_at).getTime() > 86400000) {
+      await tg("sendMessage", { chat_id: chat, ...openBtn(app),
+        text: "⏳ Посилання застаріло. Натисніть «Підключити Telegram» у застосунку ще раз." });
+      return;
+    }
+    const name = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || null;
+    await admin.from("telegram_links").upsert({ chat_id: chat, email: row.email, tg_name: name });
+    await admin.from("telegram_codes").delete().eq("code", code);
+
+    // Кого стосується акаунт
+    const { data: links } = await admin.from("member_athletes").select("athlete_id").eq("email", row.email);
+    const ids = (links ?? []).map((l: any) => l.athlete_id);
+    const { data: kids } = ids.length
+      ? await admin.from("athletes").select("full_name").in("id", ids)
+      : { data: [] as any[] };
+    const who = (kids ?? []).map((k: any) => k.full_name).join(", ");
+    await tg("sendMessage", { chat_id: chat, parse_mode: "HTML", ...openBtn(app),
+      text: "✅ <b>Telegram підключено!</b>\\n\\n" +
+        (who ? \`Сповіщення про: <b>\${esc(who)}</b>\\n\\n\` : "") +
+        "Сюди приходитимуть оголошення тренера, нові події та інші важливі новини.\\n\\nВідключити: /stop" });
+    return;
+  }
+
+  if (text === "/stop") {
+    await admin.from("telegram_links").delete().eq("chat_id", chat);
+    await tg("sendMessage", { chat_id: chat,
+      text: "🔕 Сповіщення вимкнено. Увімкнути знову — у застосунку: Налаштування → Підключити Telegram." });
+    return;
+  }
+
+  const { data: linked } = await admin.from("telegram_links").select("chat_id").eq("chat_id", chat).maybeSingle();
+  await tg("sendMessage", { chat_id: chat, ...openBtn(app),
+    text: linked
+      ? "Я надсилаю сповіщення команди Ferents Team 🥋 Усе інше — у застосунку."
+      : "Щоб отримувати сповіщення, відкрийте застосунок → Налаштування → Підключити Telegram." });
+}
+
+// Тренер натиснув «Підключити бота» в застосунку
+async function setup(req: Request, b: any) {
+  const asUser = createClient(URL_, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+  });
+  if ((await asUser.rpc("is_coach")).data !== true) return json({ error: "forbidden" }, 403);
+  if (!TOKEN) return json({ error: "no_token" }, 400);
+
+  const me = await tg("getMe", {});
+  if (!me.ok) return json({ error: "bad_token" }, 400);
+  const hook = await tg("setWebhook", {
+    url: \`\${URL_}/functions/v1/telegram\`,
+    secret_token: await hookSecret(),
+    allowed_updates: ["message"],
+    drop_pending_updates: true,
+  });
+  if (!hook.ok) return json({ error: "webhook: " + (hook.description || "") }, 400);
+  await tg("setMyCommands", { commands: [{ command: "stop", description: "Вимкнути сповіщення" }] });
+
+  const app = /^https:\\/\\//.test(String(b.app || "")) ? String(b.app) : "";
+  const { error } = await admin.from("team_settings").upsert({
+    key: "telegram", value: { username: me.result.username, app }, updated_at: new Date().toISOString(),
+  });
+  if (error) return json({ error: error.message }, 500);
+  return json({ username: me.result.username });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  try {
+    const secret = req.headers.get("X-Telegram-Bot-Api-Secret-Token");
+    if (secret !== null) {
+      if (!TOKEN || secret !== await hookSecret()) return new Response("forbidden", { status: 403 });
+      try { await onUpdate(await req.json()); } catch (e) { console.error(e); }
+      return new Response("ok"); // Telegram завжди відповідаємо «ok», щоб не повторював
+    }
+    const b = await req.json().catch(() => ({}));
+    if (b.action === "setup") return await setup(req, b);
+    return json({ error: "unknown" }, 400);
+  } catch (e) {
+    return json({ error: String(e) }, 500);
+  }
+});
+`;
+  const TELEGRAM_SQL = `-- Telegram-бот: сповіщення батькам, спортсменам і тренеру в Telegram
+-- Підключені чати (один акаунт може мати кілька телефонів — мама й тато)
+create table if not exists public.telegram_links (
+  chat_id     bigint primary key,
+  email       text not null,
+  tg_name     text,
+  created_at  timestamptz not null default now()
+);
+alter table public.telegram_links enable row level security;
+drop policy if exists own_read on public.telegram_links;
+drop policy if exists own_delete on public.telegram_links;
+create policy own_read on public.telegram_links for select to authenticated
+  using (email = lower(auth.jwt() ->> 'email'));
+create policy own_delete on public.telegram_links for delete to authenticated
+  using (email = lower(auth.jwt() ->> 'email'));
+revoke all on public.telegram_links from anon;
+grant select, delete on public.telegram_links to authenticated;
+
+-- Одноразові коди для кнопки «Підключити Telegram»
+create table if not exists public.telegram_codes (
+  code        text primary key,
+  email       text not null,
+  created_at  timestamptz not null default now()
+);
+alter table public.telegram_codes enable row level security;
+revoke all on public.telegram_codes from anon, authenticated;
+
+create or replace function public.telegram_link_code()
+returns text language plpgsql volatile security definer set search_path = public as $$
+declare
+  me text := lower(auth.jwt() ->> 'email');
+  c  text := replace(gen_random_uuid()::text, '-', '');
+begin
+  if me is null or not (public.is_coach() or public.is_member()) then
+    raise exception 'not_member';
+  end if;
+  delete from public.telegram_codes where email = me or created_at < now() - interval '1 day';
+  insert into public.telegram_codes (code, email) values (c, me);
+  return c;
+end $$;
+revoke execute on function public.telegram_link_code() from public, anon;
+grant execute on function public.telegram_link_code() to authenticated;
+
+-- Кому надсилати: спільний список email для push і Telegram
+create or replace function public.notify_emails(p_kind text, p_audience text, p_section text, p_group text, p_exclude text)
+returns table (email text)
+language sql stable security definer set search_path = public as $$
+  with coaches_all as (
+    select email from public.coaches
+    union select email from public.members where role = 'coach'
+  ),
+  linked as (
+    select m.email, m.role, a.section, a.group_name
+    from public.members m
+    join public.member_athletes ma on ma.email = m.email
+    join public.athletes a on a.id = ma.athlete_id
+    where m.role in ('parent','athlete')
+  ),
+  who as (
+    select email from linked where p_kind = 'announcement'
+      and (p_audience = 'all' or role || 's' = p_audience)
+      and (p_group is null or group_name = p_group)
+      and (p_section is null or section is null or section = p_section)
+    union select email from linked where p_kind = 'event'
+    union select email from linked where p_kind = 'plan' and role = 'athlete'
+      and (p_group is null or group_name = p_group)
+    union select email from linked where p_kind = 'chat' and role = 'athlete'
+    union select email from coaches_all where p_kind in ('chat','joined','request')
+  )
+  select distinct lower(email) from who where lower(email) is distinct from lower(p_exclude);
+$$;
+revoke execute on function public.notify_emails(text,text,text,text,text) from public, anon, authenticated;
+grant execute on function public.notify_emails(text,text,text,text,text) to service_role;
+
+create or replace function public.push_targets(p_kind text, p_audience text, p_section text, p_group text, p_exclude text)
+returns table (endpoint text, sub jsonb)
+language sql stable security definer set search_path = public as $$
+  select s.endpoint, s.sub from public.push_subscriptions s
+  where lower(s.email) in (select email from public.notify_emails(p_kind, p_audience, p_section, p_group, p_exclude));
+$$;
+revoke execute on function public.push_targets(text,text,text,text,text) from public, anon, authenticated;
+grant execute on function public.push_targets(text,text,text,text,text) to service_role;
+
+create or replace function public.telegram_targets(p_kind text, p_audience text, p_section text, p_group text, p_exclude text)
+returns table (chat_id bigint)
+language sql stable security definer set search_path = public as $$
+  select t.chat_id from public.telegram_links t
+  where lower(t.email) in (select email from public.notify_emails(p_kind, p_audience, p_section, p_group, p_exclude));
+$$;
+revoke execute on function public.telegram_targets(text,text,text,text,text) from public, anon, authenticated;
+grant execute on function public.telegram_targets(text,text,text,text,text) to service_role;
+
+notify pgrst, 'reload schema';`;
 
   const TEAM_SQL = `-- Керування командою: секції, групи, пояси, тексти, хто що бачить
 create table if not exists public.team_settings (
@@ -3064,8 +3328,16 @@ notify pgrst, 'reload schema';`;
   }
   // Картка на головній: запропонувати увімкнути сповіщення
   async function pushCard() {
-    let hidden = false;
-    try { hidden = localStorage.getItem('ft_push_hide') === '1'; } catch (e) {}
+    let hidden = false, tgHidden = false;
+    try { hidden = localStorage.getItem('ft_push_hide') === '1'; tgHidden = localStorage.getItem('ft_tg_hide') === '1'; } catch (e) {}
+    const tg = await tgStatus().catch(() => ({ st: 'nosql' }));
+    if (tg.st === 'on') return '';
+    if (tg.st === 'off' && !tgHidden) return `<div class="install" id="tgCard">
+      <span style="font-size:28px;line-height:1">📲</span>
+      <div><b>Сповіщення в Telegram</b>Оголошення тренера й нові події — одразу в Telegram</div>
+      <button type="button" class="btn sm" id="tgOn">Підключити</button>
+      <button type="button" class="x" id="tgHide" aria-label="Сховати">✕</button>
+    </div>`;
     if (hidden) return '';
     const st = await pushStatus().catch(() => 'unsupported');
     if (st !== 'off' && st !== 'ios-install') return '';
@@ -3078,10 +3350,127 @@ notify pgrst, 'reload schema';`;
   }
   document.addEventListener('click', async e => {
     if (e.target.closest('#pushOn')) { if (await enablePush()) { const c = $('#pushCard'); if (c) c.remove(); } }
+    if (e.target.closest('#tgOn')) { await linkTelegram(); return; }
+    if (e.target.closest('#tgHide')) {
+      try { localStorage.setItem('ft_tg_hide', '1'); } catch (err) {}
+      const c = $('#tgCard'); if (c) c.remove();
+    }
     if (e.target.closest('#pushHide')) {
       try { localStorage.setItem('ft_push_hide', '1'); } catch (err) {}
       const c = $('#pushCard'); if (c) c.remove();
     }
+  });
+
+  // ===== Telegram-бот =====
+  let tgCfg; // { username, app } | null
+  async function tgConfig(fresh = false) {
+    if (tgCfg !== undefined && !fresh) return tgCfg;
+    const { data, error } = await db.from('team_settings').select('value').eq('key', 'telegram').maybeSingle();
+    if (error) throw error;
+    tgCfg = data && data.value && data.value.username ? data.value : null;
+    return tgCfg;
+  }
+  // st: nosql (у базі ще немає таблиць) | none (бот не підключено) | off | on
+  async function tgStatus() {
+    const [cfg, res] = await Promise.all([tgConfig().catch(() => null),
+      db.from('telegram_links').select('chat_id', { count: 'exact', head: true })]);
+    if (res.error) return { st: 'nosql', n: 0 };
+    if (!cfg) return { st: 'none', n: 0 };
+    return { st: res.count ? 'on' : 'off', n: res.count || 0 };
+  }
+  async function linkTelegram() {
+    const cfg = await tgConfig().catch(() => null);
+    if (!cfg) { toast('Тренер ще не підключив Telegram-бота', true); return false; }
+    const { data: code, error } = await db.rpc('telegram_link_code');
+    if (error) { toast(isNetErr(error) ? 'Немає інтернету' : 'Не вдалося: ' + error.message, true); return false; }
+    const url = 'https://t.me/' + encodeURIComponent(cfg.username) + '?start=' + encodeURIComponent(code);
+    const d = $('#confirm');
+    d.innerHTML = `<div class="confirm-body"><h3>📲 Підключення Telegram</h3>
+      <p>Відкриється бот <b>@${esc(cfg.username)}</b> — натисніть у ньому <b>«Start»</b> («Почати»). Бот одразу напише, що все підключено.</p>
+      <div class="btns"><button type="button" class="btn light" data-no>Скасувати</button>
+        <a class="btn" href="${esc(url)}" target="_blank" rel="noopener" data-go>Відкрити Telegram</a></div></div>`;
+    d.querySelector('[data-no]').onclick = () => d.close();
+    d.querySelector('[data-go]').onclick = () => setTimeout(() => d.close(), 300);
+    d.showModal();
+    return true;
+  }
+  async function unlinkTelegram() {
+    const { error } = await db.from('telegram_links').delete().eq('email', state.email);
+    toast(error ? 'Не вдалося: ' + error.message : '🔕 Telegram відключено', !!error);
+  }
+  async function setupTelegramBot(btn) {
+    btn.disabled = true; const t = btn.textContent; btn.textContent = '⏳ Підключаю…';
+    try {
+      const { data, error } = await db.functions.invoke('telegram',
+        { body: { action: 'setup', app: location.origin + location.pathname } });
+      if (error) {
+        let code = '';
+        try { code = (await error.context.json()).error || ''; } catch (e) {}
+        throw new Error({
+          no_token: 'додайте секрет TELEGRAM_BOT_TOKEN (крок 3)',
+          bad_token: 'токен бота неправильний — скопіюйте його з @BotFather ще раз',
+          forbidden: 'це може зробити лише тренер',
+        }[code] || (code || (/not found|404|Failed to send/i.test(error.message) ? 'функцію «telegram» ще не створено (крок 4)' : error.message)));
+      }
+      await tgConfig(true);
+      toast('✅ Бот @' + data.username + ' підключено');
+      return true;
+    } catch (e) {
+      toast('Не вдалося: ' + (e.message || e), true);
+      return false;
+    } finally { btn.disabled = false; btn.textContent = t; }
+  }
+  // Блок «Telegram» у налаштуваннях
+  async function tgSettingsBlock() {
+    const box = $('#tgSet'); if (!box) return;
+    const { st, n } = await tgStatus().catch(() => ({ st: 'nosql', n: 0 }));
+    const cfg = tgCfg;
+    let html = '';
+    if (isCoach() && (st === 'nosql' || st === 'none')) {
+      html = `<p style="margin:0 0 8px">Батьки й спортсмени отримуватимуть оголошення, події та інші сповіщення в Telegram. Налаштування — один раз (краще з компʼютера):</p>
+        <ol style="margin:0 0 8px;padding-left:20px;line-height:1.5">
+          <li>Telegram → <b>@BotFather</b> → <b>/newbot</b> → назва «Ferents Team» → імʼя, напр. <b>FerentsTeamBot</b>. Скопіюйте <b>токен</b>, який він надішле.</li>
+          <li>Supabase → <b>SQL Editor</b> → вставте SQL → <b>Run</b>.</li>
+          <li>Supabase → <b>Edge Functions</b> → <b>Secrets</b> → додайте <b>TELEGRAM_BOT_TOKEN</b> = токен.</li>
+          <li><b>Edge Functions</b> → <b>Deploy a new function</b> → <b>Via Editor</b> → назва <b>telegram</b> → вставте код → <b>Deploy</b>. Потім у <b>Details</b> цієї функції вимкніть <b>Verify JWT</b> і збережіть.</li>
+          <li><b>Edge Functions</b> → <b>notify</b> → <b>Code</b> → замініть увесь код новим → <b>Deploy</b>.</li>
+          <li>Натисніть «Підключити бота».</li></ol>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn sm light" id="tgSql">2. SQL</button>
+          <button type="button" class="btn sm light" id="tgFn">4. Код telegram</button>
+          <button type="button" class="btn sm light" id="tgNotify">5. Код notify</button>
+          <button type="button" class="btn sm" id="tgSetup">6. Підключити бота</button></div>`;
+    } else if (st === 'nosql' || st === 'none') {
+      html = 'Тренер ще не підключив Telegram-бота.';
+    } else if (st === 'off') {
+      html = `<p style="margin:0 0 8px">Оголошення й події — одразу в Telegram. Працює на будь-якому телефоні.</p>
+        <button type="button" class="btn sm" id="tgOn2">📲 Підключити Telegram</button>`;
+    } else {
+      html = `✅ Підключено${n > 1 ? ` (${n} телефони)` : ''} — бот <b>@${esc(cfg.username)}</b>.
+        <div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap">
+          <button type="button" class="linkbtn" id="tgOn2">Додати ще телефон</button>
+          <button type="button" class="linkbtn" id="tgOff">Відключити</button></div>`;
+    }
+    if (isCoach() && cfg && st !== 'nosql') html += `<p class="muted small" style="margin:8px 0 0">Бот @${esc(cfg.username)} працює.
+      <button type="button" class="linkbtn" id="tgSetup">Перепідключити</button> ·
+      <button type="button" class="linkbtn" id="tgNotify">Код notify</button></p>`;
+    box.innerHTML = html;
+    box.onclick = async e => {
+      if (e.target.closest('#tgSql')) return copyText(TELEGRAM_SQL, 'SQL скопійовано — вставте в Supabase → SQL Editor');
+      if (e.target.closest('#tgFn')) return copyText(TELEGRAM_FN_CODE, 'Код скопійовано — вставте в нову функцію «telegram»');
+      if (e.target.closest('#tgNotify')) return copyText(NOTIFY_FN_CODE, 'Код скопійовано — вставте в Edge Functions → notify → Code');
+      const su = e.target.closest('#tgSetup');
+      if (su) { if (await setupTelegramBot(su)) tgSettingsBlock(); return; }
+      if (e.target.closest('#tgOn2')) { await linkTelegram(); return; }
+      if (e.target.closest('#tgOff')) { await unlinkTelegram(); tgSettingsBlock(); }
+    };
+  }
+  // Повернулись із Telegram — оновлюємо статус
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if ($('#tgSet')) tgSettingsBlock();
+    const c = $('#tgCard');
+    if (c) tgStatus().then(r => { if (r.st === 'on') c.remove(); }).catch(() => {});
   });
 
   // ===== Оголошення =====
@@ -3787,7 +4176,9 @@ notify pgrst, 'reload schema';`;
         <button type="button" class="btn" id="expBtn">⬇️ Скачати все в Excel</button>
         <p class="muted small" id="expLast">${lastExport() ? 'Остання копія: ' + fmtDate(lastExport(), { day: 'numeric', month: 'long', year: 'numeric' }) : 'Копій ще не було'}</p></div>` : ''}
       <div class="set-block"><h3>🔔 Сповіщення на телефон</h3><div id="pushSet" class="muted small">Перевіряю…</div></div>
+      <div class="set-block"><h3>📲 Сповіщення в Telegram</h3><div id="tgSet" class="small">Перевіряю…</div></div>
       <p class="muted small">Ці налаштування зберігаються на цьому пристрої.</p>`;
+    tgSettingsBlock();
     pushStatus().catch(() => 'unsupported').then(st => {
       const box = $('#pushSet'); if (!box) return;
       box.innerHTML = {

@@ -1,5 +1,5 @@
-// Ferents Team Training — надсилає сповіщення на телефони (Web Push).
-// Supabase → Edge Functions → назва «notify». Секрети: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY.
+// Ferents Team Training — надсилає сповіщення на телефони (Web Push + Telegram).
+// Supabase → Edge Functions → назва «notify». Секрети: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, TELEGRAM_BOT_TOKEN.
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -62,7 +62,44 @@ Deno.serve(async (req) => {
     }));
     // Пристрої, які відписались, прибираємо
     if (gone.length) await admin.from("push_subscriptions").delete().in("endpoint", gone);
-    return json({ sent, removed: gone.length });
+
+    // Telegram (якщо бот налаштований)
+    let tgSent = 0;
+    const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    if (token) {
+      const { data: chats } = await admin.rpc("telegram_targets", {
+        p_kind: kind,
+        p_audience: b.audience ?? "all",
+        p_section: b.section || null,
+        p_group: b.group || null,
+        p_exclude: user.email,
+      });
+      if (chats?.length) {
+        const { data: cfg } = await admin.from("team_settings").select("value").eq("key", "telegram").maybeSingle();
+        const app = String((cfg?.value as { app?: string } | null)?.app || "");
+        const link = app ? new URL(String(b.url || "./"), app).href : "";
+        const e = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+        const title = String(b.title || "Ferents Team").slice(0, 120);
+        const body = String(b.body || "").slice(0, 1000);
+        const text = `<b>${e(title)}</b>` + (body ? `\n\n${e(body)}` : "");
+        const blocked: number[] = [];
+        for (const c of chats as { chat_id: number }[]) {
+          const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: c.chat_id, text, parse_mode: "HTML", disable_web_page_preview: true,
+              ...(link.startsWith("https://") ? { reply_markup: { inline_keyboard: [[{ text: "Відкрити застосунок", url: link }]] } } : {}),
+            }),
+          }).then((x) => x.json()).catch(() => null);
+          if (r?.ok) tgSent++;
+          else if (r?.error_code === 403 || r?.error_code === 400 && /chat not found/i.test(r?.description || "")) blocked.push(c.chat_id);
+          await new Promise((res) => setTimeout(res, 40)); // ліміт Telegram ~30 повідомлень/с
+        }
+        // Хто заблокував бота — прибираємо
+        if (blocked.length) await admin.from("telegram_links").delete().in("chat_id", blocked);
+      }
+    }
+    return json({ sent, removed: gone.length, telegram: tgSent });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
