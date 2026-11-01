@@ -284,7 +284,7 @@
         const { data: id, error } = await db.rpc('submit_application', { p: res });
         if (error) throw error;
         try { localStorage.removeItem(DRAFT); } catch (e) {}
-        doneView({ id, created_at: new Date().toISOString(), ...res });
+        doneView({ id, created_at: new Date().toISOString(), child_name: [res.data.surname, res.data.name].join(' '), ...res });
       } catch (err) {
         const m = String(err && err.message || err);
         const box = document.getElementById('formErr');
@@ -472,11 +472,13 @@
       <div class="done">
         <div class="mark"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
         <h1>Заяву надіслано</h1>
-        <p>Тренер отримав заяву № ${esc(a.id)}. Збережіть копію собі — нижче вона повністю.</p>
-        <div class="actions"><button type="button" class="btn" id="pr">Зберегти копію (PDF)</button></div>
+        <p>Тренер отримав заяву № ${esc(a.id)}. Збережіть копію собі: завантажте PDF-файл або перегляньте заяву нижче.</p>
+        <div class="actions"><button type="button" class="btn" id="pdf">Завантажити PDF</button>
+          <button type="button" class="btn light" id="pr">Друкувати</button></div>
       </div>
       ${docHTML(a)}`;
     document.getElementById('pr').onclick = () => window.print();
+    document.getElementById('pdf').onclick = e => downloadPdf(a, e.currentTarget);
   }
 
   // ===== Перегляд тренера: zayava.html?id=… (потрібен вхід у додаток) =====
@@ -494,9 +496,185 @@
     }
     document.title = 'Заява № ' + data.id + ' — ' + data.child_name;
     root.innerHTML = `<div class="coach-bar"><a class="btn light" href="./#applications">← Усі заяви</a>
-      <button type="button" class="btn" id="pr">Друкувати / PDF</button></div>${docHTML(data)}`;
+      <span style="display:flex;gap:8px"><button type="button" class="btn light" id="pr">Друкувати</button>
+      <button type="button" class="btn" id="pdf">Завантажити PDF</button></span></div>${docHTML(data)}`;
     document.getElementById('pr').onclick = () => window.print();
+    document.getElementById('pdf').onclick = e => downloadPdf(data, e.currentTarget);
+    if (new URLSearchParams(location.search).get('pdf') === '1') document.getElementById('pdf').click();
   }
+
+  // ===== PDF-файл заяви (малюємо сторінки A4 самі, без сторонніх бібліотек) =====
+  async function makePdf(a) {
+    const d = a.data || {}, c = a.consents || {};
+    const W = 1240, H = 1754, M = 110, CW = W - 2 * M;   // A4 при 150 dpi
+    const FONT = "'Manrope', -apple-system, 'Segoe UI', Roboto, Arial, sans-serif";
+    try { await document.fonts.load('400 20px Manrope'); await document.fonts.load('700 20px Manrope'); } catch (e) {}
+    const sig = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = a.signature; });
+    const pages = [];
+    let cv, ctx, y;
+    const newPage = () => {
+      cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+      ctx.textBaseline = 'top'; pages.push(cv); y = M;
+    };
+    const font = (size, weight = 400) => { ctx.font = `${weight} ${size}px ${FONT}`; };
+    const need = h => { if (y + h > H - M) newPage(); };
+    const wrap = (text, width) => {
+      const out = [];
+      String(text || '').split('\n').forEach(par => {
+        let line = '';
+        par.split(/\s+/).filter(Boolean).forEach(w => {
+          const t = line ? line + ' ' + w : w;
+          if (ctx.measureText(t).width > width && line) { out.push(line); line = w; } else line = t;
+        });
+        out.push(line);
+      });
+      return out;
+    };
+    const text = (t, { size = 22, weight = 400, color = '#111827', x = M, width = CW, align = 'left', lh = 1.45, after = 0 } = {}) => {
+      font(size, weight); ctx.fillStyle = color;
+      for (const ln of wrap(t, width)) {
+        need(size * lh);
+        const lx = align === 'center' ? x + (width - ctx.measureText(ln).width) / 2 : x;
+        ctx.fillText(ln, lx, y); y += size * lh;
+      }
+      y += after;
+    };
+    const heading = t => {
+      need(90); y += 26;
+      text(t, { size: 26, weight: 700, after: 6 });
+      ctx.fillStyle = '#111827'; ctx.fillRect(M, y, CW, 3); y += 16;
+    };
+    const row = (k, v) => {
+      if (!v) return;
+      const lw = CW * 0.36, vw = CW - lw;
+      font(21); const kl = wrap(k, lw - 16);
+      font(21, 600); const vl = wrap(v, vw);
+      const h = Math.max(kl.length, vl.length) * 21 * 1.45 + 16;
+      need(h);
+      font(21); ctx.fillStyle = '#6b7280'; kl.forEach((l, i) => ctx.fillText(l, M, y + 8 + i * 30.45));
+      font(21, 600); ctx.fillStyle = '#111827'; vl.forEach((l, i) => ctx.fillText(l, M + lw, y + 8 + i * 30.45));
+      y += h; ctx.fillStyle = '#e5e7eb'; ctx.fillRect(M, y - 1, CW, 1);
+    };
+    const parent = p => [d[p + '_name'], d[p + '_phone'] && 'тел. ' + d[p + '_phone'], d[p + '_messenger'] && 'Viber/Telegram: ' + d[p + '_messenger'],
+      [d[p + '_work'], d[p + '_position']].filter(Boolean).join(', ')].filter(Boolean).join('\n');
+
+    newPage();
+    text(ORG, { size: 22, weight: 700, align: 'center' });
+    text('Секція карате Ferents Team · тренер ' + COACH, { size: 20, color: '#6b7280', align: 'center', after: 34 });
+    text('ЗАЯВА-АНКЕТА', { size: 40, weight: 800, align: 'center', lh: 1.2, after: 4 });
+    text('на вступ до Львівської обласної федерації кіокушинкай карате', { size: 24, align: 'center', after: 28 });
+    text('Прошу прийняти мого сина / мою дочку членом Львівської обласної федерації кіокушинкай карате. Зобовʼязуюсь забезпечувати регулярне відвідування тренувальних занять та вчасно сплачувати щомісячні членські внески.', { size: 22 });
+
+    heading('Анкетні дані дитини');
+    row('Прізвище, імʼя', [d.surname, d.name].filter(Boolean).join(' ') || a.child_name);
+    row('Дата народження', fmtDate(d.birth));
+    row('Ідентифікаційний код', d.tax_id);
+    row('Домашня адреса', d.address);
+    row('Місце навчання', d.school);
+    row('Секція', d.section);
+    row('Група', d.group);
+    row('Пояс', d.belt);
+
+    heading('Батьки');
+    row('Батько', parent('father'));
+    row('Мати', parent('mother'));
+    row('Інший контакт', d.emergency);
+
+    heading('Здоровʼя');
+    row('Захворювання, алергії, травми', d.health);
+
+    heading('Умови тренувань');
+    (d.terms || TERMS).forEach((t, i) => {
+      font(21); const lines = wrap(t, CW - 44);
+      need(lines.length * 30.45 + 8);
+      font(21, 700); ctx.fillStyle = '#111827'; ctx.fillText((i + 1) + '.', M, y);
+      font(21); lines.forEach((l, j) => ctx.fillText(l, M + 44, y + j * 30.45));
+      y += lines.length * 30.45 + 8;
+    });
+
+    heading('Згоди');
+    const texts = d.consent_texts || Object.fromEntries(CONSENTS.map(([k, , t]) => [k, t]));
+    Object.keys(texts).forEach(k => {
+      const ok = !!c[k];
+      font(21); const lines = wrap(texts[k] + (ok ? '' : ' — не надано'), CW - 48);
+      need(lines.length * 30.45 + 12);
+      ctx.strokeStyle = '#111827'; ctx.lineWidth = 2; ctx.strokeRect(M + 2, y + 4, 22, 22);
+      if (ok) { ctx.beginPath(); ctx.moveTo(M + 7, y + 15); ctx.lineTo(M + 12, y + 21); ctx.lineTo(M + 21, y + 8); ctx.lineWidth = 3; ctx.stroke(); }
+      ctx.fillStyle = ok ? '#111827' : '#6b7280';
+      lines.forEach((l, j) => ctx.fillText(l, M + 48, y + j * 30.45));
+      y += lines.length * 30.45 + 12;
+    });
+
+    // Дата і підпис
+    const signedAt = c.signed_at || a.created_at;
+    need(260); y += 40;
+    const sw = 420, sh = 140, sx = M + CW - sw;
+    font(19); ctx.fillStyle = '#6b7280'; ctx.fillText('Дата', M, y + sh - 50);
+    font(24, 700); ctx.fillStyle = '#111827'; ctx.fillText(fmtDate(signedAt), M, y + sh - 22);
+    if (sig) ctx.drawImage(sig, sx, y, sw, sh);
+    ctx.fillStyle = '#111827'; ctx.fillRect(sx, y + sh + 4, sw, 2);
+    font(19); ctx.fillStyle = '#6b7280';
+    wrap((a.signer_name || '') + (d.signer_rel ? ', ' + d.signer_rel.toLowerCase() : ''), sw).forEach((l, i) => ctx.fillText(l, sx, y + sh + 14 + i * 26));
+    y += sh + 70;
+    text('Заява № ' + a.id + ' підписана електронно ' + fmtDT(signedAt) + ' на сторінці заяви Ferents Team.', { size: 17, color: '#6b7280' });
+    if (COACH_PHONE) text('Телефон тренера: ' + COACH_PHONE, { size: 17, color: '#6b7280' });
+
+    // Номери сторінок
+    pages.forEach((p, i) => {
+      const x = p.getContext('2d'); x.font = `400 16px ${FONT}`; x.fillStyle = '#9ca3af'; x.textBaseline = 'top';
+      const t = `Сторінка ${i + 1} з ${pages.length}`; x.fillText(t, W - M - x.measureText(t).width, H - 70);
+    });
+    return pdfFromCanvases(pages);
+  }
+
+  // Мінімальний PDF: кожна сторінка — JPEG на весь аркуш A4
+  function pdfFromCanvases(pages) {
+    const enc = new TextEncoder(), parts = [], offsets = [];
+    let len = 0;
+    const push = x => { const b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; };
+    const obj = (n, body) => { offsets[n] = len; push(`${n} 0 obj\n`); body(); push('\nendobj\n'); };
+    const n = pages.length, kids = [];
+    for (let i = 0; i < n; i++) kids.push(`${3 + i * 3} 0 R`);
+    push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+    obj(1, () => push('<< /Type /Catalog /Pages 2 0 R >>'));
+    obj(2, () => push(`<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${n} >>`));
+    pages.forEach((cv, i) => {
+      const p = 3 + i * 3, content = p + 1, img = p + 2;
+      const b64 = cv.toDataURL('image/jpeg', 0.9).split(',')[1];
+      const bin = atob(b64), jpg = new Uint8Array(bin.length);
+      for (let k = 0; k < bin.length; k++) jpg[k] = bin.charCodeAt(k);
+      obj(p, () => push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im${i} ${img} 0 R >> >> /Contents ${content} 0 R >>`));
+      const s = `q 595.28 0 0 841.89 0 0 cm /Im${i} Do Q`;
+      obj(content, () => push(`<< /Length ${s.length} >>\nstream\n${s}\nendstream`));
+      obj(img, () => { push(`<< /Type /XObject /Subtype /Image /Width ${cv.width} /Height ${cv.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`); push(jpg); push('\nendstream'); });
+    });
+    const total = 3 + n * 3, xref = len;
+    let x = `xref\n0 ${total}\n0000000000 65535 f \n`;
+    for (let i = 1; i < total; i++) x += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+    push(x + `trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+    return new Blob(parts, { type: 'application/pdf' });
+  }
+
+  async function downloadPdf(a, btn) {
+    const label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Готуємо файл…';
+    try {
+      const blob = await makePdf(a);
+      const name = ('Заява ' + (a.child_name || '') + ' №' + a.id).replace(/[\\/:*?"<>|]+/g, '').trim() + '.pdf';
+      const file = new File([blob], name, { type: 'application/pdf' });
+      // На телефоні — меню «Поділитися» (зберегти у Файли, надіслати), інакше — звичайне завантаження
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)) {
+        try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      const url = URL.createObjectURL(blob), link = document.createElement('a');
+      link.href = url; link.download = name; document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) {
+      alert('Не вдалося створити PDF: ' + (err.message || err) + '. Скористайтеся кнопкою «Друкувати».');
+    } finally { btn.disabled = false; btn.textContent = label; }
+  }
+
 
   const viewId = new URLSearchParams(location.search).get('id');
   if (viewId) coachView(viewId); else formView();

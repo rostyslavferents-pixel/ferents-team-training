@@ -4082,7 +4082,8 @@ notify pgrst, 'reload schema';`;
     dlg.innerHTML = `<div class="confirm-body"><h3>${esc(a.child_name)}</h3>
       <p>${esc([d.birth && 'Народження: ' + fmtDate(d.birth, { day: 'numeric', month: 'long', year: 'numeric' }), [a.section, a.group_name].filter(Boolean).join(' · '), parentLine, d.health && 'Здоровʼя: ' + d.health].filter(Boolean).join('\n'))}</p>
       <div class="btns">
-        <a class="btn" href="zayava.html?id=${encodeURIComponent(a.id)}">Відкрити заяву / друк</a>
+        <a class="btn" href="zayava.html?id=${encodeURIComponent(a.id)}">Відкрити заяву</a>
+        <a class="btn light" href="zayava.html?id=${encodeURIComponent(a.id)}&pdf=1">Завантажити PDF</a>
         ${a.athlete_id ? `<a class="btn light" href="#athlete/${encodeURIComponent(a.athlete_id)}">Картка спортсмена</a>`
           : m ? `<div class="info" style="margin:0;text-align:left">Ця дитина вже є в команді: <b>${esc(m.full_name)}</b>${[m.section, m.group_name].filter(Boolean).length ? ' (' + esc([m.section, m.group_name].filter(Boolean).join(' · ')) + ')' : ''}. Заява доповнить її картку, нова картка не створюється.</div>
               <button type="button" class="btn" data-act="link">Оновити картку «${esc(m.full_name)}»</button>
