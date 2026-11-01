@@ -601,7 +601,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.28';
+  const APP_VERSION = 'v3.29';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -1182,6 +1182,7 @@ Deno.serve(async (req) => {
   const TELEGRAM_FN_CODE = `// Ferents Team Training — Telegram-бот (сповіщення в Telegram).
 // Supabase → Edge Functions → назва «telegram», вимкнути «Verify JWT».
 // Секрет: TELEGRAM_BOT_TOKEN (від @BotFather).
+// Також надсилає батькам нагадування про оплату (кнопка в розділі «Оплати»).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
@@ -1296,6 +1297,48 @@ async function setup(req: Request, b: any) {
   return json({ username: me.result.username });
 }
 
+// Тренер натиснув «Надіслати в Telegram» у нагадуваннях про оплату.
+// items: [{ id: athlete_id, text }]; dry: true — лише дізнатись, у кого підключено Telegram.
+async function onRemind(req: Request, b: any) {
+  const asUser = createClient(URL_, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+  });
+  if ((await asUser.rpc("is_coach")).data !== true) return json({ error: "forbidden" }, 403);
+  if (!TOKEN) return json({ error: "no_token" }, 400);
+  const items = (Array.isArray(b.items) ? b.items : []).slice(0, 300)
+    .map((i: any) => ({ id: String(i?.id ?? ""), text: String(i?.text ?? "").slice(0, 1500) })).filter((i: any) => i.id);
+  if (!items.length) return json({ with: [], sent: 0 });
+
+  // Хто з батьків (або сам спортсмен, якщо батьків немає) підключив Telegram
+  const { data: links } = await admin.from("member_athletes").select("email, athlete_id").in("athlete_id", items.map((i: any) => i.id));
+  const emails = [...new Set((links ?? []).map((l: any) => String(l.email).toLowerCase()))];
+  const { data: mem } = emails.length ? await admin.from("members").select("email, role").in("email", emails) : { data: [] as any[] };
+  const role = new Map((mem ?? []).map((m: any) => [String(m.email).toLowerCase(), m.role]));
+  const { data: tl } = emails.length ? await admin.from("telegram_links").select("chat_id, email").in("email", emails) : { data: [] as any[] };
+  const chatsOf = (id: string) => {
+    const mine = (links ?? []).filter((l: any) => String(l.athlete_id) === id).map((l: any) => String(l.email).toLowerCase());
+    const parents = mine.filter((e: string) => role.get(e) === "parent");
+    const who = parents.some((e: string) => (tl ?? []).some((t: any) => String(t.email).toLowerCase() === e)) ? parents : mine;
+    return [...new Set((tl ?? []).filter((t: any) => who.includes(String(t.email).toLowerCase())).map((t: any) => Number(t.chat_id)))];
+  };
+  const withTg = items.filter((i: any) => chatsOf(i.id).length).map((i: any) => i.id);
+  if (b.dry) return json({ with: withTg });
+
+  const app = await appUrl();
+  let sent = 0;
+  const reached: string[] = [];
+  for (const it of items) {
+    let ok = false;
+    for (const chat of chatsOf(it.id)) {
+      const r = await tg("sendMessage", { chat_id: chat, text: "💳 " + it.text, ...openBtn(app) });
+      if (r?.ok) { sent++; ok = true; }
+      await new Promise((res) => setTimeout(res, 40)); // ліміт Telegram ~30 повідомлень/с
+    }
+    if (ok) reached.push(it.id);
+  }
+  return json({ with: withTg, sent, reached });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -1307,6 +1350,7 @@ Deno.serve(async (req) => {
     }
     const b = await req.json().catch(() => ({}));
     if (b.action === "setup") return await setup(req, b);
+    if (b.action === "remind") return await onRemind(req, b);
     return json({ error: "unknown" }, 400);
   } catch (e) {
     return json({ error: String(e) }, 500);
@@ -2016,6 +2060,9 @@ notify pgrst, 'reload schema';`;
     const reqBlock = reqN ? `<a class="now soon" href="#members"><i class="dot"></i>
         <div><b>🙋 Запити на доступ: ${reqN}</b><span>Чекають вашого підтвердження</span></div><i class="go">›</i></a>` : '';
     const { count: appN } = await appP;
+    const dayN = Number(t.slice(8, 10));
+    const payBlock = unpaid && dayN >= 8 && dayN <= 10 ? `<a class="now soon" href="#payments" data-reset="payments"><i class="dot"></i>
+        <div><b>Нагадати про оплату: ${unpaid} не оплатили</b><span>${dayN === 10 ? 'Сьогодні останній день оплати' : 'Оплата до 10 числа'} · Оплати → Нагадати батькам</span></div><i class="go">›</i></a>` : '';
     const appBlock = appN ? `<a class="now soon" href="#applications"><i class="dot"></i>
         <div><b>Нові заяви від батьків: ${appN}</b><span>Перегляньте й додайте дітей у спортсмени</span></div><i class="go">›</i></a>` : '';
     const le = lastExport();
@@ -2027,6 +2074,7 @@ notify pgrst, 'reload schema';`;
       ${pushC}
       ${reqBlock}
       ${appBlock}
+      ${payBlock}
       ${expBlock}
       ${nowBlock}
       ${settings.showStats ? `<div class="stats">
@@ -3096,7 +3144,7 @@ notify pgrst, 'reload schema';`;
   }
 
   // ===== Нагадування батькам про оплату: Viber / Telegram / SMS =====
-  const REMIND_TPL = 'Добрий день, {батьки}! Нагадуємо про оплату тренувань з карате за {місяць}: {дитина}. Сума: {сума} грн. Дякуємо! Ferents Team';
+  const REMIND_TPL = 'Добрий день, {батьки}! Нагадуємо про оплату тренувань з карате за {місяць}: {дитина}. Сума: {сума} грн. Оплата до 10 числа поточного місяця. Дякуємо! Ferents Team';
   function normPhone(p) {
     let d = String(p || '').replace(/[^\d+]/g, '');
     if (/^0\d{9}$/.test(d)) d = '+38' + d;
@@ -3137,6 +3185,7 @@ notify pgrst, 'reload schema';`;
       <label>Текст повідомлення<textarea id="remTpl" rows="4">${esc(tpl)}</textarea></label>
       <p class="muted small" style="margin:6px 0 0">Підставляється автоматично: {батьки} {дитина} {місяць} {сума} {секція}</p>
       <label>Сума, грн<input id="remAmount" type="number" inputmode="numeric" min="0" value="${esc(amount)}"></label>
+      <div id="tgRem" class="info" style="margin:14px 0 0" hidden></div>
       <div class="rem-list">${debtors.map(rowHtml).join('')}</div>
       <p class="muted small" style="margin:10px 0 0">Текст копіюється автоматично. Якщо месенджер не вставив його сам — утримуйте поле вводу і натисніть «Вставити».</p>
       <div class="dlg-actions"><span class="spacer"></span><button type="button" class="btn" data-act="cancel">Готово</button></div></form>`;
@@ -3144,6 +3193,42 @@ notify pgrst, 'reload schema';`;
     $('#remTpl').oninput = e => { tpl = e.target.value; try { localStorage.setItem('ft_remind_tpl', tpl); } catch (err) {} };
     $('#remAmount').oninput = e => { amount = e.target.value; try { localStorage.setItem('ft_last_amount', amount); } catch (err) {} };
     form.onsubmit = e => e.preventDefault();
+    // Telegram-бот: одним натиском усім, у кого він підключений
+    const tgBox = $('#tgRem');
+    let tgIds = [];
+    const tgDraw = () => {
+      const left = debtors.filter(a => tgIds.includes(String(a.id)) && !String(marks[a.id] || '').startsWith('Telegram'));
+      tgBox.hidden = false;
+      tgBox.innerHTML = tgIds.length
+        ? `<b>Telegram-бот</b><br>Підключено в ${tgIds.length} з ${debtors.length}. Решті — кнопками Viber / SMS нижче.
+           <button type="button" class="btn wide" data-tg-send ${left.length ? '' : 'disabled'}>${left.length ? `📲 Надіслати в Telegram (${left.length})` : '✓ Надіслано в Telegram'}</button>`
+        : `<b>Telegram-бот</b><br>Ніхто з цих батьків ще не підключив Telegram. Вони можуть зробити це в додатку: Налаштування → Підключити Telegram.`;
+    };
+    tgConfig().catch(() => null).then(cfg => cfg && db.functions.invoke('telegram', { body: { action: 'remind', dry: true, items: debtors.map(a => ({ id: a.id })) } }))
+        .then(res => {
+          if (!res) return;
+          const { data, error } = res;
+          if (error || !data || !Array.isArray(data.with)) {
+            tgBox.hidden = false;
+            tgBox.innerHTML = '<b>Telegram-бот</b><br>Щоб надсилати нагадування через бота, онови код функції: Налаштування → Telegram → «Код telegram» → Supabase → Edge Functions → telegram → Code → Deploy.';
+            return;
+          }
+          tgIds = data.with.map(String); tgDraw();
+        }).catch(() => {});
+    tgBox.onclick = async e => {
+      const btn = e.target.closest('[data-tg-send]');
+      if (!btn) return;
+      const list = debtors.filter(a => tgIds.includes(String(a.id)) && !String(marks[a.id] || '').startsWith('Telegram'));
+      btn.disabled = true; btn.textContent = 'Надсилаю…';
+      const { data, error } = await db.functions.invoke('telegram', { body: { action: 'remind', items: list.map(a => ({ id: a.id, text: textFor(a) })) } });
+      if (error || !data) { toast('Не вдалося надіслати в Telegram', true); tgDraw(); return; }
+      const day = new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+      (data.reached || []).forEach(id => { marks[id] = 'Telegram ' + day; });
+      try { localStorage.setItem(remindedKey(ym), JSON.stringify(marks)); } catch (err) {}
+      form.querySelector('.rem-list').innerHTML = debtors.map(rowHtml).join('');
+      toast(`📲 Нагадування надіслано в Telegram: ${(data.reached || []).length}`);
+      tgDraw();
+    };
     form.onclick = async e => {
       if (e.target.closest('[data-act=cancel]')) { dlg.close(); return; }
       const b = e.target.closest('[data-via]');
@@ -3460,7 +3545,8 @@ notify pgrst, 'reload schema';`;
     }
     if (isCoach() && cfg && st !== 'nosql') html += `<p class="muted small" style="margin:8px 0 0">Бот @${esc(cfg.username)} працює.
       <button type="button" class="linkbtn" id="tgSetup">Перепідключити</button> ·
-      <button type="button" class="linkbtn" id="tgNotify">Код notify</button></p>`;
+      <button type="button" class="linkbtn" id="tgNotify">Код notify</button> ·
+      <button type="button" class="linkbtn" id="tgFn">Код telegram</button></p>`;
     box.innerHTML = html;
     box.onclick = async e => {
       if (e.target.closest('#tgSql')) return copyText(TELEGRAM_SQL, 'SQL скопійовано — вставте в Supabase → SQL Editor');

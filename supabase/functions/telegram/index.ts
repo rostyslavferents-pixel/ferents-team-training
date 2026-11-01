@@ -1,6 +1,7 @@
 // Ferents Team Training — Telegram-бот (сповіщення в Telegram).
 // Supabase → Edge Functions → назва «telegram», вимкнути «Verify JWT».
 // Секрет: TELEGRAM_BOT_TOKEN (від @BotFather).
+// Також надсилає батькам нагадування про оплату (кнопка в розділі «Оплати»).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
@@ -115,6 +116,48 @@ async function setup(req: Request, b: any) {
   return json({ username: me.result.username });
 }
 
+// Тренер натиснув «Надіслати в Telegram» у нагадуваннях про оплату.
+// items: [{ id: athlete_id, text }]; dry: true — лише дізнатись, у кого підключено Telegram.
+async function onRemind(req: Request, b: any) {
+  const asUser = createClient(URL_, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+  });
+  if ((await asUser.rpc("is_coach")).data !== true) return json({ error: "forbidden" }, 403);
+  if (!TOKEN) return json({ error: "no_token" }, 400);
+  const items = (Array.isArray(b.items) ? b.items : []).slice(0, 300)
+    .map((i: any) => ({ id: String(i?.id ?? ""), text: String(i?.text ?? "").slice(0, 1500) })).filter((i: any) => i.id);
+  if (!items.length) return json({ with: [], sent: 0 });
+
+  // Хто з батьків (або сам спортсмен, якщо батьків немає) підключив Telegram
+  const { data: links } = await admin.from("member_athletes").select("email, athlete_id").in("athlete_id", items.map((i: any) => i.id));
+  const emails = [...new Set((links ?? []).map((l: any) => String(l.email).toLowerCase()))];
+  const { data: mem } = emails.length ? await admin.from("members").select("email, role").in("email", emails) : { data: [] as any[] };
+  const role = new Map((mem ?? []).map((m: any) => [String(m.email).toLowerCase(), m.role]));
+  const { data: tl } = emails.length ? await admin.from("telegram_links").select("chat_id, email").in("email", emails) : { data: [] as any[] };
+  const chatsOf = (id: string) => {
+    const mine = (links ?? []).filter((l: any) => String(l.athlete_id) === id).map((l: any) => String(l.email).toLowerCase());
+    const parents = mine.filter((e: string) => role.get(e) === "parent");
+    const who = parents.some((e: string) => (tl ?? []).some((t: any) => String(t.email).toLowerCase() === e)) ? parents : mine;
+    return [...new Set((tl ?? []).filter((t: any) => who.includes(String(t.email).toLowerCase())).map((t: any) => Number(t.chat_id)))];
+  };
+  const withTg = items.filter((i: any) => chatsOf(i.id).length).map((i: any) => i.id);
+  if (b.dry) return json({ with: withTg });
+
+  const app = await appUrl();
+  let sent = 0;
+  const reached: string[] = [];
+  for (const it of items) {
+    let ok = false;
+    for (const chat of chatsOf(it.id)) {
+      const r = await tg("sendMessage", { chat_id: chat, text: "💳 " + it.text, ...openBtn(app) });
+      if (r?.ok) { sent++; ok = true; }
+      await new Promise((res) => setTimeout(res, 40)); // ліміт Telegram ~30 повідомлень/с
+    }
+    if (ok) reached.push(it.id);
+  }
+  return json({ with: withTg, sent, reached });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -126,6 +169,7 @@ Deno.serve(async (req) => {
     }
     const b = await req.json().catch(() => ({}));
     if (b.action === "setup") return await setup(req, b);
+    if (b.action === "remind") return await onRemind(req, b);
     return json({ error: "unknown" }, 400);
   } catch (e) {
     return json({ error: String(e) }, 500);
