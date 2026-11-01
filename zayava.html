@@ -232,11 +232,6 @@
         <div class="grid">
           ${field('emergency', 'Інший контакт на випадок, якщо батьки не відповідають', { hint: 'ПІБ, хто дитині, телефон' })}
         </div>
-        <div class="f" data-f="pickup" style="margin-top:14px"><label class="f" style="margin:0"><span class="req">Хто забирає дитину після тренування</span></label>
-          <div class="seg">${['Батьки', 'Інша довірена особа', 'Дитина йде додому сама'].map(v =>
-            `<label><input type="radio" name="pickup" value="${v}"><span>${v}</span></label>`).join('')}</div>
-          <span class="err-msg"></span></div>
-        ${field('pickup_who', 'Хто саме забирає', { hint: 'ПІБ, телефон', cls: 'pickup-who' })}
 
         <h2>Здоровʼя дитини</h2>
         <div class="grid">
@@ -274,14 +269,8 @@
     const f = document.getElementById('f');
     const pad = setupPad(document.getElementById('pad'), document.getElementById('sig'));
     document.getElementById('clearSig').onclick = () => pad.clear();
-    const pickupWho = () => {
-      const v = (f.querySelector('[name=pickup]:checked') || {}).value;
-      f.querySelector('.pickup-who').hidden = v !== 'Інша довірена особа';
-    };
-    pickupWho();
     restoreDraft(f);
-    pickupWho();
-    f.addEventListener('change', e => { if (e.target.name === 'pickup') pickupWho(); clearBad(e.target); saveDraft(f); });
+    f.addEventListener('change', e => { clearBad(e.target); saveDraft(f); });
     f.addEventListener('input', e => { clearBad(e.target); saveDraft(f); document.getElementById('formErr').hidden = true; });
     f.onsubmit = async e => {
       e.preventDefault();
@@ -323,17 +312,15 @@
     ['surname', 'name', 'birth', 'tax_id', 'address', 'school', 'section', 'group', 'belt',
      'father_name', 'father_phone', 'father_messenger', 'father_work', 'father_position',
      'mother_name', 'mother_phone', 'mother_messenger', 'mother_work', 'mother_position',
-     'emergency', 'pickup', 'pickup_who', 'health', 'signer_rel'].forEach(k => { d[k] = v(k); });
-    if (d.pickup !== 'Інша довірена особа') d.pickup_who = '';
+     'emergency', 'health', 'signer_rel'].forEach(k => { d[k] = v(k); });
     const bad = [];
     const need = (k, msg = 'Заповніть це поле') => { if (!d[k]) { markBad(f, k, msg); bad.push(k); } };
     need('surname'); need('name'); need('birth', 'Вкажіть дату народження');
     need('address'); need('school');
     need('section', 'Оберіть секцію'); need('group', 'Оберіть групу');
-    need('pickup', 'Оберіть, хто забирає дитину'); need('health', 'Напишіть «немає», якщо нічого з переліченого немає');
+    need('health', 'Напишіть «немає», якщо нічого з переліченого немає');
     if (d.birth && (d.birth > new Date().toISOString().slice(0, 10) || d.birth < '1950-01-01')) { markBad(f, 'birth', 'Перевірте дату народження'); bad.push('birth'); }
     if (d.tax_id && !/^\d{10}$/.test(d.tax_id)) { markBad(f, 'tax_id', 'Ідентифікаційний код — 10 цифр'); bad.push('tax_id'); }
-    if (d.pickup === 'Інша довірена особа' && !d.pickup_who) { markBad(f, 'pickup_who', 'Вкажіть, хто забирає дитину'); bad.push('pickup_who'); }
     const hasParent = ['father', 'mother'].some(p => d[p + '_name'] && d[p + '_phone']);
     if (!hasParent) {
       const p = d.mother_name || d.mother_phone ? 'mother' : 'father';
@@ -462,7 +449,6 @@
         ${parent('father', 'Батько')}
         ${parent('mother', 'Мати')}
         ${row('Інший контакт', d.emergency)}
-        ${row('Хто забирає дитину', [d.pickup, d.pickup_who].filter(Boolean).join(': '))}
       </dl>
       <h2>Здоровʼя</h2>
       <dl>${row('Захворювання, алергії, травми', d.health)}</dl>
