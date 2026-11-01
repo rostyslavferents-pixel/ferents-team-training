@@ -601,7 +601,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.29';
+  const APP_VERSION = 'v3.30';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -2716,7 +2716,7 @@ notify pgrst, 'reload schema';`;
 
     // Відвідування цього місяця і % від тренувань за розкладом його групи
     const visits = att.filter(x => x.date >= monthStart).length;
-    const days = new Set(sch.filter(s => s.group_name === a.group_name).map(s => s.weekday));
+    const days = new Set(sch.filter(s => s.group_name === a.group_name && (!s.section || !a.section || s.section === a.section)).map(s => s.weekday));
     let planned = 0;
     for (let d = monthStart; d <= t; d = shiftDate(d, 1)) if (days.has(weekdayOf(d))) planned++;
     const pct = planned ? Math.min(100, Math.round(visits / planned * 100)) : null;
