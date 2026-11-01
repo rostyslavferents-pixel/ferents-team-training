@@ -601,7 +601,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.27';
+  const APP_VERSION = 'v3.28';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -4015,8 +4015,12 @@ notify pgrst, 'reload schema';`;
   function zayavaLink() { return new URL('zayava.html', location.href.split('#')[0]).href; }
   async function applicationsView() {
     setActions('');
-    const { data, error } = await db.from('applications')
-      .select('id, created_at, child_name, section, group_name, signer_name, status, athlete_id, data').order('created_at', { ascending: false });
+    const [{ data, error }, athRes] = await Promise.all([
+      db.from('applications')
+        .select('id, created_at, child_name, section, group_name, signer_name, status, athlete_id, data').order('created_at', { ascending: false }),
+      db.from('athletes').select('*'),
+    ]);
+    const athletes = athRes.data || [];
     if (error) {
       $('#view').innerHTML = /relation|does not exist|schema cache/i.test(error.message || '')
         ? sqlCard('Заяви від батьків з онлайн-підписом', APPLICATIONS_SQL)
@@ -4027,6 +4031,7 @@ notify pgrst, 'reload schema';`;
     const counts = { new: 0, accepted: 0, archived: 0 };
     data.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1; });
     const list = data.filter(a => a.status === show);
+    data.forEach(a => { a._match = a.athlete_id ? null : appMatch(a, athletes); });
     const link = zayavaLink();
     $('#view').innerHTML = `
       <div class="panel" style="margin-bottom:12px">
@@ -4044,7 +4049,7 @@ notify pgrst, 'reload schema';`;
         <button type="button" class="row" data-app="${a.id}">
           <span class="grow"><strong>${esc(a.child_name)}</strong>
             <span>${esc([a.section, a.group_name].filter(Boolean).join(' · '))} · ${fmtDate(a.created_at.slice(0, 10))} · ${esc(a.signer_name)}</span></span>
-          ${a.athlete_id ? '<span class="badge ok">У спортсменах</span>' : `<span class="badge ${APP_STATUS[a.status][1]}">${APP_STATUS[a.status][0]}</span>`}
+          ${a.athlete_id ? '<span class="badge ok">У спортсменах</span>' : a._match ? '<span class="badge gold">Уже в команді</span>' : `<span class="badge ${APP_STATUS[a.status][1]}">${APP_STATUS[a.status][0]}</span>`}
         </button>`).join('') : `<div class="empty">${show === 'new' ? 'Нових заяв немає. Надішліть батькам посилання вище.' : 'Тут поки порожньо'}</div>`}</div>`;
     $('#appCopy').onclick = () => copyText(link, 'Посилання скопійовано');
     $('#appShare').onclick = async () => {
@@ -4059,8 +4064,19 @@ notify pgrst, 'reload schema';`;
       if (r) appSheet(data.find(a => String(a.id) === r.dataset.app));
     };
   }
+  // Чи є ця дитина вже серед спортсменів: прізвище та імʼя в будь-якому порядку (+ дата народження, якщо є в обох)
+  function appMatch(a, athletes) {
+    const d = a.data || {};
+    const norm = s => String(s || '').toLowerCase().replace(/['’ʼ`]/g, '').replace(/\s+/g, ' ').trim();
+    const n = norm([d.surname, d.name].filter(Boolean).join(' ') || a.child_name);
+    const rev = n.split(' ').reverse().join(' ');
+    const hits = athletes.filter(x => [n, rev].includes(norm(x.full_name)) &&
+      !(d.birth && x.birth_date && String(x.birth_date).slice(0, 10) !== d.birth));
+    return hits.length === 1 ? hits[0] : null;
+  }
   function appSheet(a) {
     const d = a.data || {};
+    const m = a._match;
     const parentLine = ['mother', 'father'].map(p => d[p + '_name'] && d[p + '_phone'] ? `${d[p + '_name']}, ${d[p + '_phone']}` : '').filter(Boolean).join('\n');
     const dlg = $('#confirm');
     dlg.innerHTML = `<div class="confirm-body"><h3>${esc(a.child_name)}</h3>
@@ -4068,6 +4084,9 @@ notify pgrst, 'reload schema';`;
       <div class="btns">
         <a class="btn" href="zayava.html?id=${encodeURIComponent(a.id)}">Відкрити заяву / друк</a>
         ${a.athlete_id ? `<a class="btn light" href="#athlete/${encodeURIComponent(a.athlete_id)}">Картка спортсмена</a>`
+          : m ? `<div class="info" style="margin:0;text-align:left">Ця дитина вже є в команді: <b>${esc(m.full_name)}</b>${[m.section, m.group_name].filter(Boolean).length ? ' (' + esc([m.section, m.group_name].filter(Boolean).join(' · ')) + ')' : ''}. Заява доповнить її картку, нова картка не створюється.</div>
+              <button type="button" class="btn" data-act="link">Оновити картку «${esc(m.full_name)}»</button>
+              <button type="button" class="btn light" data-act="athlete">Це інша дитина — створити нову картку</button>`
           : `<button type="button" class="btn light" data-act="athlete">Додати в спортсмени</button>`}
         ${a.status !== 'accepted' ? '<button type="button" class="btn light" data-act="accepted">Позначити прийнятою</button>' : ''}
         ${a.status !== 'archived' ? '<button type="button" class="btn light" data-act="archived">Перенести в архів</button>' : ''}
@@ -4080,7 +4099,23 @@ notify pgrst, 'reload schema';`;
       const act = b.dataset.act;
       b.disabled = true;
       try {
-        if (act === 'athlete') {
+        if (act === 'link') {
+          // Доповнюємо лише порожні поля картки, нічого з уже записаного не перезаписуємо
+          const parent = d.mother_name && d.mother_phone ? 'mother' : 'father';
+          const upd = {};
+          if (!m.birth_date && d.birth) { upd.birth_date = d.birth; upd.birth_year = Number(d.birth.slice(0, 4)); }
+          if (!m.belt && d.belt) upd.belt = d.belt;
+          if (!m.parent_name && d[parent + '_name']) upd.parent_name = d[parent + '_name'];
+          if (!m.phone && d[parent + '_phone']) upd.phone = d[parent + '_phone'];
+          if ('section' in m && !m.section && d.section) upd.section = d.section;
+          const health = d.health && d.health.toLowerCase() !== 'немає' ? 'Здоровʼя: ' + d.health : '';
+          const add = [health, 'Заява № ' + a.id + ' підписана ' + fmtDate(a.created_at.slice(0, 10), { day: 'numeric', month: 'long', year: 'numeric' })]
+            .filter(x => x && !String(m.notes || '').includes(x));
+          if (add.length) upd.notes = [m.notes, ...add].filter(Boolean).join('\n');
+          if (Object.keys(upd).length) await q(db.from('athletes').update(upd).eq('id', m.id));
+          await q(db.from('applications').update({ athlete_id: String(m.id), status: 'accepted' }).eq('id', a.id));
+          dlg.close(); toast('Картку оновлено: ' + m.full_name); render();
+        } else if (act === 'athlete') {
           const name = [d.surname, d.name].filter(Boolean).join(' ').trim() || a.child_name;
           const parent = d.mother_name && d.mother_phone ? 'mother' : 'father';
           const obj = {
