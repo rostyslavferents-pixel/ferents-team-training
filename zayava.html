@@ -284,7 +284,9 @@
         const { data: id, error } = await db.rpc('submit_application', { p: res });
         if (error) throw error;
         try { localStorage.removeItem(DRAFT); } catch (e) {}
-        doneView({ id, created_at: new Date().toISOString(), child_name: [res.data.surname, res.data.name].join(' '), ...res });
+        const done = { id, created_at: new Date().toISOString(), child_name: [res.data.surname, res.data.name].join(' '), ...res };
+        doneView(done);
+        notifyCoach(done);
       } catch (err) {
         const m = String(err && err.message || err);
         const box = document.getElementById('formErr');
@@ -654,6 +656,16 @@
     for (let i = 1; i < total; i++) x += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
     push(x + `trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
     return new Blob(parts, { type: 'application/pdf' });
+  }
+
+  // Тренеру в Telegram: повідомлення про нову заяву разом із PDF (у фоні; якщо не вийде — заява однаково збережена)
+  async function notifyCoach(a) {
+    let pdf = '';
+    try {
+      const blob = await makePdf(a);
+      pdf = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = rej; r.readAsDataURL(blob); });
+    } catch (e) {}
+    try { await db.functions.invoke('telegram', { body: { action: 'application', id: a.id, pdf } }); } catch (e) {}
   }
 
   async function downloadPdf(a, btn) {

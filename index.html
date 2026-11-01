@@ -601,7 +601,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.28';
+  const APP_VERSION = 'v3.29';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -1182,6 +1182,7 @@ Deno.serve(async (req) => {
   const TELEGRAM_FN_CODE = `// Ferents Team Training — Telegram-бот (сповіщення в Telegram).
 // Supabase → Edge Functions → назва «telegram», вимкнути «Verify JWT».
 // Секрет: TELEGRAM_BOT_TOKEN (від @BotFather).
+// Також надсилає тренеру нові заяви-анкети з сайту (zayava.html) разом із PDF.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
@@ -1296,6 +1297,68 @@ async function setup(req: Request, b: any) {
   return json({ username: me.result.username });
 }
 
+// Нова заява з сайту: тренер отримує повідомлення і PDF у Telegram.
+// Без входу, тому перевіряємо: заява справжня, свіжа (до 15 хв) і ще не надсилалась.
+async function onApplication(b: any) {
+  if (!TOKEN) return json({ error: "no_token" }, 400);
+  const id = Number(b.id);
+  if (!Number.isFinite(id)) return json({ error: "bad_id" }, 400);
+  const { data: a } = await admin.from("applications")
+    .select("id, created_at, child_name, section, group_name, signer_name, data, consents").eq("id", id).maybeSingle();
+  if (!a) return json({ error: "not_found" }, 404);
+  if (Date.now() - new Date(a.created_at).getTime() > 15 * 60000 || a.consents?.tg_sent) return json({ ok: true, skipped: true });
+  await admin.from("applications").update({ consents: { ...(a.consents || {}), tg_sent: new Date().toISOString() } }).eq("id", id);
+
+  const { data: chats } = await admin.rpc("telegram_targets", {
+    p_kind: "request", p_audience: "all", p_section: null, p_group: null, p_exclude: null,
+  });
+  if (!chats?.length) return json({ ok: true, telegram: 0 });
+
+  const d = a.data || {};
+  const parent = ["mother", "father"].map((p) => d[p + "_name"] && d[p + "_phone"] ? \`\${d[p + "_name"]}, \${d[p + "_phone"]}\` : "").filter(Boolean);
+  const health = d.health && String(d.health).toLowerCase() !== "немає" ? String(d.health) : "";
+  const text = \`📝 <b>Нова заява-анкета № \${a.id}</b>\\n\\n<b>\${esc(a.child_name)}</b>\` +
+    ([a.section, a.group_name].filter(Boolean).length ? \`\\n\${esc([a.section, a.group_name].filter(Boolean).join(" · "))}\` : "") +
+    (d.birth ? \`\\nНародження: \${esc(String(d.birth).split("-").reverse().join("."))}\` : "") +
+    (parent.length ? \`\\n\\n\${esc(parent.join("\\n"))}\` : "") +
+    (health ? \`\\n\\n⚠️ Здоровʼя: \${esc(health.slice(0, 300))}\` : "") +
+    \`\\n\\nПідписав(ла): \${esc(a.signer_name)}\`;
+  const app = await appUrl();
+  const link = app ? new URL("zayava.html?id=" + a.id, app).href : "";
+  const kb = link.startsWith("https://") ? { inline_keyboard: [[{ text: "Відкрити заяву", url: link }]] } : undefined;
+
+  // PDF, який зробив телефон батьків (до 3 МБ); без нього — просто повідомлення
+  let pdf: Uint8Array | null = null;
+  const b64 = typeof b.pdf === "string" ? b.pdf : "";
+  if (b64 && b64.length < 4_000_000) {
+    try {
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) pdf = bytes; // %PDF
+    } catch (_) { pdf = null; }
+  }
+  const fileName = \`Заява \${String(a.child_name).replace(/[\\\\/:*?"<>|]+/g, "")} №\${a.id}.pdf\`;
+
+  let sent = 0;
+  for (const c of chats as { chat_id: number }[]) {
+    let r: any = null;
+    if (pdf) {
+      const fd = new FormData();
+      fd.append("chat_id", String(c.chat_id));
+      fd.append("caption", text.slice(0, 1000));
+      fd.append("parse_mode", "HTML");
+      if (kb) fd.append("reply_markup", JSON.stringify(kb));
+      fd.append("document", new Blob([pdf], { type: "application/pdf" }), fileName);
+      r = await fetch(\`https://api.telegram.org/bot\${TOKEN}/sendDocument\`, { method: "POST", body: fd }).then((x) => x.json()).catch(() => null);
+    }
+    if (!r?.ok) r = await tg("sendMessage", { chat_id: c.chat_id, text, parse_mode: "HTML", disable_web_page_preview: true, ...(kb ? { reply_markup: kb } : {}) });
+    if (r?.ok) sent++;
+    await new Promise((res) => setTimeout(res, 40));
+  }
+  return json({ ok: true, telegram: sent });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -1307,6 +1370,7 @@ Deno.serve(async (req) => {
     }
     const b = await req.json().catch(() => ({}));
     if (b.action === "setup") return await setup(req, b);
+    if (b.action === "application") return await onApplication(b);
     return json({ error: "unknown" }, 400);
   } catch (e) {
     return json({ error: String(e) }, 500);
@@ -3460,7 +3524,8 @@ notify pgrst, 'reload schema';`;
     }
     if (isCoach() && cfg && st !== 'nosql') html += `<p class="muted small" style="margin:8px 0 0">Бот @${esc(cfg.username)} працює.
       <button type="button" class="linkbtn" id="tgSetup">Перепідключити</button> ·
-      <button type="button" class="linkbtn" id="tgNotify">Код notify</button></p>`;
+      <button type="button" class="linkbtn" id="tgNotify">Код notify</button> ·
+      <button type="button" class="linkbtn" id="tgFn">Код telegram</button></p>`;
     box.innerHTML = html;
     box.onclick = async e => {
       if (e.target.closest('#tgSql')) return copyText(TELEGRAM_SQL, 'SQL скопійовано — вставте в Supabase → SQL Editor');
