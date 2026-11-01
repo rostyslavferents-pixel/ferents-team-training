@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>Заява-анкета — Ferents Team</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/karate-192.png">
+  <link rel="apple-touch-icon" href="icons/karate-apple-180.png">
+  <style>
+    :root {
+      --bg: #f3f4f6; --ink: #111827; --muted: #6b7280; --line: #e5e7eb; --border: #c9ced6;
+      --paper: #ffffff; --head: #111827; --gold: #d1a84b; --gold-ink: #7a5f22; --gold-soft: #f6eedb;
+      --ok: #15803d; --bad: #b91c1c; --bad-bg: #fee2e2;
+      color-scheme: light;
+    }
+    @font-face { font-family: 'Manrope'; src: url('fonts/manrope.woff') format('woff'); font-weight: 200 800; font-display: swap; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px; line-height: 1.5; background: var(--bg); color: var(--ink); -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+    header { background: var(--head); color: #fff; border-bottom: 4px solid var(--gold);
+      padding: 14px 16px; padding-top: max(14px, env(safe-area-inset-top)); }
+    header .wrap { max-width: 720px; margin: auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    header b { font-size: 15px; letter-spacing: .02em; }
+    header a { color: #d1d5db; font-size: 14px; text-decoration: none; }
+
+    main { max-width: 720px; margin: 0 auto; padding: 16px 12px 40px; }
+    .paper { background: var(--paper); border-radius: 6px; box-shadow: 0 1px 2px #0000000f, 0 8px 30px #0000000d; padding: 28px 22px 30px; }
+    @media (min-width: 640px) { .paper { padding: 44px 52px 48px; } }
+
+    .org { text-align: center; font-size: 14px; line-height: 1.35; color: var(--muted); margin: 0 0 22px; }
+    .org b { display: block; color: var(--ink); font-size: 15px; }
+    h1 { text-align: center; font-size: 24px; line-height: 1.2; margin: 0 0 6px; font-weight: 800; }
+    .sub { text-align: center; margin: 0 0 22px; font-size: 16px; }
+    .lead { margin: 0 0 8px; font-size: 16px; }
+    .hint { font-size: 14px; color: var(--muted); margin: 0; }
+
+    h2 { font-size: 18px; margin: 32px 0 4px; padding-bottom: 8px; border-bottom: 2px solid var(--ink); font-weight: 800; }
+    h2 + .hint { margin: 8px 0 0; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 0 16px; }
+    @media (min-width: 560px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+    .full { grid-column: 1 / -1; }
+
+    label.f { display: block; margin-top: 14px; font-size: 14px; font-weight: 600; color: var(--ink); }
+    label.f small { font-weight: 400; color: var(--muted); }
+    .req::after { content: ' *'; color: var(--bad); }
+    input[type=text], input[type=tel], input[type=date], select, textarea {
+      display: block; width: 100%; margin-top: 6px; font: inherit; font-size: 16px; color: var(--ink);
+      padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+    textarea { resize: vertical; min-height: 76px; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); outline-offset: 0; border-color: transparent; }
+    .bad input, .bad select, .bad textarea, .bad .sig { border-color: var(--bad); background: #fffafa; }
+    .err-msg { display: none; color: var(--bad); font-size: 13px; margin-top: 4px; font-weight: 500; }
+    .bad .err-msg { display: block; }
+
+    .parent { margin-top: 18px; padding: 4px 16px 16px; border-left: 3px solid var(--line); }
+    .parent > b { display: block; margin-top: 12px; font-size: 16px; }
+
+    .seg { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .seg label { position: relative; }
+    .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+    .seg span { display: block; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--border); font-size: 15px; font-weight: 500; cursor: pointer; background: #fff; }
+    .seg span small { color: var(--muted); font-weight: 400; }
+    .seg input:checked + span { background: var(--ink); border-color: var(--ink); color: #fff; }
+    .seg input:checked + span small { color: #cbd0d8; }
+    .seg input:focus-visible + span { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+    ol.terms { margin: 14px 0 0; padding-left: 24px; }
+    ol.terms li { margin: 0 0 8px; padding-left: 4px; }
+    ol.terms li::marker { font-weight: 700; }
+    .note { background: var(--gold-soft); border-radius: 8px; padding: 12px 14px; margin-top: 14px; font-size: 15px; }
+
+    .consent { display: flex; gap: 12px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+    .consent:last-of-type { border-bottom: 0; }
+    .consent input { width: 24px; height: 24px; flex: none; margin: 1px 0 0; accent-color: var(--ink); cursor: pointer; }
+    .consent span small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .consent.bad span { color: var(--bad); }
+
+    .sigwrap { margin-top: 6px; }
+    .sig { position: relative; border: 1px solid var(--border); border-radius: 8px; background: #fff; height: 180px; touch-action: none; }
+    .sig canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+    .sig::after { content: ''; position: absolute; left: 18px; right: 18px; bottom: 44px; border-bottom: 1px dashed var(--border); pointer-events: none; }
+    .sig .ph { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; color: var(--muted); font-size: 13px; pointer-events: none; }
+    .sig.has .ph { display: none; }
+    .sig-tools { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 13px; color: var(--muted); }
+    .linkbtn { background: none; border: 0; padding: 4px 0; font: inherit; font-size: 14px; color: var(--ink); text-decoration: underline; cursor: pointer; }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px;
+      padding: 15px 20px; background: var(--ink); color: #fff; font: inherit; font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; }
+    .btn.light { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px var(--border); }
+    .btn:disabled { opacity: .55; cursor: default; }
+    .submit { margin-top: 28px; }
+    .submit .btn { width: 100%; }
+    .submit p { margin: 10px 0 0; font-size: 13px; color: var(--muted); text-align: center; }
+    .form-err { background: var(--bad-bg); color: var(--bad); border-radius: 8px; padding: 12px 14px; margin-top: 16px; font-size: 15px; font-weight: 500; }
+
+    /* Готова заява (копія для батьків і перегляд тренера) */
+    .done { text-align: center; padding: 8px 0 20px; }
+    .done .mark { width: 56px; height: 56px; border-radius: 50%; background: var(--ok); color: #fff; display: grid; place-items: center; margin: 0 auto 12px; }
+    .done h1 { margin-bottom: 8px; }
+    .done p { margin: 0 auto; max-width: 440px; color: var(--muted); }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 18px 0 24px; }
+    .doc dl { display: grid; grid-template-columns: minmax(130px, 38%) 1fr; margin: 10px 0 0; }
+    .doc dt, .doc dd { margin: 0; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+    .doc dt { color: var(--muted); padding-right: 12px; }
+    .doc dd { font-weight: 600; white-space: pre-line; word-break: break-word; }
+    .doc .cons { margin: 10px 0 0; padding: 0; list-style: none; }
+    .doc .cons li { padding: 6px 0 6px 30px; position: relative; font-size: 15px; }
+    .doc .cons li::before { content: '☑'; position: absolute; left: 0; top: 4px; font-size: 18px; }
+    .doc .cons li.no::before { content: '☐'; }
+    .doc .cons li.no { color: var(--muted); }
+    .doc .signed { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; margin-top: 24px; }
+    .doc .signed img { display: block; width: 240px; max-width: 100%; height: auto; border-bottom: 1px solid var(--ink); }
+    .doc .signed small { display: block; color: var(--muted); font-size: 13px; }
+    .doc .meta { margin-top: 18px; font-size: 12px; color: var(--muted); }
+    .coach-bar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+
+    .loading { text-align: center; color: var(--muted); padding: 40px 0; }
+
+    @media print {
+      @page { margin: 14mm; }
+      body { background: #fff; }
+      header, .actions, .coach-bar, .done .mark, .no-print { display: none !important; }
+      main { padding: 0; max-width: none; }
+      .paper { box-shadow: none; padding: 0; border-radius: 0; }
+      .done { padding: 0; }
+      .doc dt, .doc dd { font-size: 12.5px; padding: 4px 0; }
+      h2 { margin-top: 18px; font-size: 15px; }
+      ol.terms li { margin-bottom: 3px; font-size: 12.5px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <header><div class="wrap"><b>Ferents Team</b><a href="./" id="backApp" hidden>До додатку</a></div></header>
+  <main><div class="paper" id="root"><div class="loading">Завантаження…</div></div></main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+  // ===== Налаштування заяви: тексти можна правити тут =====
+  const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
+  const ORG = 'Громадська організація «Львівська обласна федерація кіокушинкай карате»';
+  const COACH = 'Ференц Ростислав';
+  const COACH_PHONE = ''; // напр. '+380 67 123 45 67' — зʼявиться внизу заяви
+  const SECTIONS = ['Наварія', 'Сихів'];
+  const GROUPS = [['Молодша', '16:00–17:30'], ['Середня', '17:30–19:00'], ['Старша', 'з 19:00']];
+  const TERMS = [
+    'У навчально-тренувальний період (з вересня по червень включно; у липні та серпні — якщо проводяться тренування) обовʼязкове регулярне відвідування тренувань.',
+    'Обовʼязкова оплата щомісячного членського внеску до 10 числа поточного місяця.',
+    'Відсутність учня на тренуваннях не впливає на розмір щомісячного членського внеску.',
+    'За систематичні пропуски тренувань (понад три місяці без попереднього узгодження з тренером) учень автоматично відраховується з членів федерації.',
+    'При повторному вступі в члени ЛОФКК сплачується подвійний місячний членський внесок на момент вступу.',
+    'У разі запровадження дистанційного навчання у школах тренування можуть проводитися у дистанційному форматі.',
+    'У звʼязку з участю тренера у навчально-тренувальних зборах, змаганнях або інших спортивних заходах окремі тренування можуть бути скасовані або перенесені. За можливості пропущені з цієї причини тренування відпрацьовуються у додатковий час або в інший погоджений день.',
+    'Участь у змаганнях, атестація на пояс, навчально-тренувальні збори та екіпірування (кімоно, захист) оплачуються окремо і до членського внеску не входять.',
+    'Про зміни розкладу та скасування тренувань тренер повідомляє через додаток команди або в групі батьків.',
+    'Про припинення занять батьки повідомляють тренера до початку наступного місяця. Внесок за поточний місяць не повертається.',
+    'Учень приходить на тренування вчасно, у кімоно та поясі, без прикрас, з коротко підстриженими нігтями, поважає тренера й одноклубників. За повторні порушення дисципліни учня можуть відрахувати.',
+    'Тренер відповідає за дитину лише під час тренування. До його початку і після завершення відповідальність несуть батьки.',
+    'Про погіршення самопочуття або травму дитина чи батьки одразу повідомляють тренера.',
+  ];
+  const CONSENTS = [
+    ['health', true, 'Підтверджую, що моя дитина за станом здоровʼя може відвідувати заняття з карате та не має протипоказань до фізичних навантажень.'],
+    ['rules', true, 'З умовами тренувань, правилами навчально-тренувального процесу, умовами оплати (до 10 числа поточного місяця), правилами щодо пропусків та перенесення тренувань ознайомлений/ознайомлена і зобовʼязуюсь їх дотримуватися.'],
+    ['data', true, 'Надаю згоду на обробку персональних даних моїх і моєї дитини, зазначених у цій заяві, відповідно до Закону України «Про захист персональних даних» — для організації тренувань, змагань і звʼязку з батьками.'],
+    ['photo', false, 'Погоджуюсь на фото- та відеозйомку і використання матеріалів із зображенням моєї дитини на сторінках команди.', 'Необовʼязково: без цієї згоди дитина так само може займатися.'],
+  ];
+  const RELATIONS = ['Мати', 'Батько', 'Опікун / опікунка'];
+
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const root = document.getElementById('root');
+  const DRAFT = 'ft_zayava_draft';
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmtDate = iso => iso ? new Date(iso.length === 10 ? iso + 'T12:00' : iso).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const fmtDT = iso => new Date(iso).toLocaleString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  const orgBlock = `<p class="org"><b>${esc(ORG)}</b>Секція карате Ferents Team · тренер ${esc(COACH)}</p>`;
+  const titleBlock = `<h1>Заява-анкета</h1><p class="sub">на вступ до Львівської обласної федерації кіокушинкай карате</p>`;
+  const termsList = terms => `<ol class="terms">${terms.map(t => `<li>${esc(t)}</li>`).join('')}</ol>`;
+
+  // ===== Форма для батьків =====
+  function field(name, label, { type = 'text', req = false, hint = '', attrs = '', cls = '' } = {}) {
+    const input = type === 'textarea'
+      ? `<textarea name="${name}" ${attrs}></textarea>`
+      : `<input type="${type}" name="${name}" ${attrs}>`;
+    return `<label class="f ${cls}" data-f="${name}"><span class="${req ? 'req' : ''}">${label}</span>${hint ? ` <small>${hint}</small>` : ''}${input}<span class="err-msg"></span></label>`;
+  }
+  function choice(name, label, opts) {
+    return `<div class="f" data-f="${name}" style="margin-top:14px"><label class="f" style="margin:0"><span class="req">${label}</span></label>
+      <div class="seg" role="radiogroup" aria-label="${label}">${opts.map(([v, s]) =>
+        `<label><input type="radio" name="${name}" value="${esc(v)}"><span>${esc(v)}${s ? ` <small>${esc(s)}</small>` : ''}</span></label>`).join('')}</div>
+      <span class="err-msg"></span></div>`;
+  }
+  function parentBlock(p, title) {
+    return `<div class="parent"><b>${title}</b><div class="grid two">
+      ${field(p + '_name', 'Прізвище, імʼя, по батькові', { cls: 'full', attrs: 'autocomplete="off"' })}
+      ${field(p + '_phone', 'Телефон', { type: 'tel', attrs: 'inputmode="tel" placeholder="+380"' })}
+      ${field(p + '_messenger', 'Viber / Telegram', { hint: 'якщо інший номер' })}
+      ${field(p + '_work', 'Місце праці')}
+      ${field(p + '_position', 'Посада')}
+    </div></div>`;
+  }
+
+  function formView() {
+    root.innerHTML = `
+      ${orgBlock}${titleBlock}
+      <p class="lead">Прошу прийняти мого сина / мою дочку членом Львівської обласної федерації кіокушинкай карате. Зобовʼязуюсь забезпечувати регулярне відвідування тренувальних занять та вчасно сплачувати щомісячні членські внески.</p>
+      <p class="hint">Поля з <span style="color:var(--bad)">*</span> обовʼязкові. Заповнення займає близько 5 хвилин.</p>
+      <form id="f" novalidate>
+        <h2>Анкетні дані дитини</h2>
+        <div class="grid two">
+          ${field('surname', 'Прізвище', { req: true, attrs: 'autocomplete="off"' })}
+          ${field('name', 'Імʼя', { req: true, attrs: 'autocomplete="off"' })}
+          ${field('birth', 'Дата народження', { type: 'date', req: true })}
+          ${field('tax_id', 'Ідентифікаційний код', { hint: 'за наявності', attrs: 'inputmode="numeric" maxlength="10"' })}
+          ${field('address', 'Домашня адреса', { req: true, cls: 'full', attrs: 'autocomplete="street-address"' })}
+          ${field('school', 'Місце навчання', { req: true, cls: 'full', hint: 'школа, клас' })}
+        </div>
+        ${choice('section', 'Секція', SECTIONS.map(s => [s]))}
+        ${choice('group', 'Група', GROUPS)}
+        ${field('belt', 'Пояс', { hint: 'якщо дитина вже займалася карате' })}
+
+        <h2>Батьки</h2>
+        <p class="hint">Заповніть дані хоча б одного з батьків.</p>
+        ${parentBlock('father', 'Батько')}
+        ${parentBlock('mother', 'Мати')}
+        <div class="grid">
+          ${field('emergency', 'Інший контакт на випадок, якщо батьки не відповідають', { hint: 'ПІБ, хто дитині, телефон' })}
+        </div>
+        <div class="f" data-f="pickup" style="margin-top:14px"><label class="f" style="margin:0"><span class="req">Хто забирає дитину після тренування</span></label>
+          <div class="seg">${['Батьки', 'Інша довірена особа', 'Дитина йде додому сама'].map(v =>
+            `<label><input type="radio" name="pickup" value="${v}"><span>${v}</span></label>`).join('')}</div>
+          <span class="err-msg"></span></div>
+        ${field('pickup_who', 'Хто саме забирає', { hint: 'ПІБ, телефон', cls: 'pickup-who' })}
+
+        <h2>Здоровʼя дитини</h2>
+        <div class="grid">
+          ${field('health', 'Хронічні захворювання, алергії, травми, протипоказання', { type: 'textarea', req: true, hint: 'якщо немає — напишіть «немає»' })}
+        </div>
+        <p class="note">Довідку від лікаря про допуск до занять спортом потрібно принести тренеру протягом 2 тижнів від початку занять.</p>
+
+        <h2>Умови тренувань</h2>
+        ${termsList(TERMS)}
+
+        <h2>Згоди</h2>
+        <div id="consents">${CONSENTS.map(([k, req, t, sub]) =>
+          `<label class="consent" data-f="c_${k}"><input type="checkbox" name="c_${k}"><span>${esc(t)}${req ? ' <b style="color:var(--bad)">*</b>' : ''}${sub ? `<small>${esc(sub)}</small>` : ''}</span></label>`).join('')}</div>
+
+        <h2>Підпис</h2>
+        <div class="grid two">
+          ${field('signer_name', 'Прізвище, імʼя, по батькові того, хто підписує', { req: true, cls: 'full' })}
+        </div>
+        ${choice('signer_rel', 'Ким доводитесь дитині', RELATIONS.map(r => [r]))}
+        <div class="f sigwrap" data-f="signature" style="margin-top:14px">
+          <label class="f" style="margin:0"><span class="req">Підпис</span> <small>пальцем або мишкою</small></label>
+          <div class="sig" id="sig" style="margin-top:6px"><canvas id="pad" aria-label="Поле для підпису"></canvas><span class="ph">Розпишіться тут</span></div>
+          <div class="sig-tools"><span>Дата: ${fmtDate(new Date().toISOString())}</span><button type="button" class="linkbtn" id="clearSig">Стерти підпис</button></div>
+          <span class="err-msg"></span>
+        </div>
+
+        <div id="formErr" class="form-err" hidden></div>
+        <div class="submit">
+          <button class="btn" type="submit" id="send">Підписати й надіслати заяву</button>
+          <p>Натискаючи кнопку, ви підписуєте заяву електронно. Тренер отримає її одразу.</p>
+        </div>
+      </form>
+      ${COACH_PHONE ? `<p class="hint" style="margin-top:24px;text-align:center">Телефон тренера: ${esc(COACH_PHONE)}</p>` : ''}`;
+
+    const f = document.getElementById('f');
+    const pad = setupPad(document.getElementById('pad'), document.getElementById('sig'));
+    document.getElementById('clearSig').onclick = () => pad.clear();
+    const pickupWho = () => {
+      const v = (f.querySelector('[name=pickup]:checked') || {}).value;
+      f.querySelector('.pickup-who').hidden = v !== 'Інша довірена особа';
+    };
+    pickupWho();
+    restoreDraft(f);
+    pickupWho();
+    f.addEventListener('change', e => { if (e.target.name === 'pickup') pickupWho(); clearBad(e.target); saveDraft(f); });
+    f.addEventListener('input', e => { clearBad(e.target); saveDraft(f); document.getElementById('formErr').hidden = true; });
+    f.onsubmit = async e => {
+      e.preventDefault();
+      const res = collect(f, pad);
+      if (!res) return;
+      const btn = document.getElementById('send');
+      btn.disabled = true; btn.textContent = 'Надсилаємо…';
+      document.getElementById('formErr').hidden = true;
+      try {
+        const { data: id, error } = await db.rpc('submit_application', { p: res });
+        if (error) throw error;
+        try { localStorage.removeItem(DRAFT); } catch (e) {}
+        doneView({ id, created_at: new Date().toISOString(), ...res });
+      } catch (err) {
+        const m = String(err && err.message || err);
+        const box = document.getElementById('formErr');
+        box.textContent = /fetch|network|load failed/i.test(m)
+          ? 'Немає звʼязку з інтернетом. Заповнене збережено на цьому телефоні — спробуйте надіслати ще раз, коли зʼявиться інтернет.'
+          : /too_many/.test(m) ? 'Зараз надсилають багато заяв. Спробуйте ще раз за кілька хвилин.'
+          : 'Не вдалося надіслати заяву (' + m + '). Спробуйте ще раз або напишіть тренеру.';
+        box.hidden = false;
+        btn.disabled = false; btn.textContent = 'Підписати й надіслати заяву';
+      }
+    };
+  }
+
+  function clearBad(el) { const w = el.closest('[data-f]'); if (w) w.classList.remove('bad'); }
+  function markBad(f, name, msg) {
+    const w = f.querySelector(`[data-f="${name}"]`);
+    if (!w) return;
+    w.classList.add('bad');
+    const m = w.querySelector('.err-msg'); if (m) m.textContent = msg;
+  }
+
+  function collect(f, pad) {
+    f.querySelectorAll('.bad').forEach(x => x.classList.remove('bad'));
+    const v = n => { const el = f.elements[n]; if (!el) return ''; if (el instanceof RadioNodeList) return el.value || ''; return (el.value || '').trim(); };
+    const d = {};
+    ['surname', 'name', 'birth', 'tax_id', 'address', 'school', 'section', 'group', 'belt',
+     'father_name', 'father_phone', 'father_messenger', 'father_work', 'father_position',
+     'mother_name', 'mother_phone', 'mother_messenger', 'mother_work', 'mother_position',
+     'emergency', 'pickup', 'pickup_who', 'health', 'signer_rel'].forEach(k => { d[k] = v(k); });
+    if (d.pickup !== 'Інша довірена особа') d.pickup_who = '';
+    const bad = [];
+    const need = (k, msg = 'Заповніть це поле') => { if (!d[k]) { markBad(f, k, msg); bad.push(k); } };
+    need('surname'); need('name'); need('birth', 'Вкажіть дату народження');
+    need('address'); need('school');
+    need('section', 'Оберіть секцію'); need('group', 'Оберіть групу');
+    need('pickup', 'Оберіть, хто забирає дитину'); need('health', 'Напишіть «немає», якщо нічого з переліченого немає');
+    if (d.birth && (d.birth > new Date().toISOString().slice(0, 10) || d.birth < '1950-01-01')) { markBad(f, 'birth', 'Перевірте дату народження'); bad.push('birth'); }
+    if (d.tax_id && !/^\d{10}$/.test(d.tax_id)) { markBad(f, 'tax_id', 'Ідентифікаційний код — 10 цифр'); bad.push('tax_id'); }
+    if (d.pickup === 'Інша довірена особа' && !d.pickup_who) { markBad(f, 'pickup_who', 'Вкажіть, хто забирає дитину'); bad.push('pickup_who'); }
+    const hasParent = ['father', 'mother'].some(p => d[p + '_name'] && d[p + '_phone']);
+    if (!hasParent) {
+      const p = d.mother_name || d.mother_phone ? 'mother' : 'father';
+      if (!d[p + '_name']) markBad(f, p + '_name', 'Вкажіть ПІБ');
+      if (!d[p + '_phone']) markBad(f, p + '_phone', 'Вкажіть телефон');
+      bad.push(p + '_name');
+    }
+    ['father', 'mother'].forEach(p => {
+      const ph = d[p + '_phone'];
+      if (ph && ph.replace(/\D/g, '').length < 9) { markBad(f, p + '_phone', 'Перевірте номер телефону'); bad.push(p + '_phone'); }
+    });
+    const consents = {};
+    CONSENTS.forEach(([k, req]) => {
+      consents[k] = f.elements['c_' + k].checked;
+      if (req && !consents[k]) { f.querySelector(`[data-f="c_${k}"]`).classList.add('bad'); bad.push('c_' + k); }
+    });
+    const signer = v('signer_name');
+    if (signer.length < 3) { markBad(f, 'signer_name', 'Вкажіть ПІБ'); bad.push('signer_name'); }
+    need('signer_rel', 'Оберіть, ким доводитесь дитині');
+    if (pad.isEmpty()) { markBad(f, 'signature', 'Розпишіться в полі вище'); bad.push('signature'); }
+
+    if (bad.length) {
+      const first = f.querySelector('.bad');
+      const box = document.getElementById('formErr');
+      box.textContent = 'Перевірте позначені червоним поля (' + bad.length + ').';
+      box.hidden = false;
+      if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return null;
+    }
+    d.terms = TERMS;
+    d.consent_texts = Object.fromEntries(CONSENTS.map(([k, , t]) => [k, t]));
+    return { data: d, consents, signer_name: signer, signature: pad.toPNG() };
+  }
+
+  // ===== Поле для підпису =====
+  function setupPad(canvas, box) {
+    const ctx = canvas.getContext('2d');
+    let strokes = [], cur = null;
+    function size() {
+      const r = canvas.getBoundingClientRect(), dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); draw();
+    }
+    function draw() {
+      const r = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, r.width, r.height);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0f1a3a'; ctx.lineWidth = 2.4;
+      for (const s of strokes) {
+        ctx.beginPath();
+        s.forEach(([x, y], i) => i ? ctx.lineTo(x * r.width, y * r.height) : ctx.moveTo(x * r.width, y * r.height));
+        if (s.length === 1) ctx.lineTo(s[0][0] * r.width + .1, s[0][1] * r.height);
+        ctx.stroke();
+      }
+      box.classList.toggle('has', strokes.length > 0);
+    }
+    const pt = e => { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
+    canvas.addEventListener('pointerdown', e => { e.preventDefault(); canvas.setPointerCapture(e.pointerId); cur = [pt(e)]; strokes.push(cur); draw(); box.closest('[data-f]').classList.remove('bad'); });
+    canvas.addEventListener('pointermove', e => { if (!cur) return; e.preventDefault(); cur.push(pt(e)); draw(); });
+    const end = () => { cur = null; };
+    canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
+    window.addEventListener('resize', size);
+    size();
+    return {
+      clear() { strokes = []; draw(); },
+      isEmpty() { return strokes.reduce((n, s) => n + s.length, 0) < 6; },
+      toPNG() {
+        // Підпис у невеликому PNG із прозорим фоном, обрізаний по краях
+        const W = 600, H = 200, c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        const x = c.getContext('2d');
+        x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = '#0f1a3a'; x.lineWidth = 4;
+        for (const s of strokes) { x.beginPath(); s.forEach(([a, b], i) => i ? x.lineTo(a * W, b * H) : x.moveTo(a * W, b * H)); x.stroke(); }
+        return c.toDataURL('image/png');
+      },
+    };
+  }
+
+  // ===== Чернетка на цьому телефоні (щоб не загубити заповнене) =====
+  function saveDraft(f) {
+    const o = {};
+    for (const el of f.elements) {
+      if (!el.name) continue;
+      if (el.type === 'radio') { if (el.checked) o[el.name] = el.value; }
+      else if (el.type === 'checkbox') o[el.name] = el.checked;
+      else o[el.name] = el.value;
+    }
+    try { localStorage.setItem(DRAFT, JSON.stringify(o)); } catch (e) {}
+  }
+  function restoreDraft(f) {
+    let o = null;
+    try { o = JSON.parse(localStorage.getItem(DRAFT) || 'null'); } catch (e) {}
+    if (!o) return;
+    for (const el of f.elements) {
+      if (!el.name || !(el.name in o)) continue;
+      if (el.type === 'radio') el.checked = o[el.name] === el.value;
+      else if (el.type === 'checkbox') el.checked = !!o[el.name];
+      else el.value = o[el.name];
+    }
+  }
+
+  // ===== Заповнена заява: копія для батьків і перегляд тренера =====
+  function docHTML(a) {
+    const d = a.data || {}, c = a.consents || {};
+    const row = (k, v) => v ? `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>` : '';
+    const parent = (p, t) => d[p + '_name'] || d[p + '_phone'] ? `<dt>${t}</dt><dd>${esc([
+      d[p + '_name'], d[p + '_phone'] && 'тел. ' + d[p + '_phone'], d[p + '_messenger'] && 'Viber/Telegram: ' + d[p + '_messenger'],
+      [d[p + '_work'], d[p + '_position']].filter(Boolean).join(', ')].filter(Boolean).join('\n'))}</dd>` : '';
+    const texts = d.consent_texts || Object.fromEntries(CONSENTS.map(([k, , t]) => [k, t]));
+    const signedAt = c.signed_at || a.created_at;
+    return `<div class="doc">
+      ${orgBlock}${titleBlock}
+      <p class="lead">Прошу прийняти мого сина / мою дочку членом Львівської обласної федерації кіокушинкай карате. Зобовʼязуюсь забезпечувати регулярне відвідування тренувальних занять та вчасно сплачувати щомісячні членські внески.</p>
+      <h2>Анкетні дані дитини</h2>
+      <dl>
+        ${row('Прізвище, імʼя', [d.surname, d.name].filter(Boolean).join(' '))}
+        ${row('Дата народження', fmtDate(d.birth))}
+        ${row('Ідентифікаційний код', d.tax_id)}
+        ${row('Домашня адреса', d.address)}
+        ${row('Місце навчання', d.school)}
+        ${row('Секція', d.section)}
+        ${row('Група', d.group)}
+        ${row('Пояс', d.belt)}
+      </dl>
+      <h2>Батьки</h2>
+      <dl>
+        ${parent('father', 'Батько')}
+        ${parent('mother', 'Мати')}
+        ${row('Інший контакт', d.emergency)}
+        ${row('Хто забирає дитину', [d.pickup, d.pickup_who].filter(Boolean).join(': '))}
+      </dl>
+      <h2>Здоровʼя</h2>
+      <dl>${row('Захворювання, алергії, травми', d.health)}</dl>
+      <h2>Умови тренувань</h2>
+      ${termsList(d.terms || TERMS)}
+      <h2>Згоди</h2>
+      <ul class="cons">${Object.keys(texts).map(k => `<li class="${c[k] ? '' : 'no'}">${esc(texts[k])}${c[k] ? '' : ' — не надано'}</li>`).join('')}</ul>
+      <div class="signed">
+        <div><small>Дата</small><b>${esc(fmtDate(signedAt))}</b></div>
+        <div><img src="${esc(a.signature)}" alt="Підпис"><small>${esc(a.signer_name)}${d.signer_rel ? ', ' + esc(d.signer_rel.toLowerCase()) : ''}</small></div>
+      </div>
+      <p class="meta">Заява № ${esc(a.id)} підписана електронно ${esc(fmtDT(signedAt))} на сторінці заяви Ferents Team.</p>
+      ${COACH_PHONE ? `<p class="meta">Телефон тренера: ${esc(COACH_PHONE)}</p>` : ''}
+    </div>`;
+  }
+
+  function doneView(a) {
+    window.scrollTo(0, 0);
+    root.innerHTML = `
+      <div class="done">
+        <div class="mark"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+        <h1>Заяву надіслано</h1>
+        <p>Тренер отримав заяву № ${esc(a.id)}. Збережіть копію собі — нижче вона повністю.</p>
+        <div class="actions"><button type="button" class="btn" id="pr">Зберегти копію (PDF)</button></div>
+      </div>
+      ${docHTML(a)}`;
+    document.getElementById('pr').onclick = () => window.print();
+  }
+
+  // ===== Перегляд тренера: zayava.html?id=… (потрібен вхід у додаток) =====
+  async function coachView(id) {
+    document.getElementById('backApp').hidden = false;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) {
+      root.innerHTML = `<p class="loading">Щоб переглянути заяву, увійдіть у додаток як тренер. <a href="./">Відкрити додаток</a></p>`;
+      return;
+    }
+    const { data, error } = await db.from('applications').select('*').eq('id', id).maybeSingle();
+    if (error || !data) {
+      root.innerHTML = `<p class="loading">Заяву № ${esc(id)} не знайдено або немає доступу. <a href="./#applications">До списку заяв</a></p>`;
+      return;
+    }
+    document.title = 'Заява № ' + data.id + ' — ' + data.child_name;
+    root.innerHTML = `<div class="coach-bar"><a class="btn light" href="./#applications">← Усі заяви</a>
+      <button type="button" class="btn" id="pr">Друкувати / PDF</button></div>${docHTML(data)}`;
+    document.getElementById('pr').onclick = () => window.print();
+  }
+
+  const viewId = new URLSearchParams(location.search).get('id');
+  if (viewId) coachView(viewId); else formView();
+  </script>
+</body>
+</html>

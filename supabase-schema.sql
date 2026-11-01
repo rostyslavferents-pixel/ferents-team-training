@@ -874,3 +874,57 @@ revoke execute on function public.telegram_targets(text,text,text,text,text) fro
 grant execute on function public.telegram_targets(text,text,text,text,text) to service_role;
 
 notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+-- Заяви-анкети від батьків (сторінка zayava.html, онлайн-підпис)
+-- Батьки лише надсилають заяву без входу; читати й змінювати заяви може тільки тренер.
+create table if not exists public.applications (
+  id          bigint generated always as identity primary key,
+  created_at  timestamptz not null default now(),
+  child_name  text not null,
+  section     text,
+  group_name  text,
+  signer_name text not null,
+  data        jsonb not null,
+  consents    jsonb not null,
+  signature   text not null,
+  status      text not null default 'new' check (status in ('new','accepted','archived')),
+  athlete_id  text
+);
+alter table public.applications enable row level security;
+drop policy if exists coach_all on public.applications;
+create policy coach_all on public.applications for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+revoke all on public.applications from anon;
+
+-- Надіслати заяву (доступно без входу, лише додати — не читати)
+create or replace function public.submit_application(p jsonb)
+returns bigint language plpgsql security definer set search_path = public as $$
+declare
+  d   jsonb := coalesce(p -> 'data', '{}'::jsonb);
+  c   jsonb := coalesce(p -> 'consents', '{}'::jsonb);
+  sig text  := coalesce(p ->> 'signature', '');
+  nm  text  := trim(coalesce(d ->> 'surname', '') || ' ' || coalesce(d ->> 'name', ''));
+  who text  := trim(coalesce(p ->> 'signer_name', ''));
+  new_id bigint;
+begin
+  if length(nm) < 3 or length(nm) > 80 or length(who) < 3 or length(who) > 100 then raise exception 'bad_input'; end if;
+  if length(d::text) > 12000 then raise exception 'too_long'; end if;
+  if sig not like 'data:image/png;base64,%' or length(sig) > 300000 then raise exception 'bad_signature'; end if;
+  if coalesce((c ->> 'health')::boolean, false) is not true
+     or coalesce((c ->> 'rules')::boolean, false) is not true
+     or coalesce((c ->> 'data')::boolean, false) is not true then raise exception 'no_consent'; end if;
+  if (select count(*) from public.applications where created_at > now() - interval '10 minutes') >= 30 then
+    raise exception 'too_many';
+  end if;
+  insert into public.applications (child_name, section, group_name, signer_name, data, consents, signature)
+  values (nm, nullif(d ->> 'section', ''), nullif(d ->> 'group', ''), who, d,
+          c || jsonb_build_object('signed_at', now()), sig)
+  returning id into new_id;
+  return new_id;
+end $$;
+revoke execute on function public.submit_application(jsonb) from public;
+grant execute on function public.submit_application(jsonb) to anon, authenticated;
+
+notify pgrst, 'reload schema';

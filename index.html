@@ -601,7 +601,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.26';
+  const APP_VERSION = 'v3.27';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -731,6 +731,7 @@
     training: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     events: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
     links: '<rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/>',
+    form: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
     members: '<circle cx="10" cy="8" r="4"/><path d="M3 21v-1a7 7 0 0 1 11-5.7M19 15v6M16 18h6"/>',
     kid: '<circle cx="12" cy="7.5" r="4.5"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/>',
     news: '<path d="M3 10v4a1 1 0 0 0 1 1h3l6 4V5L7 9H4a1 1 0 0 0-1 1z"/><path d="M17 8a5 5 0 0 1 0 8M20 5a9 9 0 0 1 0 14"/>',
@@ -741,7 +742,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -1901,6 +1902,7 @@ notify pgrst, 'reload schema';`;
 
     const t = today();
     const reqP = db.from('join_requests').select('id', { count: 'exact', head: true });
+    const appP = db.from('applications').select('id', { count: 'exact', head: true }).eq('status', 'new');
     let [ath, att, pay, sch, ev, pl] = await Promise.all([
       q(db.from('athletes').select('*')),
       q(db.from('attendance').select('athlete_id, date').eq('date', t).eq('present', true)),
@@ -2013,6 +2015,9 @@ notify pgrst, 'reload schema';`;
     const { count: reqN } = await reqP;
     const reqBlock = reqN ? `<a class="now soon" href="#members"><i class="dot"></i>
         <div><b>🙋 Запити на доступ: ${reqN}</b><span>Чекають вашого підтвердження</span></div><i class="go">›</i></a>` : '';
+    const { count: appN } = await appP;
+    const appBlock = appN ? `<a class="now soon" href="#applications"><i class="dot"></i>
+        <div><b>Нові заяви від батьків: ${appN}</b><span>Перегляньте й додайте дітей у спортсмени</span></div><i class="go">›</i></a>` : '';
     const le = lastExport();
     const expBlock = active.length && (!le || (Date.now() - new Date(le + 'T12:00')) > 30 * 864e5)
       ? `<a class="install" href="#settings" style="text-decoration:none;color:inherit"><span style="font-size:28px;line-height:1">📦</span>
@@ -2021,6 +2026,7 @@ notify pgrst, 'reload schema';`;
       ${installCard()}
       ${pushC}
       ${reqBlock}
+      ${appBlock}
       ${expBlock}
       ${nowBlock}
       ${settings.showStats ? `<div class="stats">
@@ -2035,6 +2041,7 @@ notify pgrst, 'reload schema';`;
         ${tile('events', 'events', 'Календар подій', 'Змагання, збори')}
         ${tile('links', 'links', 'Відео', 'Ката, техніка, посилання')}
         ${tile('members', 'members', 'Учасники', 'Доступ для батьків')}
+        ${tile('applications', 'form', 'Заяви', 'Анкети вступу з підписом', 'wide')}
       </div>`;
 
     // Перед переходом готуємо фільтри: сьогоднішня дата, поточний місяць, потрібна група
@@ -3952,6 +3959,156 @@ notify pgrst, 'reload schema';`;
     } catch (e) { btn.disabled = false; }
   }
 
+  // ----- Заяви-анкети від батьків (тільки тренер) -----
+  const APPLICATIONS_SQL = `-- Заяви-анкети від батьків (сторінка zayava.html, онлайн-підпис)
+-- Батьки лише надсилають заяву без входу; читати й змінювати заяви може тільки тренер.
+create table if not exists public.applications (
+  id          bigint generated always as identity primary key,
+  created_at  timestamptz not null default now(),
+  child_name  text not null,
+  section     text,
+  group_name  text,
+  signer_name text not null,
+  data        jsonb not null,
+  consents    jsonb not null,
+  signature   text not null,
+  status      text not null default 'new' check (status in ('new','accepted','archived')),
+  athlete_id  text
+);
+alter table public.applications enable row level security;
+drop policy if exists coach_all on public.applications;
+create policy coach_all on public.applications for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+revoke all on public.applications from anon;
+
+-- Надіслати заяву (доступно без входу, лише додати — не читати)
+create or replace function public.submit_application(p jsonb)
+returns bigint language plpgsql security definer set search_path = public as $$
+declare
+  d   jsonb := coalesce(p -> 'data', '{}'::jsonb);
+  c   jsonb := coalesce(p -> 'consents', '{}'::jsonb);
+  sig text  := coalesce(p ->> 'signature', '');
+  nm  text  := trim(coalesce(d ->> 'surname', '') || ' ' || coalesce(d ->> 'name', ''));
+  who text  := trim(coalesce(p ->> 'signer_name', ''));
+  new_id bigint;
+begin
+  if length(nm) < 3 or length(nm) > 80 or length(who) < 3 or length(who) > 100 then raise exception 'bad_input'; end if;
+  if length(d::text) > 12000 then raise exception 'too_long'; end if;
+  if sig not like 'data:image/png;base64,%' or length(sig) > 300000 then raise exception 'bad_signature'; end if;
+  if coalesce((c ->> 'health')::boolean, false) is not true
+     or coalesce((c ->> 'rules')::boolean, false) is not true
+     or coalesce((c ->> 'data')::boolean, false) is not true then raise exception 'no_consent'; end if;
+  if (select count(*) from public.applications where created_at > now() - interval '10 minutes') >= 30 then
+    raise exception 'too_many';
+  end if;
+  insert into public.applications (child_name, section, group_name, signer_name, data, consents, signature)
+  values (nm, nullif(d ->> 'section', ''), nullif(d ->> 'group', ''), who, d,
+          c || jsonb_build_object('signed_at', now()), sig)
+  returning id into new_id;
+  return new_id;
+end $$;
+revoke execute on function public.submit_application(jsonb) from public;
+grant execute on function public.submit_application(jsonb) to anon, authenticated;
+
+notify pgrst, 'reload schema';`;
+  const APP_STATUS = { new: ['Нова', 'gold'], accepted: ['Прийнята', 'ok'], archived: ['В архіві', ''] };
+  function zayavaLink() { return new URL('zayava.html', location.href.split('#')[0]).href; }
+  async function applicationsView() {
+    setActions('');
+    const { data, error } = await db.from('applications')
+      .select('id, created_at, child_name, section, group_name, signer_name, status, athlete_id, data').order('created_at', { ascending: false });
+    if (error) {
+      $('#view').innerHTML = /relation|does not exist|schema cache/i.test(error.message || '')
+        ? sqlCard('Заяви від батьків з онлайн-підписом', APPLICATIONS_SQL)
+        : `<p class="err">Не вдалося завантажити заяви: ${esc(error.message)}</p>`;
+      return;
+    }
+    const show = state.appFilter || 'new';
+    const counts = { new: 0, accepted: 0, archived: 0 };
+    data.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1; });
+    const list = data.filter(a => a.status === show);
+    const link = zayavaLink();
+    $('#view').innerHTML = `
+      <div class="panel" style="margin-bottom:12px">
+        <b>Посилання на заяву для батьків</b>
+        <div class="small muted" style="margin:4px 0 10px;word-break:break-all">${esc(link)}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn sm" id="appShare">Надіслати батькам</button>
+          <button type="button" class="btn sm light" id="appCopy">Скопіювати</button>
+          <a class="btn sm light" href="${esc(link)}" target="_blank" rel="noopener">Відкрити</a>
+        </div>
+      </div>
+      <div class="chips">${Object.entries(APP_STATUS).map(([k, [l]]) =>
+        `<button type="button" class="chip ${show === k ? 'on' : ''}" data-app-filter="${k}">${l === 'Нова' ? 'Нові' : l === 'Прийнята' ? 'Прийняті' : 'Архів'} · ${counts[k] || 0}</button>`).join('')}</div>
+      <div class="list">${list.length ? list.map(a => `
+        <button type="button" class="row" data-app="${a.id}">
+          <span class="grow"><strong>${esc(a.child_name)}</strong>
+            <span>${esc([a.section, a.group_name].filter(Boolean).join(' · '))} · ${fmtDate(a.created_at.slice(0, 10))} · ${esc(a.signer_name)}</span></span>
+          ${a.athlete_id ? '<span class="badge ok">У спортсменах</span>' : `<span class="badge ${APP_STATUS[a.status][1]}">${APP_STATUS[a.status][0]}</span>`}
+        </button>`).join('') : `<div class="empty">${show === 'new' ? 'Нових заяв немає. Надішліть батькам посилання вище.' : 'Тут поки порожньо'}</div>`}</div>`;
+    $('#appCopy').onclick = () => copyText(link, 'Посилання скопійовано');
+    $('#appShare').onclick = async () => {
+      const text = 'Заява-анкета на вступ до секції карате Ferents Team. Заповніть і підпишіть онлайн, це займе близько 5 хвилин: ';
+      if (navigator.share) { try { await navigator.share({ title: 'Заява-анкета Ferents Team', text, url: link }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+      copyText(text + link, 'Текст із посиланням скопійовано');
+    };
+    $('#view').onclick = e => {
+      const f = e.target.closest('[data-app-filter]');
+      if (f) { state.appFilter = f.dataset.appFilter; render(); return; }
+      const r = e.target.closest('[data-app]');
+      if (r) appSheet(data.find(a => String(a.id) === r.dataset.app));
+    };
+  }
+  function appSheet(a) {
+    const d = a.data || {};
+    const parentLine = ['mother', 'father'].map(p => d[p + '_name'] && d[p + '_phone'] ? `${d[p + '_name']}, ${d[p + '_phone']}` : '').filter(Boolean).join('\n');
+    const dlg = $('#confirm');
+    dlg.innerHTML = `<div class="confirm-body"><h3>${esc(a.child_name)}</h3>
+      <p>${esc([d.birth && 'Народження: ' + fmtDate(d.birth, { day: 'numeric', month: 'long', year: 'numeric' }), [a.section, a.group_name].filter(Boolean).join(' · '), parentLine, d.health && 'Здоровʼя: ' + d.health].filter(Boolean).join('\n'))}</p>
+      <div class="btns">
+        <a class="btn" href="zayava.html?id=${encodeURIComponent(a.id)}">Відкрити заяву / друк</a>
+        ${a.athlete_id ? `<a class="btn light" href="#athlete/${encodeURIComponent(a.athlete_id)}">Картка спортсмена</a>`
+          : `<button type="button" class="btn light" data-act="athlete">Додати в спортсмени</button>`}
+        ${a.status !== 'accepted' ? '<button type="button" class="btn light" data-act="accepted">Позначити прийнятою</button>' : ''}
+        ${a.status !== 'archived' ? '<button type="button" class="btn light" data-act="archived">Перенести в архів</button>' : ''}
+        <button type="button" class="btn danger" data-act="delete">Видалити заяву</button>
+        <button type="button" class="btn light" data-no>Закрити</button>
+      </div></div>`;
+    dlg.querySelector('[data-no]').onclick = () => dlg.close();
+    dlg.querySelectorAll('a.btn').forEach(x => x.addEventListener('click', () => dlg.close()));
+    dlg.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => {
+      const act = b.dataset.act;
+      b.disabled = true;
+      try {
+        if (act === 'athlete') {
+          const name = [d.surname, d.name].filter(Boolean).join(' ').trim() || a.child_name;
+          const parent = d.mother_name && d.mother_phone ? 'mother' : 'father';
+          const obj = {
+            full_name: name, birth_date: d.birth || null, birth_year: d.birth ? Number(d.birth.slice(0, 4)) : null,
+            group_name: GROUPS.includes(d.group) ? d.group : (GROUPS[0] || null),
+            belt: d.belt || null, parent_name: d[parent + '_name'] || null, phone: d[parent + '_phone'] || null,
+            notes: [d.health && d.health.toLowerCase() !== 'немає' ? 'Здоровʼя: ' + d.health : '', 'З заяви № ' + a.id].filter(Boolean).join('\n'),
+          };
+          if (d.section) obj.section = d.section;
+          let ins = await db.from('athletes').insert(obj).select('id').single();
+          if (ins.error && /section/.test(ins.error.message || '')) { delete obj.section; ins = await db.from('athletes').insert(obj).select('id').single(); }
+          if (ins.error) throw ins.error;
+          await q(db.from('applications').update({ athlete_id: String(ins.data.id), status: 'accepted' }).eq('id', a.id));
+          dlg.close(); toast('Додано в спортсмени: ' + name); render();
+        } else if (act === 'delete') {
+          dlg.close();
+          if (!await confirmSheet({ title: 'Видалити заяву?', text: 'Підписану заяву ' + a.child_name + ' буде видалено назавжди.' })) return;
+          await q(db.from('applications').delete().eq('id', a.id));
+          toast('Заяву видалено'); render();
+        } else {
+          await q(db.from('applications').update({ status: act }).eq('id', a.id));
+          dlg.close(); toast(act === 'accepted' ? 'Заяву прийнято' : 'Заяву перенесено в архів'); render();
+        }
+      } catch (err) { b.disabled = false; toast('Помилка: ' + (err.message || err), true); }
+    });
+    dlg.showModal();
+  }
+
   // ----- Учасники та доступ (тільки тренер) -----
   async function membersView() {
     setActions('<button class="btn" id="addBtn">+ Додати</button>');
@@ -4341,6 +4498,7 @@ notify pgrst, 'reload schema';`;
       ${isCoach() || canSee('news') ? `<a class="menu-item" href="#news">${mIcon('news')}Оголошення${mChev}</a>` : ''}
       ${canSee('chat') ? `<a class="menu-item" href="#chat">${mIcon('chat')}Чат команди${mChev}</a>` : ''}
       ${isCoach() ? `<a class="menu-item" href="#members">${mIcon('users')}Учасники та доступ${mChev}</a>` : ''}
+      ${isCoach() ? `<a class="menu-item" href="#applications">${mIcon('news')}Заяви від батьків${mChev}</a>` : ''}
       ${isCoach() ? `<a class="menu-item" href="#manage">${mIcon('settings')}Керування командою${mChev}</a>` : ''}
       ${state.role === 'member' && !isAthleteM() ? `<a class="menu-item" href="#join">${mIcon('users')}Додати ще дитину${mChev}</a>` : ''}
       <a class="menu-item" href="#settings">${mIcon('settings')}Налаштування${mChev}</a>
@@ -4491,7 +4649,7 @@ notify pgrst, 'reload schema';`;
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
-    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView,
   };
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
