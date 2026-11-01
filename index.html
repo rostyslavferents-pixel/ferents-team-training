@@ -657,7 +657,7 @@
   const TEAM_DEFAULTS = {
     brand: 'FERENTS TEAM', title: 'Training', motto: 'Дисципліна. Праця. Результат.',
     welcome: 'Вкажіть, хто ви, і прізвище та імʼя дитини. Застосунок сам знайде дитину в команді, тренер лише підтвердить — і ви її побачите.',
-    sections: [...SECTIONS], groups: [...GROUPS], belts: [...BELTS], amount: '',
+    sections: [...SECTIONS], groups: [...GROUPS], belts: [...BELTS], amount: '', att_start: '2026-11',
     access: {
       parent: { rating: true, events: true, news: true, schedule: false, plans: false, links: false, chat: false },
       athlete: { rating: true, events: true, news: true, schedule: true, plans: true, links: true, chat: true },
@@ -669,6 +669,7 @@
     t.sections = list(t.sections, TEAM_DEFAULTS.sections);
     t.groups = list(t.groups, TEAM_DEFAULTS.groups);
     t.belts = list(t.belts, TEAM_DEFAULTS.belts);
+    if (!/^\d{4}-\d{2}$/.test(String(t.att_start || ''))) t.att_start = TEAM_DEFAULTS.att_start;
     t.access = {
       parent: { ...TEAM_DEFAULTS.access.parent, ...((v && v.access && v.access.parent) || {}) },
       athlete: { ...TEAM_DEFAULTS.access.athlete, ...((v && v.access && v.access.athlete) || {}) },
@@ -2694,7 +2695,9 @@ notify pgrst, 'reload schema';`;
     }
 
     const t = today(), ym = t.slice(0, 7), monthStart = ym + '-01';
-    const firstMonth = shiftMonth(ym, -5);
+    // Облік відвідування починається з місяця запуску (Керування командою → Початок обліку)
+    const attStart = TEAM.att_start || TEAM_DEFAULTS.att_start;
+    const firstMonth = shiftMonth(ym, -5) < attStart && attStart <= ym ? attStart : shiftMonth(ym, -5);
     const [att0, pays0, grs, wts0, sch] = await Promise.all([
       q(db.from('attendance').select('athlete_id, date').eq('athlete_id', a.id).eq('present', true).gte('date', firstMonth + '-01')),
       coach ? q(db.from('payments').select('athlete_id, month, amount, paid_at').eq('athlete_id', a.id).gte('month', firstMonth + '-01')) : [],
@@ -2731,7 +2734,8 @@ notify pgrst, 'reload schema';`;
     const phone = a.phone ? a.phone.replace(/[^\d+]/g, '') : '';
 
     // Відвідування за 6 місяців
-    const months = [...Array(6)].map((_, i) => shiftMonth(firstMonth, i));
+    const months = [];
+    for (let m = firstMonth; m <= ym && months.length < 6; m = shiftMonth(m, 1)) months.push(m);
     const perMonth = months.map(m => att.filter(x => x.date.startsWith(m)).length);
     const maxV = Math.max(1, ...perMonth);
     const short = m => MONTHS[Number(m.slice(5)) - 1].slice(0, 3);
@@ -2793,7 +2797,7 @@ notify pgrst, 'reload schema';`;
         ${coach ? `<a class="stat ${paidNow ? '' : 'warn'}" href="#payments" data-month="${ym}"><b>${paidNow ? '✓' : '✗'}</b><span>${paidNow ? 'оплачено' : 'не оплачено'} за місяць</span></a>`
           : `<a class="stat" href="#rating"><b>${a.rating_place || '—'}</b><span>місце в рейтингу</span></a>`}
       </div>
-      <h3>Відвідування за пів року</h3>
+      <h3>${months.length >= 6 ? 'Відвідування за пів року' : 'Відвідування по місяцях'}</h3>
       <div class="panel">
         <div class="bars">${perMonth.map(n => `<div class="bcol ${n ? '' : 'zero'}"><span class="bval">${n}</span><div class="bbar" style="height:${n / maxV * 100}%"></div></div>`).join('')}</div>
         <div class="blabs">${months.map(m => `<span>${short(m)}</span>`).join('')}</div>
@@ -4368,6 +4372,9 @@ notify pgrst, 'reload schema';`;
       <div class="set-block"><h3>💵 Сума оплати за місяць</h3>
         <input id="tAmount" type="number" min="0" inputmode="numeric" placeholder="напр. 800" value="${esc(T.amount)}">
         <p class="muted small">Підставляється в оплати й нагадування. Порожньо — остання введена сума.</p></div>
+      <div class="set-block"><h3>📊 Початок обліку відвідування</h3>
+        <input id="tAttStart" type="month" value="${esc(T.att_start)}">
+        <p class="muted small">Відмітки до цього місяця не враховуються в статистиці спортсменів, яку бачать батьки.</p></div>
       <div class="set-block"><h3>👁 Хто що бачить</h3>
         <table class="acc"><thead><tr><th style="text-align:left">Розділ</th><th>Батьки</th><th>Спортсмени</th></tr></thead><tbody>
         ${ACCESS_PARTS.map(([k, l]) => `<tr><td>${l}</td>
@@ -4407,7 +4414,7 @@ notify pgrst, 'reload schema';`;
         brand: $('#tBrand').value.trim(), title: $('#tTitle').value.trim(), motto: $('#tMotto').value.trim(),
         welcome: $('#tWelcome').value.trim() || TEAM_DEFAULTS.welcome,
         sections: lists.sections.map(x => x.v), groups: lists.groups.map(x => x.v), belts: lists.belts.map(x => x.v),
-        amount: $('#tAmount').value.trim(), access,
+        amount: $('#tAmount').value.trim(), att_start: $('#tAttStart').value || TEAM_DEFAULTS.att_start, access,
       };
       const renames = k => lists[k].filter(x => x.old && x.old !== x.v);
       const ren = { sections: renames('sections'), groups: renames('groups'), belts: renames('belts') };
