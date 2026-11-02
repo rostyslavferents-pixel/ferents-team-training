@@ -4254,9 +4254,15 @@ notify pgrst, 'reload schema';`;
       ${linksOk ? '' : sqlCard('Батьки бачать лише свою дитину', KIDS_SQL)}
       ${linksOk && invRes.error ? sqlCard('Запрошення за посиланням і доступ спортсменів', ACCESS_SQL) : ''}
       ${linksOk && !invRes.error && reqRes.error ? sqlCard('Одне посилання для всіх', JOIN_SQL) : ''}
-      ${linksOk && !reqRes.error ? `<div class="info"><b>🔗 Одне посилання для всіх</b><br>
-        Надішліть його в чат батьків чи спортсменів. Людина реєструється, вказує прізвище, імʼя та дату народження дитини — а ви підтверджуєте запит тут.
-        <div style="margin-top:8px"><button type="button" class="btn sm" id="teamLinkBtn">📋 Скопіювати посилання</button></div></div>` : ''}
+      ${linksOk && !reqRes.error ? `<div class="panel" style="margin-bottom:12px">
+        <b>🔗 Посилання для батьків і спортсменів</b>
+        <div class="small muted" style="margin:4px 0 6px">Людина реєструється, вказує прізвище та імʼя дитини — а ви підтверджуєте запит тут.</div>
+        <div class="small muted" style="margin:0 0 10px;word-break:break-all">${esc(teamUrl)}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn sm" id="teamShareBtn">Надіслати батькам</button>
+          <button type="button" class="btn sm light" id="teamLinkBtn">Скопіювати</button>
+          <a class="btn sm light" href="${esc(teamUrl)}" target="_blank" rel="noopener">Відкрити</a>
+        </div></div>` : ''}
       ${requestsBlock(reqs, ath)}
       ${!reqRes.error && pushReqRes.error && /function|schema cache/i.test(pushReqRes.error.message || '') ? `<div class="info"><b>🔔 Сповіщення про нові запити</b><br>
         Щоб вам приходило сповіщення, коли батьки надсилають запит, зробіть 2 кроки (краще з компʼютера):<br>
@@ -4280,6 +4286,14 @@ notify pgrst, 'reload schema';`;
       }).join('') || '<div class="empty">Ще нікого не додано</div>'}</div>`;
     $('#view').onclick = e => {
       if (e.target.closest('#teamLinkBtn')) { copyText(teamUrl, 'Посилання скопійовано — надішліть його в чат'); return; }
+      if (e.target.closest('#teamShareBtn')) {
+        const text = 'Застосунок карате-команди Ferents Team: відвідування, рейтинг і події вашої дитини. Зареєструйтесь за посиланням і вкажіть прізвище та імʼя дитини — тренер підтвердить доступ: ';
+        (async () => {
+          if (navigator.share) { try { await navigator.share({ title: 'Ferents Team', text, url: teamUrl }); return; } catch (err) { if (err && err.name === 'AbortError') return; } }
+          copyText(text + teamUrl, 'Текст із посиланням скопійовано');
+        })();
+        return;
+      }
       if (e.target.closest('#reqSqlBtn')) { copyText(REQUEST_PUSH_SQL, 'SQL скопійовано — вставте в Supabase → SQL Editor'); return; }
       if (e.target.closest('#reqFnBtn')) { copyText(NOTIFY_FN_CODE, 'Код скопійовано — вставте в Edge Functions → notify → Code'); return; }
       const rb = e.target.closest('[data-req-ok], [data-req-no]');
