@@ -611,7 +611,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.36';
+  const APP_VERSION = 'v3.37';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -4140,7 +4140,7 @@ notify pgrst, 'reload schema';`;
         <span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}${e.place ? ' · ' + esc(e.place) : ''}</span>
         ${isCoach() && n ? `<span>👥 ${n} ${n % 10 === 1 && n % 100 !== 11 ? 'учасник' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'учасники' : 'учасників'}</span>` : ''}
         ${!isCoach() && e.description ? `<span>${esc(e.description)}</span>` : ''}
-        ${e.stream_url ? (isCoach() ? '<span>📺 є трансляція</span>' : `<span><a class="link" href="${esc(e.stream_url)}" target="_blank" rel="noopener">📺 Дивитися трансляцію</a></span>`) : ''}
+        ${eventStreams(e).length ? (isCoach() ? `<span>📺 ${eventStreams(e).map(streamName).join(', ')}</span>` : `<span>${streamLinks(e)}</span>`) : ''}
         ${!isCoach() && kidsIn(e).length ? `<span style="color:var(--ok)">🥋 бере участь: ${esc(kidsIn(e).join(', '))}</span>` : ''}</div>${badge}`;
       return isCoach()
         ? `<a class="row" href="#event/${encodeURIComponent(e.id)}">${body}</a>`
@@ -4185,7 +4185,7 @@ notify pgrst, 'reload schema';`;
         <div class="note" style="margin-top:6px">📅 ${fmtDate(ev.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           ${days === 0 ? ' · <b>сьогодні</b>' : days > 0 ? ` · через ${days} дн.` : ''}</div>
         ${ev.place ? `<div class="note">📍 ${esc(ev.place)}</div>` : ''}
-        ${ev.stream_url ? `<a class="btn sm" style="margin-top:10px;display:inline-flex" href="${esc(ev.stream_url)}" target="_blank" rel="noopener">📺 Дивитися трансляцію</a>` : ''}
+        ${eventStreams(ev).length ? `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${streamLinks(ev, 'btn sm')}</div>` : ''}
         ${ev.description ? `<div class="note">${esc(ev.description)}</div>` : ''}
       </div>
       ${hasCol ? `
@@ -4354,7 +4354,21 @@ notify pgrst, 'reload schema';`;
     dlg.showModal();
   }
 
+  // Трансляції події: [{ label: 'A' | '1' | '', url }]
+  function eventStreams(e) {
+    const list = Array.isArray(e && e.streams) ? e.streams.filter(x => x && x.url) : [];
+    return list.length ? list : (e && e.stream_url ? [{ label: '', url: e.stream_url }] : []);
+  }
+  const streamName = x => x.label ? 'Татамі ' + x.label : 'Трансляція';
+  function streamLinks(e, cls = 'link') {
+    return eventStreams(e).map(x => `<a class="${cls}" href="${esc(x.url)}" target="_blank" rel="noopener">📺 ${esc(streamName(x))}</a>`).join(cls === 'link' ? ' · ' : ' ');
+  }
   function eventForm(ev) {
+    const rowsInit = eventStreams(ev);
+    const streamRow = (x = {}) => `<div class="st-row" style="display:flex;gap:6px;margin-top:6px;align-items:center">
+        <input data-st="label" value="${esc(x.label || '')}" maxlength="10" placeholder="A / 1" style="width:64px;flex:none">
+        <input data-st="url" type="text" inputmode="url" autocapitalize="off" value="${esc(x.url || '')}" maxlength="500" placeholder="https://youtube.com/…" style="flex:1;min-width:0">
+        <button type="button" class="linkbtn" data-st-del aria-label="Прибрати">✕</button></div>`;
     openForm({
       title: ev ? 'Редагувати подію' : 'Нова подія',
       values: ev || { date: today() },
@@ -4363,19 +4377,29 @@ notify pgrst, 'reload schema';`;
         { name: 'date', label: 'Дата', type: 'date', required: true },
         { name: 'place', label: 'Місце' },
         { name: 'description', label: 'Опис', type: 'textarea' },
-        { name: 'stream_url', label: '📺 Посилання на трансляцію (YouTube, Facebook…)', type: 'url', attrs: 'maxlength="500" placeholder="https://"' },
       ],
+      extra: `<b>📺 Трансляції</b><br><span class="muted small">Татамі (буква чи цифра) і посилання. Якщо трансляція одна — татамі можна не писати.</span>
+        <div id="stRows">${(rowsInit.length ? rowsInit : [{}]).map(streamRow).join('')}</div>
+        <button type="button" class="linkbtn" id="stAdd" style="margin-top:8px">+ ще татамі</button>`,
       onSave: async obj => {
-        if (obj.stream_url && !/^https?:\/\//i.test(obj.stream_url)) obj.stream_url = 'https://' + obj.stream_url;
+        obj.streams = [...document.querySelectorAll('#stRows .st-row')].map(r => {
+          let url = r.querySelector('[data-st=url]').value.trim();
+          if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+          return { label: r.querySelector('[data-st=label]').value.trim().slice(0, 10), url: url.slice(0, 500) };
+        }).filter(x => x.url);
+        obj.stream_url = obj.streams[0]?.url || null;
         if (ev) return q(db.from('events').update(obj).eq('id', ev.id));
         await q(db.from('events').insert(obj));
         notify('event', { title: '📅 Нова подія: ' + obj.title,
           body: fmtDate(obj.date, { weekday: 'short', day: 'numeric', month: 'long' }) + (obj.place ? ' · ' + obj.place : '') +
-            (obj.stream_url ? '\n📺 Трансляція: ' + obj.stream_url : ''), url: './#events' });
+            obj.streams.map(x => '\n📺 ' + streamName(x) + ': ' + x.url).join(''), url: './#events' });
       },
       onDelete: ev ? async () => { await q(db.from('events').delete().eq('id', ev.id)); location.hash = '#events'; } : null,
       onUndo: ev ? () => { const { id, ...rest } = ev; return q(db.from('events').insert(rest)); } : null,
     });
+    const box = $('#stRows');
+    $('#stAdd').onclick = () => { box.insertAdjacentHTML('beforeend', streamRow()); box.lastElementChild.querySelector('input').focus(); };
+    box.onclick = e => { const d = e.target.closest('[data-st-del]'); if (d) { d.closest('.st-row').remove(); if (!box.children.length) box.insertAdjacentHTML('beforeend', streamRow()); } };
   }
 
   // ----- Матеріали (розділ) -----
