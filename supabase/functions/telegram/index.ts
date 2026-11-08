@@ -68,6 +68,26 @@ async function onUpdate(u: any) {
       ? await admin.from("athletes").select("full_name").in("id", ids)
       : { data: [] as any[] };
     const who = (kids ?? []).map((k: any) => k.full_name).join(", ");
+
+    // Повідомити тренера, що хтось підключив Telegram
+    try {
+      const { data: mem } = await admin.from("members").select("full_name, role").eq("email", row.email).maybeSingle();
+      const isCoachAcc = mem?.role === "coach" ||
+        !!(await admin.from("coaches").select("email").eq("email", row.email).maybeSingle()).data;
+      if (!isCoachAcc) {
+        const { data: c1 } = await admin.from("coaches").select("email");
+        const { data: c2 } = await admin.from("members").select("email").eq("role", "coach");
+        const cEmails = [...(c1 ?? []), ...(c2 ?? [])].map((r: any) => String(r.email).toLowerCase());
+        const { data: cChats } = cEmails.length
+          ? await admin.from("telegram_links").select("chat_id, email")
+          : { data: [] as any[] };
+        const role = mem?.role === "athlete" ? "спортсмен" : mem?.role === "parent" ? "батьки" : "акаунт";
+        const note = "✈️ <b>Telegram підключено</b>\n" + (who ? esc(who) + " (" + role + ")" : esc(mem?.full_name || row.email));
+        for (const c of (cChats ?? []).filter((r: any) => cEmails.includes(String(r.email).toLowerCase()) && r.chat_id !== chat)) {
+          await tg("sendMessage", { chat_id: c.chat_id, parse_mode: "HTML", text: note });
+        }
+      }
+    } catch (e) { console.error(e); }
     await tg("sendMessage", { chat_id: chat, parse_mode: "HTML", ...openBtn(app),
       text: "✅ <b>Telegram підключено!</b>\n\n" +
         (who ? `Сповіщення про: <b>${esc(who)}</b>\n\n` : "") +

@@ -157,6 +157,7 @@
 
     .badge { flex: none; font-size: 13px; font-weight: 600; border-radius: 999px; padding: 5px 10px; white-space: nowrap; }
     .badge.ok { background: var(--ok-bg); color: var(--ok); }
+    .lk { font-size: 12px; font-weight: 400; margin-left: 4px; white-space: nowrap; }
     .badge.bad { background: var(--bad-bg); color: var(--bad); }
     .badge.gold { background: var(--gold-soft); color: var(--gold-ink); }
 
@@ -601,7 +602,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.31';
+  const APP_VERSION = 'v3.32';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -742,7 +743,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -1257,6 +1258,26 @@ async function onUpdate(u: any) {
       ? await admin.from("athletes").select("full_name").in("id", ids)
       : { data: [] as any[] };
     const who = (kids ?? []).map((k: any) => k.full_name).join(", ");
+
+    // Повідомити тренера, що хтось підключив Telegram
+    try {
+      const { data: mem } = await admin.from("members").select("full_name, role").eq("email", row.email).maybeSingle();
+      const isCoachAcc = mem?.role === "coach" ||
+        !!(await admin.from("coaches").select("email").eq("email", row.email).maybeSingle()).data;
+      if (!isCoachAcc) {
+        const { data: c1 } = await admin.from("coaches").select("email");
+        const { data: c2 } = await admin.from("members").select("email").eq("role", "coach");
+        const cEmails = [...(c1 ?? []), ...(c2 ?? [])].map((r: any) => String(r.email).toLowerCase());
+        const { data: cChats } = cEmails.length
+          ? await admin.from("telegram_links").select("chat_id, email")
+          : { data: [] as any[] };
+        const role = mem?.role === "athlete" ? "спортсмен" : mem?.role === "parent" ? "батьки" : "акаунт";
+        const note = "✈️ <b>Telegram підключено</b>\n" + (who ? esc(who) + " (" + role + ")" : esc(mem?.full_name || row.email));
+        for (const c of (cChats ?? []).filter((r: any) => cEmails.includes(String(r.email).toLowerCase()) && r.chat_id !== chat)) {
+          await tg("sendMessage", { chat_id: c.chat_id, parse_mode: "HTML", text: note });
+        }
+      }
+    } catch (e) { console.error(e); }
     await tg("sendMessage", { chat_id: chat, parse_mode: "HTML", ...openBtn(app),
       text: "✅ <b>Telegram підключено!</b>\\n\\n" +
         (who ? \`Сповіщення про: <b>\${esc(who)}</b>\\n\\n\` : "") +
@@ -1457,6 +1478,27 @@ $$;
 revoke execute on function public.telegram_targets(text,text,text,text,text) from public, anon, authenticated;
 grant execute on function public.telegram_targets(text,text,text,text,text) to service_role;
 
+-- Тренер бачить, хто підключив Telegram
+create or replace function public.coach_tg_links()
+returns table (email text, connected_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select lower(t.email), max(t.created_at) from public.telegram_links t
+  where public.is_coach() group by lower(t.email);
+$$;
+revoke execute on function public.coach_tg_links() from public, anon;
+grant execute on function public.coach_tg_links() to authenticated;
+
+notify pgrst, 'reload schema';`;
+
+  const STATUS_SQL = `-- Тренер бачить, хто підключив Telegram
+create or replace function public.coach_tg_links()
+returns table (email text, connected_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select lower(t.email), max(t.created_at) from public.telegram_links t
+  where public.is_coach() group by lower(t.email);
+$$;
+revoke execute on function public.coach_tg_links() from public, anon;
+grant execute on function public.coach_tg_links() to authenticated;
 notify pgrst, 'reload schema';`;
 
   const TEAM_SQL = `-- Керування командою: секції, групи, пояси, тексти, хто що бачить
@@ -2064,6 +2106,14 @@ notify pgrst, 'reload schema';`;
       `<a class="tile ${cls}" href="#${route}"><span class="ic">${icon(ic)}</span><span><strong>${title}</strong><small>${sub}</small></span></a>`;
 
     const pushC = await pushCard();
+    const ls = await linkStatus().catch(() => null);
+    let linkBlock = '';
+    if (ls && active.length) {
+      const nApp = active.filter(a => ls.by.has(String(a.id))).length;
+      const nTg = active.filter(a => ls.by.get(String(a.id))?.tg).length;
+      if (nApp < active.length || !ls.tgOk || nTg < active.length) linkBlock = `<a class="now soon" href="#connections"><i class="dot"></i>
+        <div><b>Хто підключився</b><span>📱 Застосунок: ${nApp} з ${active.length} · ✈️ Telegram: ${ls.tgOk ? nTg + ' з ' + active.length : 'потрібен SQL'}</span></div><i class="go">›</i></a>`;
+    }
     const { count: reqN } = await reqP;
     const reqBlock = reqN ? `<a class="now soon" href="#members"><i class="dot"></i>
         <div><b>🙋 Запити на доступ: ${reqN}</b><span>Чекають вашого підтвердження</span></div><i class="go">›</i></a>` : '';
@@ -2081,6 +2131,7 @@ notify pgrst, 'reload schema';`;
       ${installCard()}
       ${pushC}
       ${reqBlock}
+      ${linkBlock}
       ${appBlock}
       ${payBlock}
       ${expBlock}
@@ -2403,13 +2454,84 @@ notify pgrst, 'reload schema';`;
     dlg.showModal();
   }
 
+  // ===== Хто підключився: застосунок і Telegram (лише тренер) =====
+  async function linkStatus() {
+    const [mem, ma, tg] = await Promise.all([
+      db.from('members').select('email, role, full_name'),
+      db.from('member_athletes').select('email, athlete_id'),
+      db.rpc('coach_tg_links'),
+    ]);
+    if (mem.error || ma.error) return null;
+    const tgAt = tg.error ? null : new Map((tg.data || []).map(r => [String(r.email).toLowerCase(), r.connected_at]));
+    const memOf = new Map((mem.data || []).map(m => [String(m.email).toLowerCase(), m]));
+    const by = new Map(); // athlete_id → { app, tg, people: [{ email, role, name, tgAt }] }
+    for (const r of ma.data || []) {
+      const e = String(r.email).toLowerCase();
+      const m = memOf.get(e);
+      if (m && m.role === 'coach') continue;
+      const id = String(r.athlete_id);
+      const st = by.get(id) || { app: false, tg: false, people: [] };
+      const at = tgAt ? tgAt.get(e) : null;
+      st.app = true;
+      if (at) st.tg = true;
+      st.people.push({ email: e, role: m?.role || '', name: m?.full_name || e, tgAt: at || null });
+      by.set(id, st);
+    }
+    return { by, tgOk: !!tgAt };
+  }
+  function linkMarks(st) {
+    if (!st) return '';
+    return ` <span class="lk" title="${st.tg ? 'Застосунок і Telegram' : 'Є акаунт у застосунку'}">📱${st.tg ? '✈️' : ''}</span>`;
+  }
+  async function connectionsView() {
+    setActions('');
+    const [ath, ls] = await Promise.all([q(db.from('athletes').select('*').order('full_name')), linkStatus()]);
+    if (!ls) { $('#view').innerHTML = sqlCard('Батьки бачать лише свою дитину', KIDS_SQL); return; }
+    const active = ath.filter(isActive);
+    const noApp = [], noTg = [], ok = [];
+    for (const a of active) {
+      const st = ls.by.get(String(a.id));
+      (!st ? noApp : st.tg ? ok : noTg).push(a);
+    }
+    const nameOf = new Map(ath.map(a => [String(a.id), a.full_name]));
+    const who = st => st ? st.people.map(p => `${ROLES[p.role] || 'Акаунт'}${p.tgAt ? ' ✈️' : ''}`).join(', ') : '';
+    const row = a => {
+      const st = ls.by.get(String(a.id));
+      return `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">
+        <div class="grow"><strong>${esc(a.full_name)}${linkMarks(st)}</strong><span>${esc([groupLabel(a), who(st)].filter(Boolean).join(' · '))}</span></div>
+        <span class="chev">›</span></a>`;
+    };
+    const block = (title, list, hint) => list.length ? `<h3 style="margin:18px 0 6px">${title} — ${list.length}</h3>
+      ${hint ? `<p class="muted small" style="margin:0 0 8px">${hint}</p>` : ''}
+      <div class="list">${list.map(row).join('')}</div>` : '';
+    // Останні підключення Telegram
+    const recent = [];
+    for (const [id, st] of ls.by) for (const p of st.people) if (p.tgAt) recent.push({ id, p });
+    recent.sort((x, y) => String(y.p.tgAt).localeCompare(String(x.p.tgAt)));
+    const seen = new Set();
+    const recentRows = recent.filter(r => { const k = r.p.email + '|' + r.id; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 15)
+      .map(r => `<div class="row" style="cursor:default"><div class="grow"><strong>${esc(nameOf.get(r.id) || '—')}</strong>
+        <span>${esc(ROLES[r.p.role] || 'Акаунт')} · ${new Date(r.p.tgAt).toLocaleString('uk-UA', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</span></div></div>`).join('');
+    $('#view').innerHTML = `
+      ${ls.tgOk ? '' : sqlCard('Бачити, хто підключив Telegram', STATUS_SQL)}
+      <div class="stats">
+        <div class="stat"><b>${active.length - noApp.length}/${active.length}</b><span>📱 у застосунку</span></div>
+        <div class="stat"><b>${ls.tgOk ? ok.length + '/' + active.length : '—'}</b><span>✈️ з Telegram</span></div>
+      </div>
+      ${block('Без застосунку', noApp, 'Ніхто з батьків чи сам спортсмен ще не зареєструвався. Надішліть посилання з розділу «Учасники».')}
+      ${ls.tgOk ? block('Без Telegram', noTg, 'Є акаунт, але Telegram не підключено: Налаштування → Підключити Telegram.') : ''}
+      ${block(ls.tgOk ? 'Все підключено' : 'Є акаунт у застосунку', ls.tgOk ? ok : [...noTg, ...ok])}
+      ${recentRows ? `<h3 style="margin:18px 0 6px">Останні підключення Telegram</h3><div class="list">${recentRows}</div>` : ''}`;
+  }
+
   async function athletesView() {
     setActions('<button class="btn light" id="bulkBtn">Списком</button> <button class="btn" id="addBtn">+ Додати</button>');
     $('#addBtn').onclick = () => athleteForm();
 
-    const [list, weights] = await Promise.all([
+    const [list, weights, ls] = await Promise.all([
       q(db.from('athletes').select('*').order('full_name')),
       lastWeights(),
+      linkStatus().catch(() => null),
     ]);
     noteSection(list);
     $('#bulkBtn').onclick = () => bulkAthletes(list);
@@ -2424,6 +2546,7 @@ notify pgrst, 'reload schema';`;
       <input class="search" id="search" type="search" placeholder="Пошук за імʼям" value="${esc(state.search)}">
       ${chips(true)}
       <p class="muted small" id="count"></p>
+      ${ls ? '<p class="muted small" style="margin-top:-4px">📱 є акаунт у застосунку · ✈️ підключено Telegram · <a class="link" href="#connections">хто ще не підключився</a></p>' : ''}
       <div class="list" id="athList"></div>`;
 
     const draw = () => {
@@ -2436,7 +2559,7 @@ notify pgrst, 'reload schema';`;
                       beltShort(a.belt), isActive(a) ? '' : 'неактивний'].filter(Boolean);
         return `<a class="row ${isActive(a) ? '' : 'dim'}" href="#athlete/${encodeURIComponent(a.id)}">
           ${avatarHtml(a, urlOf(a.photo))}
-          <div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}${bdayMark(a)}</strong><span>${esc(info.join(' · '))}${(() => {
+          <div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}${bdayMark(a)}${ls ? linkMarks(ls.by.get(String(a.id))) : ''}</strong><span>${esc(info.join(' · '))}${(() => {
             const b = nextBirthday(a);
             return b && b.days > 0 && b.days <= 7 ? ` · ДН ${fmtDate(b.date)}` : '';
           })()}</span></div>
@@ -4799,12 +4922,12 @@ notify pgrst, 'reload schema';`;
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
-    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView,
   };
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
   function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
-  const PARENT_ROUTE = { manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  const PARENT_ROUTE = { connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
