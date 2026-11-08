@@ -602,7 +602,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.32';
+  const APP_VERSION = 'v3.33';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -2838,8 +2838,11 @@ notify pgrst, 'reload schema';`;
       const r = await db.rpc('team_rating');
       a.rating_place = ((r.data || []).find(x => String(x.id) === String(a.id)) || {}).rating_place || null;
     }
-    const evs = ((await db.from('events').select('*').gte('date', today()).order('date')).data || [])
+    const myEvs = ((await db.from('events').select('*').order('date')).data || [])
       .filter(e => Array.isArray(e.participants) && e.participants.map(String).includes(String(a.id)));
+    const evs = myEvs.filter(e => e.date >= today());
+    const resEvs = myEvs.filter(e => resultsOf(e, a.id).length).reverse();
+    const medalN = p => resEvs.reduce((n, e) => n + resultsOf(e, a.id).filter(x => x.p === p).length, 0);
     const mine = r => String(r.athlete_id) === String(a.id);
     const att = withPending('attendance', att0, r => mine(r) && r.date >= firstMonth + '-01').filter(r => r.present !== false);
     const pays = withPending('payments', pays0, r => mine(r) && r.month >= firstMonth + '-01');
@@ -2938,6 +2941,11 @@ notify pgrst, 'reload schema';`;
       }).join('')}</div>` : ''}
       ${evs.length ? `<h3>Найближчі події</h3><div class="list">${evs.map(e => `<a class="row" href="#event/${encodeURIComponent(e.id)}">
           <div><strong>${esc(e.title)}</strong><span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long' })}${e.place ? ' · ' + esc(e.place) : ''}</span></div>
+          <span class="chev">›</span></a>`).join('')}</div>` : ''}
+      ${resEvs.length ? `<div class="sec"><h3>🏆 Результати змагань</h3><span class="muted small">${['1', '2', '3'].map(p => medalN(p) ? placeIcon(p) + '×' + medalN(p) : '').filter(Boolean).join(' ')}</span></div>
+        <div class="list">${resEvs.map(e => `<a class="row" href="#event/${encodeURIComponent(e.id)}">
+          <div><strong>${resultsOf(e, a.id).map(x => placeIcon(x.p)).join('')} ${esc(e.title)}</strong>
+          <span>${fmtDate(e.date, { day: 'numeric', month: 'long', year: 'numeric' })} · ${esc(resultsOf(e, a.id).map(placeText).join('; '))}</span></div>
           <span class="chev">›</span></a>`).join('')}</div>` : ''}
       <div class="sec"><h3>Атестації</h3>${coach ? '<button type="button" class="btn light sm" id="addG">+ Атестація</button>' : ''}</div>
       <div class="list">${grHtml}</div>
@@ -3853,10 +3861,13 @@ notify pgrst, 'reload schema';`;
       </div>
       ${hasCol ? `
         <div class="sec"><h3>Учасники · ${people.length}</h3><button type="button" class="btn sm" id="pickBtn">${people.length ? 'Змінити список' : '+ Вибрати'}</button></div>
-        <div class="list">${people.map(a => `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">
-            <div><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc(line(a).split(' — ').slice(1).join(' · '))}</span></div>
-            <span class="chev">›</span></a>`).join('') || '<div class="empty">Учасників ще не вибрано</div>'}</div>
-        ${people.length ? '<button type="button" class="btn light wide" id="copyBtn">📋 Скопіювати список для заявки</button>' : ''}`
+        <div class="list">${people.map(a => {
+            const rs = resultsOf(ev, a.id);
+            return `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">
+            <div><strong>${beltTag(a.belt)}${esc(a.full_name)}${rs.length ? ' ' + rs.map(x => placeIcon(x.p)).join('') : ''}</strong><span>${esc(rs.length ? rs.map(placeText).join('; ') : line(a).split(' — ').slice(1).join(' · '))}</span></div>
+            <span class="chev">›</span></a>`; }).join('') || '<div class="empty">Учасників ще не вибрано</div>'}</div>
+        ${people.length ? `<button type="button" class="btn wide" id="resBtn" style="margin-bottom:8px">🏅 ${people.some(a => resultsOf(ev, a.id).length) ? 'Змінити результати' : 'Внести результати'}</button>
+          <button type="button" class="btn light wide" id="copyBtn">📋 Скопіювати список для заявки</button>` : ''}`
       : `<div class="info"><b>Учасники подій</b><br>Щоб додавати учасників, один раз виконайте в Supabase → SQL Editor:
           <code style="display:block;margin:8px 0;padding:8px;background:var(--card);border-radius:8px;font-size:12px;word-break:break-all">${esc(sql)}</code>
           <button type="button" class="btn sm light" id="sqlBtn">Скопіювати</button></div>`}`;
@@ -3865,12 +3876,85 @@ notify pgrst, 'reload schema';`;
     if (sb) sb.onclick = () => navigator.clipboard.writeText(sql).then(() => toast('Скопійовано'));
     const pb = $('#pickBtn');
     if (pb) pb.onclick = () => pickParticipants(ev, ath, ids);
+    const rb = $('#resBtn');
+    if (rb) rb.onclick = () => {
+      if (!('results' in ev)) { copyText(RESULTS_SQL, 'Спершу виконайте цей SQL у Supabase → SQL Editor (скопійовано)'); return; }
+      resultsDialog(ev, people);
+    };
     const cb = $('#copyBtn');
     if (cb) cb.onclick = async () => {
       const text = `${ev.title}, ${fmtDate(ev.date, { day: 'numeric', month: 'long', year: 'numeric' })}${ev.place ? ', ' + ev.place : ''}\n` +
         people.map((a, i) => `${i + 1}. ${line(a)}`).join('\n');
       copyText(text, 'Список скопійовано');
     };
+  }
+
+  // ----- Результати змагань: events.results = { athlete_id: [{ p: '1', n: 'кумите −40 кг' }] } -----
+  const PLACES = [['1', '🥇 1 місце'], ['2', '🥈 2 місце'], ['3', '🥉 3 місце'], ['4', '4 місце'], ['5', '5 місце'], ['u', 'Участь']];
+  const RESULTS_SQL = "alter table public.events add column if not exists results jsonb not null default '{}'::jsonb;";
+  function resultsOf(ev, id) {
+    const r = ev && ev.results && typeof ev.results === 'object' ? ev.results[String(id)] : null;
+    return Array.isArray(r) ? r.filter(x => x && x.p) : [];
+  }
+  function placeIcon(p) { return { 1: '🥇', 2: '🥈', 3: '🥉' }[p] || (p === 'u' ? '🎽' : p + ' м.'); }
+  function placeText(x) {
+    const lbl = (PLACES.find(([v]) => v === x.p) || [, x.p])[1];
+    return lbl + (x.n ? ' · ' + x.n : '');
+  }
+  function resultsDialog(ev, people) {
+    const dlg = $('#dlg');
+    const data = new Map(people.map(a => [String(a.id), resultsOf(ev, a.id).map(x => ({ ...x }))]));
+    people.forEach(a => { if (!data.get(String(a.id)).length) data.get(String(a.id)).push({ p: '', n: '' }); });
+    const opt = (v, cur) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${v ? (PLACES.find(([x]) => x === v) || [, v])[1] : '— без результату'}</option>`;
+    const draw = () => {
+      $('#rList').innerHTML = people.map(a => {
+        const id = String(a.id);
+        return `<div class="panel" style="margin:0 0 8px;padding:10px 12px">
+          <strong>${beltTag(a.belt)}${esc(a.full_name)}</strong>
+          ${data.get(id).map((x, i) => `<div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+            <select data-rid="${esc(id)}" data-i="${i}" data-k="p" style="flex:0 0 42%">${['', ...PLACES.map(([v]) => v)].map(v => opt(v, x.p)).join('')}</select>
+            <input data-rid="${esc(id)}" data-i="${i}" data-k="n" value="${esc(x.n || '')}" placeholder="ката / кумите −40 кг" maxlength="80" style="flex:1;min-width:0">
+            ${data.get(id).length > 1 ? `<button type="button" class="linkbtn" data-del="${esc(id)}" data-i="${i}" aria-label="Прибрати">✕</button>` : ''}
+          </div>`).join('')}
+          <button type="button" class="linkbtn" data-add="${esc(id)}" style="margin-top:6px">+ ще результат (інша дисципліна)</button>
+        </div>`;
+      }).join('');
+    };
+    dlg.innerHTML = `<form><h3>🏅 Результати: ${esc(ev.title)}</h3>
+      <p class="muted small" style="margin:4px 0 10px">Місце та дисципліна для кожного учасника. Результат автоматично зʼявиться в профілі спортсмена.</p>
+      <div id="rList"></div>
+      <div class="dlg-actions"><span class="spacer"></span>
+        <button type="button" class="btn light" data-act="cancel">Скасувати</button>
+        <button type="submit" class="btn">Зберегти</button></div></form>`;
+    const form = dlg.querySelector('form');
+    form.oninput = form.onchange = e => {
+      const el = e.target.closest('[data-rid]'); if (!el) return;
+      data.get(el.dataset.rid)[Number(el.dataset.i)][el.dataset.k] = el.value;
+    };
+    form.onclick = e => {
+      const add = e.target.closest('[data-add]'), del = e.target.closest('[data-del]');
+      if (add) { data.get(add.dataset.add).push({ p: '', n: '' }); draw(); }
+      if (del) { data.get(del.dataset.del).splice(Number(del.dataset.i), 1); draw(); }
+      if (e.target.closest('[data-act=cancel]')) dlg.close();
+    };
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const btn = form.querySelector('[type=submit]'); btn.disabled = true;
+      const res = {};
+      for (const [id, arr] of data) {
+        const ok = arr.filter(x => x.p).map(x => ({ p: x.p, n: String(x.n || '').trim().slice(0, 80) }));
+        if (ok.length) res[id] = ok;
+      }
+      try {
+        await q(db.from('events').update({ results: res }).eq('id', ev.id));
+        dlg.close();
+        const medals = Object.values(res).flat().filter(x => ['1', '2', '3'].includes(x.p)).length;
+        toast(`Результати збережено${medals ? ' · медалей: ' + medals : ''}`);
+        render();
+      } catch (err) { btn.disabled = false; }
+    };
+    draw();
+    dlg.showModal();
   }
 
   // Вибір учасників події: пошук, секція, група, «всіх у списку»
