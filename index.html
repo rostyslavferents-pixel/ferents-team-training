@@ -602,7 +602,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.33';
+  const APP_VERSION = 'v3.34';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -2843,6 +2843,7 @@ notify pgrst, 'reload schema';`;
     const evs = myEvs.filter(e => e.date >= today());
     const resEvs = myEvs.filter(e => resultsOf(e, a.id).length).reverse();
     const medalN = p => resEvs.reduce((n, e) => n + resultsOf(e, a.id).filter(x => x.p === p).length, 0);
+    const wlAll = winLoss(resEvs.flatMap(e => resultsOf(e, a.id)));
     const mine = r => String(r.athlete_id) === String(a.id);
     const att = withPending('attendance', att0, r => mine(r) && r.date >= firstMonth + '-01').filter(r => r.present !== false);
     const pays = withPending('payments', pays0, r => mine(r) && r.month >= firstMonth + '-01');
@@ -2943,6 +2944,11 @@ notify pgrst, 'reload schema';`;
           <div><strong>${esc(e.title)}</strong><span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long' })}${e.place ? ' · ' + esc(e.place) : ''}</span></div>
           <span class="chev">›</span></a>`).join('')}</div>` : ''}
       ${resEvs.length ? `<div class="sec"><h3>🏆 Результати змагань</h3><span class="muted small">${['1', '2', '3'].map(p => medalN(p) ? placeIcon(p) + '×' + medalN(p) : '').filter(Boolean).join(' ')}</span></div>
+        <div class="stats">
+          <div class="stat"><b>${resEvs.length}</b><span>змагань</span></div>
+          <div class="stat"><b>${wlAll.w}</b><span>перемог</span></div>
+          <div class="stat"><b>${wlAll.l}</b><span>поразок</span></div>
+        </div>
         <div class="list">${resEvs.map(e => `<a class="row" href="#event/${encodeURIComponent(e.id)}">
           <div><strong>${resultsOf(e, a.id).map(x => placeIcon(x.p)).join('')} ${esc(e.title)}</strong>
           <span>${fmtDate(e.date, { day: 'numeric', month: 'long', year: 'numeric' })} · ${esc(resultsOf(e, a.id).map(placeText).join('; '))}</span></div>
@@ -3899,7 +3905,12 @@ notify pgrst, 'reload schema';`;
   function placeIcon(p) { return { 1: '🥇', 2: '🥈', 3: '🥉' }[p] || (p === 'u' ? '🎽' : p + ' м.'); }
   function placeText(x) {
     const lbl = (PLACES.find(([v]) => v === x.p) || [, x.p])[1];
-    return lbl + (x.n ? ' · ' + x.n : '');
+    const wl = (x.w || x.l) ? ` · ${x.w || 0} перем. / ${x.l || 0} пор.` : '';
+    return lbl + (x.n ? ' · ' + x.n : '') + wl;
+  }
+  // Перемоги / поразки з усіх результатів
+  function winLoss(list) {
+    return list.reduce((t, x) => ({ w: t.w + (Number(x.w) || 0), l: t.l + (Number(x.l) || 0) }), { w: 0, l: 0 });
   }
   function resultsDialog(ev, people) {
     const dlg = $('#dlg');
@@ -3915,6 +3926,10 @@ notify pgrst, 'reload schema';`;
             <select data-rid="${esc(id)}" data-i="${i}" data-k="p" style="flex:0 0 42%">${['', ...PLACES.map(([v]) => v)].map(v => opt(v, x.p)).join('')}</select>
             <input data-rid="${esc(id)}" data-i="${i}" data-k="n" value="${esc(x.n || '')}" placeholder="ката / кумите −40 кг" maxlength="80" style="flex:1;min-width:0">
             ${data.get(id).length > 1 ? `<button type="button" class="linkbtn" data-del="${esc(id)}" data-i="${i}" aria-label="Прибрати">✕</button>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;margin-top:6px;align-items:center" class="small">
+            <span class="muted">Перемог</span><input data-rid="${esc(id)}" data-i="${i}" data-k="w" type="number" inputmode="numeric" min="0" max="50" value="${x.w ?? ''}" placeholder="0" style="width:64px">
+            <span class="muted">Поразок</span><input data-rid="${esc(id)}" data-i="${i}" data-k="l" type="number" inputmode="numeric" min="0" max="50" value="${x.l ?? ''}" placeholder="0" style="width:64px">
           </div>`).join('')}
           <button type="button" class="linkbtn" data-add="${esc(id)}" style="margin-top:6px">+ ще результат (інша дисципліна)</button>
         </div>`;
@@ -3942,7 +3957,8 @@ notify pgrst, 'reload schema';`;
       const btn = form.querySelector('[type=submit]'); btn.disabled = true;
       const res = {};
       for (const [id, arr] of data) {
-        const ok = arr.filter(x => x.p).map(x => ({ p: x.p, n: String(x.n || '').trim().slice(0, 80) }));
+        const num = v => Math.max(0, Math.min(50, parseInt(v, 10) || 0));
+        const ok = arr.filter(x => x.p).map(x => ({ p: x.p, n: String(x.n || '').trim().slice(0, 80), w: num(x.w), l: num(x.l) }));
         if (ok.length) res[id] = ok;
       }
       try {
