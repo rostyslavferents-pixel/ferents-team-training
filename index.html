@@ -3895,7 +3895,7 @@ notify pgrst, 'reload schema';`;
     };
   }
 
-  // ----- Результати змагань: events.results = { athlete_id: [{ p: '1', n: 'кумите −40 кг' }] } -----
+  // ----- Результати змагань: events.results = { athlete_id: [{ p: '1', n: 'куміте −40 кг' }] } -----
   const PLACES = [['1', '🥇 1 місце'], ['2', '🥈 2 місце'], ['3', '🥉 3 місце'], ['4', '4 місце'], ['5', '5 місце'], ['u', 'Участь']];
   const RESULTS_SQL = "alter table public.events add column if not exists results jsonb not null default '{}'::jsonb;";
   function resultsOf(ev, id) {
@@ -3924,7 +3924,7 @@ notify pgrst, 'reload schema';`;
           <strong>${beltTag(a.belt)}${esc(a.full_name)}</strong>
           ${data.get(id).map((x, i) => `<div style="display:flex;gap:6px;margin-top:6px;align-items:center">
             <select data-rid="${esc(id)}" data-i="${i}" data-k="p" style="flex:0 0 42%">${['', ...PLACES.map(([v]) => v)].map(v => opt(v, x.p)).join('')}</select>
-            <input data-rid="${esc(id)}" data-i="${i}" data-k="n" value="${esc(x.n || '')}" placeholder="ката / кумите −40 кг" maxlength="80" style="flex:1;min-width:0">
+            <input data-rid="${esc(id)}" data-i="${i}" data-k="n" value="${esc(x.n || '')}" placeholder="ката / куміте −40 кг" maxlength="80" style="flex:1;min-width:0">
             ${data.get(id).length > 1 ? `<button type="button" class="linkbtn" data-del="${esc(id)}" data-i="${i}" aria-label="Прибрати">✕</button>` : ''}
           </div>
           <div style="display:flex;gap:6px;margin-top:6px;align-items:center" class="small">
