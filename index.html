@@ -1114,40 +1114,44 @@ Deno.serve(async (req) => {
       p_group: b.group || null,
       p_exclude: user.email,
     });
-    if (error) return json({ error: error.message }, 500);
 
-    webpush.setVapidDetails(
-      Deno.env.get("VAPID_SUBJECT") ?? "mailto:rostyslavferents@gmail.com",
-      Deno.env.get("VAPID_PUBLIC_KEY")!,
-      Deno.env.get("VAPID_PRIVATE_KEY")!,
-    );
-    const payload = JSON.stringify({
-      title: String(b.title || "Ferents Team").slice(0, 80),
-      body: String(b.body || "").slice(0, 240),
-      url: String(b.url || "./"),
-      tag: kind,
-    });
-
+    // Web Push — окремо: якщо ключі VAPID не задані чи щось зламалось, Telegram однаково піде
     let sent = 0;
     const gone: string[] = [];
-    await Promise.all((targets ?? []).map(async (t: { endpoint: string; sub: webpush.PushSubscription }) => {
-      try { await webpush.sendNotification(t.sub, payload, { TTL: 86400 }); sent++; }
-      catch (e) { const s = (e as { statusCode?: number }).statusCode; if (s === 404 || s === 410) gone.push(t.endpoint); }
-    }));
-    // Пристрої, які відписались, прибираємо
-    if (gone.length) await admin.from("push_subscriptions").delete().in("endpoint", gone);
+    let pushError = "";
+    try {
+      if (error) throw new Error(error.message);
+      const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");
+      if (!pub || !priv) throw new Error("no_vapid_keys");
+      webpush.setVapidDetails(Deno.env.get("VAPID_SUBJECT") ?? "mailto:rostyslavferents@gmail.com", pub, priv);
+      const payload = JSON.stringify({
+        title: String(b.title || "Ferents Team").slice(0, 80),
+        body: String(b.body || "").slice(0, 240),
+        url: String(b.url || "./"),
+        tag: kind,
+      });
+      await Promise.all((targets ?? []).map(async (t: { endpoint: string; sub: webpush.PushSubscription }) => {
+        try { await webpush.sendNotification(t.sub, payload, { TTL: 86400 }); sent++; }
+        catch (e) { const s = (e as { statusCode?: number }).statusCode; if (s === 404 || s === 410) gone.push(t.endpoint); }
+      }));
+      // Пристрої, які відписались, прибираємо
+      if (gone.length) await admin.from("push_subscriptions").delete().in("endpoint", gone);
+    } catch (e) { pushError = String((e as Error)?.message || e); }
 
     // Telegram (якщо бот налаштований)
-    let tgSent = 0;
+    let tgSent = 0, tgTargets = 0, tgError = "";
     const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    if (!token) tgError = "no_bot_token";
     if (token) {
-      const { data: chats } = await admin.rpc("telegram_targets", {
+      const { data: chats, error: tgErr } = await admin.rpc("telegram_targets", {
         p_kind: kind,
         p_audience: b.audience ?? "all",
         p_section: b.section || null,
         p_group: b.group || null,
         p_exclude: user.email,
       });
+      if (tgErr) tgError = tgErr.message;
+      tgTargets = chats?.length ?? 0;
       if (chats?.length) {
         const { data: cfg } = await admin.from("team_settings").select("value").eq("key", "telegram").maybeSingle();
         const app = String((cfg?.value as { app?: string } | null)?.app || "");
@@ -1166,14 +1170,18 @@ Deno.serve(async (req) => {
             }),
           }).then((x) => x.json()).catch(() => null);
           if (r?.ok) tgSent++;
-          else if (r?.error_code === 403 || r?.error_code === 400 && /chat not found/i.test(r?.description || "")) blocked.push(c.chat_id);
+          else {
+            tgError = String(r?.description || "send_failed");
+            if (r?.error_code === 403 || r?.error_code === 400 && /chat not found/i.test(r?.description || "")) blocked.push(c.chat_id);
+          }
           await new Promise((res) => setTimeout(res, 40)); // ліміт Telegram ~30 повідомлень/с
         }
         // Хто заблокував бота — прибираємо
         if (blocked.length) await admin.from("telegram_links").delete().in("chat_id", blocked);
       }
     }
-    return json({ sent, removed: gone.length, telegram: tgSent });
+    return json({ sent, removed: gone.length, push_error: pushError || undefined,
+      telegram: tgSent, telegram_targets: tgTargets, telegram_error: tgError || undefined });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
@@ -3416,7 +3424,7 @@ notify pgrst, 'reload schema';`;
   }
   // Надіслати сповіщення іншим (не чекаємо відповіді, помилки не заважають роботі)
   function notify(kind, data) {
-    try { db.functions.invoke('notify', { body: { kind, ...data } }).catch(() => {}); } catch (e) {}
+    try { return db.functions.invoke('notify', { body: { kind, ...data } }).catch(() => ({})); } catch (e) { return Promise.resolve({}); }
   }
   // Картка на головній: запропонувати увімкнути сповіщення
   async function pushCard() {
@@ -3628,7 +3636,13 @@ notify pgrst, 'reload schema';`;
         if (n) { await q(db.from('announcements').update(obj).eq('id', n.id)); return; }
         await q(db.from('announcements').insert(obj));
         notify('announcement', { audience: obj.audience, section: obj.section, group: obj.group_name,
-          title: (obj.important ? '❗ ' : '📢 ') + obj.title, body: obj.body || '', url: './#news' });
+          title: (obj.important ? '❗ ' : '📢 ') + obj.title, body: obj.body || '', url: './#news' })
+          .then(({ data, error }) => {
+            if (error || !data || data.error) return toast('Оголошення збережено, але сповіщення не надіслались: ' + (data?.error || error?.message || 'функція notify не відповіла'), true);
+            if (data.telegram_error === 'no_bot_token') return toast('Telegram: у функції notify немає секрету TELEGRAM_BOT_TOKEN', true);
+            if (data.telegram_error && !data.telegram) return toast('Telegram не надіслав: ' + data.telegram_error, true);
+            toast(`Надіслано: Telegram — ${data.telegram || 0}${data.telegram_targets > (data.telegram || 0) ? ' з ' + data.telegram_targets : ''}, на телефон — ${data.sent || 0}`);
+          });
       },
       onDelete: n ? () => q(db.from('announcements').delete().eq('id', n.id)) : null,
       onUndo: n ? () => { const { id, ...rest } = n; return q(db.from('announcements').insert(rest)); } : null,

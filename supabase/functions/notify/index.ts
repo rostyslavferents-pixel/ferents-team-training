@@ -40,40 +40,44 @@ Deno.serve(async (req) => {
       p_group: b.group || null,
       p_exclude: user.email,
     });
-    if (error) return json({ error: error.message }, 500);
 
-    webpush.setVapidDetails(
-      Deno.env.get("VAPID_SUBJECT") ?? "mailto:rostyslavferents@gmail.com",
-      Deno.env.get("VAPID_PUBLIC_KEY")!,
-      Deno.env.get("VAPID_PRIVATE_KEY")!,
-    );
-    const payload = JSON.stringify({
-      title: String(b.title || "Ferents Team").slice(0, 80),
-      body: String(b.body || "").slice(0, 240),
-      url: String(b.url || "./"),
-      tag: kind,
-    });
-
+    // Web Push — окремо: якщо ключі VAPID не задані чи щось зламалось, Telegram однаково піде
     let sent = 0;
     const gone: string[] = [];
-    await Promise.all((targets ?? []).map(async (t: { endpoint: string; sub: webpush.PushSubscription }) => {
-      try { await webpush.sendNotification(t.sub, payload, { TTL: 86400 }); sent++; }
-      catch (e) { const s = (e as { statusCode?: number }).statusCode; if (s === 404 || s === 410) gone.push(t.endpoint); }
-    }));
-    // Пристрої, які відписались, прибираємо
-    if (gone.length) await admin.from("push_subscriptions").delete().in("endpoint", gone);
+    let pushError = "";
+    try {
+      if (error) throw new Error(error.message);
+      const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");
+      if (!pub || !priv) throw new Error("no_vapid_keys");
+      webpush.setVapidDetails(Deno.env.get("VAPID_SUBJECT") ?? "mailto:rostyslavferents@gmail.com", pub, priv);
+      const payload = JSON.stringify({
+        title: String(b.title || "Ferents Team").slice(0, 80),
+        body: String(b.body || "").slice(0, 240),
+        url: String(b.url || "./"),
+        tag: kind,
+      });
+      await Promise.all((targets ?? []).map(async (t: { endpoint: string; sub: webpush.PushSubscription }) => {
+        try { await webpush.sendNotification(t.sub, payload, { TTL: 86400 }); sent++; }
+        catch (e) { const s = (e as { statusCode?: number }).statusCode; if (s === 404 || s === 410) gone.push(t.endpoint); }
+      }));
+      // Пристрої, які відписались, прибираємо
+      if (gone.length) await admin.from("push_subscriptions").delete().in("endpoint", gone);
+    } catch (e) { pushError = String((e as Error)?.message || e); }
 
     // Telegram (якщо бот налаштований)
-    let tgSent = 0;
+    let tgSent = 0, tgTargets = 0, tgError = "";
     const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    if (!token) tgError = "no_bot_token";
     if (token) {
-      const { data: chats } = await admin.rpc("telegram_targets", {
+      const { data: chats, error: tgErr } = await admin.rpc("telegram_targets", {
         p_kind: kind,
         p_audience: b.audience ?? "all",
         p_section: b.section || null,
         p_group: b.group || null,
         p_exclude: user.email,
       });
+      if (tgErr) tgError = tgErr.message;
+      tgTargets = chats?.length ?? 0;
       if (chats?.length) {
         const { data: cfg } = await admin.from("team_settings").select("value").eq("key", "telegram").maybeSingle();
         const app = String((cfg?.value as { app?: string } | null)?.app || "");
@@ -92,14 +96,18 @@ Deno.serve(async (req) => {
             }),
           }).then((x) => x.json()).catch(() => null);
           if (r?.ok) tgSent++;
-          else if (r?.error_code === 403 || r?.error_code === 400 && /chat not found/i.test(r?.description || "")) blocked.push(c.chat_id);
+          else {
+            tgError = String(r?.description || "send_failed");
+            if (r?.error_code === 403 || r?.error_code === 400 && /chat not found/i.test(r?.description || "")) blocked.push(c.chat_id);
+          }
           await new Promise((res) => setTimeout(res, 40)); // ліміт Telegram ~30 повідомлень/с
         }
         // Хто заблокував бота — прибираємо
         if (blocked.length) await admin.from("telegram_links").delete().in("chat_id", blocked);
       }
     }
-    return json({ sent, removed: gone.length, telegram: tgSent });
+    return json({ sent, removed: gone.length, push_error: pushError || undefined,
+      telegram: tgSent, telegram_targets: tgTargets, telegram_error: tgError || undefined });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
