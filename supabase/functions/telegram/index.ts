@@ -38,6 +38,21 @@ const openBtn = (url: string) => url ? { reply_markup: { inline_keyboard: [[{ te
 
 // Повідомлення від людей у боті
 async function onUpdate(u: any) {
+  // Відповідь на опитування в Telegram → записуємо голос
+  if (u.poll_answer) {
+    const pa = u.poll_answer;
+    const { data: pm } = await admin.from("poll_messages").select("poll_id, chat_id").eq("tg_poll_id", String(pa.poll_id)).maybeSingle();
+    if (!pm) return;
+    const { data: p } = await admin.from("polls").select("closed").eq("id", pm.poll_id).maybeSingle();
+    if (!p || p.closed) return;
+    const { data: link } = await admin.from("telegram_links").select("email").eq("chat_id", pm.chat_id).maybeSingle();
+    if (!link?.email) return;
+    const email = String(link.email).toLowerCase();
+    const choices = (pa.option_ids ?? []).map((n: number) => Number(n));
+    if (!choices.length) await admin.from("poll_votes").delete().eq("poll_id", pm.poll_id).eq("email", email);
+    else await admin.from("poll_votes").upsert({ poll_id: pm.poll_id, email, choices, via: "telegram", updated_at: new Date().toISOString() });
+    return;
+  }
   const msg = u.message;
   if (!msg?.chat || msg.chat.type !== "private") return;
   const chat = msg.chat.id as number;
@@ -122,7 +137,7 @@ async function setup(req: Request, b: any) {
   const hook = await tg("setWebhook", {
     url: `${URL_}/functions/v1/telegram`,
     secret_token: await hookSecret(),
-    allowed_updates: ["message"],
+    allowed_updates: ["message", "poll_answer"],
     drop_pending_updates: true,
   });
   if (!hook.ok) return json({ error: "webhook: " + (hook.description || "") }, 400);

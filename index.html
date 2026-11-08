@@ -157,6 +157,15 @@
 
     .badge { flex: none; font-size: 13px; font-weight: 600; border-radius: 999px; padding: 5px 10px; white-space: nowrap; }
     .badge.ok { background: var(--ok-bg); color: var(--ok); }
+    .poll { margin: 0 0 10px; padding: 12px 14px; }
+    .poll-opts { margin: 10px 0; display: grid; gap: 6px; }
+    .poll-opt { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer; }
+    .poll-opt.on { border-color: var(--gold, #c9a227); }
+    .poll-opt input { margin: 0; position: relative; z-index: 1; }
+    .poll-txt { flex: 1; display: flex; justify-content: space-between; gap: 8px; position: relative; z-index: 1; }
+    .poll-txt b { font-weight: 600; white-space: nowrap; }
+    .poll-opt small { position: relative; z-index: 1; flex-basis: 100%; }
+    .poll-bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--gold-soft, rgba(201,162,39,.15)); z-index: 0; }
     .lk { font-size: 12px; font-weight: 400; margin-left: 4px; white-space: nowrap; }
     .badge.bad { background: var(--bad-bg); color: var(--bad); }
     .badge.gold { background: var(--gold-soft); color: var(--gold-ink); }
@@ -602,7 +611,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.34';
+  const APP_VERSION = 'v3.35';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -1102,12 +1111,29 @@ Deno.serve(async (req) => {
     const allowed = kind === "chat" ? await rpc("is_athlete_member")
       : kind === "joined" ? await rpc("is_member")
       : kind === "request" ? await rpc("has_join_request")
-      : ["announcement", "event", "plan"].includes(kind) ? await rpc("is_coach")
+      : ["announcement", "event", "plan", "poll", "poll_close"].includes(kind) ? await rpc("is_coach")
       : false;
     if (!allowed) return json({ error: "forbidden" }, 403);
 
     // Кому надсилати — рахує база (service role)
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const tgToken = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
+    const tgApi = async (method: string, body: unknown) =>
+      await fetch(\`https://api.telegram.org/bot\${tgToken}/\${method}\`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      }).then((x) => x.json()).catch(() => null);
+
+    // Тренер закрив опитування — зупиняємо його в Telegram
+    if (kind === "poll_close") {
+      const { data: msgs } = await admin.from("poll_messages").select("chat_id, message_id").eq("poll_id", Number(b.poll_id));
+      let stopped = 0;
+      if (tgToken) for (const m of msgs ?? []) {
+        const r = await tgApi("stopPoll", { chat_id: m.chat_id, message_id: m.message_id });
+        if (r?.ok) stopped++;
+        await new Promise((res) => setTimeout(res, 40));
+      }
+      return json({ stopped });
+    }
     const { data: targets, error } = await admin.rpc("push_targets", {
       p_kind: kind,
       p_audience: b.audience ?? "all",
@@ -1144,7 +1170,7 @@ Deno.serve(async (req) => {
     const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
     if (!token) tgError = "no_bot_token";
     if (token) {
-      const { data: chats, error: tgErr } = await admin.rpc("telegram_targets", {
+      const { data: chats, error: tgErr } = await admin.rpc(kind === "poll" ? "telegram_targets_email" : "telegram_targets", {
         p_kind: kind,
         p_audience: b.audience ?? "all",
         p_section: b.section || null,
@@ -1153,7 +1179,44 @@ Deno.serve(async (req) => {
       });
       if (tgErr) tgError = tgErr.message;
       tgTargets = chats?.length ?? 0;
-      if (chats?.length) {
+      // Опитування — нативне опитування Telegram; відповіді приймає функція telegram
+      let poll: { id: number; question: string; options: string[]; multi: boolean } | null = null;
+      if (kind === "poll" && chats?.length) {
+        const { data: p } = await admin.from("polls").select("id, question, options, multi, closed").eq("id", Number(b.poll_id)).maybeSingle();
+        if (p && !p.closed) poll = p as any;
+        else tgError = "poll_not_found";
+        // Telegram має надсилати нам відповіді на опитування (poll_answer)
+        if (poll) {
+          const info = await tgApi("getWebhookInfo", {});
+          const allowed: string[] = info?.result?.allowed_updates ?? [];
+          if (info?.result?.url && !allowed.includes("poll_answer")) {
+            const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("ft-hook:" + tgToken));
+            const secret = Array.from(new Uint8Array(h)).map((x) => x.toString(16).padStart(2, "0")).join("").slice(0, 48);
+            await tgApi("setWebhook", { url: info.result.url, secret_token: secret, allowed_updates: ["message", "poll_answer"] });
+          }
+        }
+      }
+      if (poll) {
+        const blocked: number[] = [];
+        for (const c of chats as { chat_id: number }[]) {
+          const r = await tgApi("sendPoll", {
+            chat_id: c.chat_id, question: String(poll.question).slice(0, 300),
+            options: poll.options.map((o) => ({ text: String(o).slice(0, 100) })),
+            is_anonymous: false, allows_multiple_answers: !!poll.multi,
+          });
+          if (r?.ok) {
+            tgSent++;
+            await admin.from("poll_messages").upsert({
+              tg_poll_id: String(r.result.poll.id), poll_id: poll.id, chat_id: c.chat_id, message_id: r.result.message_id,
+            });
+          } else {
+            tgError = String(r?.description || "send_failed");
+            if (r?.error_code === 403 || r?.error_code === 400 && /chat not found/i.test(r?.description || "")) blocked.push(c.chat_id);
+          }
+          await new Promise((res) => setTimeout(res, 40)); // ліміт Telegram ~30 повідомлень/с
+        }
+        if (blocked.length) await admin.from("telegram_links").delete().in("chat_id", blocked);
+      } else if (kind !== "poll" && chats?.length) {
         const { data: cfg } = await admin.from("team_settings").select("value").eq("key", "telegram").maybeSingle();
         const app = String((cfg?.value as { app?: string } | null)?.app || "");
         const link = app ? new URL(String(b.url || "./"), app).href : "";
@@ -1228,6 +1291,21 @@ const openBtn = (url: string) => url ? { reply_markup: { inline_keyboard: [[{ te
 
 // Повідомлення від людей у боті
 async function onUpdate(u: any) {
+  // Відповідь на опитування в Telegram → записуємо голос
+  if (u.poll_answer) {
+    const pa = u.poll_answer;
+    const { data: pm } = await admin.from("poll_messages").select("poll_id, chat_id").eq("tg_poll_id", String(pa.poll_id)).maybeSingle();
+    if (!pm) return;
+    const { data: p } = await admin.from("polls").select("closed").eq("id", pm.poll_id).maybeSingle();
+    if (!p || p.closed) return;
+    const { data: link } = await admin.from("telegram_links").select("email").eq("chat_id", pm.chat_id).maybeSingle();
+    if (!link?.email) return;
+    const email = String(link.email).toLowerCase();
+    const choices = (pa.option_ids ?? []).map((n: number) => Number(n));
+    if (!choices.length) await admin.from("poll_votes").delete().eq("poll_id", pm.poll_id).eq("email", email);
+    else await admin.from("poll_votes").upsert({ poll_id: pm.poll_id, email, choices, via: "telegram", updated_at: new Date().toISOString() });
+    return;
+  }
   const msg = u.message;
   if (!msg?.chat || msg.chat.type !== "private") return;
   const chat = msg.chat.id as number;
@@ -1272,7 +1350,7 @@ async function onUpdate(u: any) {
           ? await admin.from("telegram_links").select("chat_id, email")
           : { data: [] as any[] };
         const role = mem?.role === "athlete" ? "спортсмен" : mem?.role === "parent" ? "батьки" : "акаунт";
-        const note = "✈️ <b>Telegram підключено</b>\n" + (who ? esc(who) + " (" + role + ")" : esc(mem?.full_name || row.email));
+        const note = "✈️ <b>Telegram підключено</b>\\n" + (who ? esc(who) + " (" + role + ")" : esc(mem?.full_name || row.email));
         for (const c of (cChats ?? []).filter((r: any) => cEmails.includes(String(r.email).toLowerCase()) && r.chat_id !== chat)) {
           await tg("sendMessage", { chat_id: c.chat_id, parse_mode: "HTML", text: note });
         }
@@ -1312,7 +1390,7 @@ async function setup(req: Request, b: any) {
   const hook = await tg("setWebhook", {
     url: \`\${URL_}/functions/v1/telegram\`,
     secret_token: await hookSecret(),
-    allowed_updates: ["message"],
+    allowed_updates: ["message", "poll_answer"],
     drop_pending_updates: true,
   });
   if (!hook.ok) return json({ error: "webhook: " + (hook.description || "") }, 400);
@@ -2177,6 +2255,7 @@ notify pgrst, 'reload schema';`;
         .order('created_at', { ascending: false }).limit(3).then(r => r.data || []),
       pushCard(),
     ]);
+    const pollsNow = canSee('news') ? ((await loadPolls(10).catch(() => null)) || []).filter(p => !p.closed && !p.mine) : [];
     const kids = kids0.filter(isActive).length ? kids0.filter(isActive) : kids0;
     state.kidIds = kids.map(a => String(a.id));
     drawTabbar('home');
@@ -2246,6 +2325,8 @@ notify pgrst, 'reload schema';`;
       ${pushC}
       ${nextBlock}
       ${kids.length ? `<h3>${kids.length > 1 ? 'Мої спортсмени' : (isAthleteM() ? 'Моя картка' : 'Мій спортсмен')}</h3><div class="list">${kids.map(kidCard).join('')}</div>` : noKids}
+      ${pollsNow.length ? `<a class="now soon" href="#news"><i class="dot"></i>
+        <div><b>📊 Нове опитування${pollsNow.length > 1 ? ' (' + pollsNow.length + ')' : ''}</b><span>${esc(pollsNow[0].question)} · відповісти ›</span></div><i class="go">›</i></a>` : ''}
       ${newsHtml}
       ${evHtml}
       <div class="tiles">
@@ -3716,6 +3797,234 @@ notify pgrst, 'reload schema';`;
   const annWho = n => [AUDIENCE[n.audience] || 'Усім', n.section, n.group_name].filter(Boolean).join(' · ');
   const annDate = n => fmtDate(n.created_at.slice(0, 10), { day: 'numeric', month: 'long' }) + ', ' +
     new Date(n.created_at).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+  // ===== Опитування: у застосунку і в Telegram =====
+  const POLLS_SQL = `-- Опитування: у застосунку і в Telegram (нативні опитування бота)
+create table if not exists public.polls (
+  id          bigint generated always as identity primary key,
+  created_at  timestamptz not null default now(),
+  question    text not null check (char_length(question) between 1 and 300),
+  options     jsonb not null check (jsonb_typeof(options) = 'array' and jsonb_array_length(options) between 2 and 10),
+  multi       boolean not null default false,
+  audience    text not null default 'all' check (audience in ('all','parents','athletes')),
+  section     text,
+  group_name  text,
+  closed      boolean not null default false
+);
+alter table public.polls enable row level security;
+drop policy if exists coach_all on public.polls;
+drop policy if exists member_read on public.polls;
+create policy coach_all on public.polls for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+create policy member_read on public.polls for select to authenticated
+  using (public.is_member()
+    and (audience = 'all' or audience = public.my_role() || 's')
+    and public.is_my_group(group_name, section));
+revoke all on public.polls from anon;
+
+-- Голоси: один рядок на акаунт (батьки чи спортсмен), choices — номери варіантів
+create table if not exists public.poll_votes (
+  poll_id     bigint not null references public.polls(id) on delete cascade,
+  email       text not null default lower(auth.jwt() ->> 'email'),
+  choices     int[] not null,
+  via         text not null default 'app',
+  updated_at  timestamptz not null default now(),
+  primary key (poll_id, email)
+);
+alter table public.poll_votes enable row level security;
+drop policy if exists coach_read on public.poll_votes;
+drop policy if exists own_all on public.poll_votes;
+create policy coach_read on public.poll_votes for select to authenticated using (public.is_coach());
+create policy own_all on public.poll_votes for all to authenticated
+  using (email = lower(auth.jwt() ->> 'email'))
+  with check (email = lower(auth.jwt() ->> 'email')
+    and exists (select 1 from public.polls p where p.id = poll_id and not p.closed));
+revoke all on public.poll_votes from anon;
+
+-- Які повідомлення-опитування бот надіслав (щоб записати відповідь із Telegram)
+create table if not exists public.poll_messages (
+  tg_poll_id  text primary key,
+  poll_id     bigint not null references public.polls(id) on delete cascade,
+  chat_id     bigint not null,
+  message_id  bigint not null
+);
+alter table public.poll_messages enable row level security;
+revoke all on public.poll_messages from anon, authenticated;
+
+-- Підсумок голосів (для всіх, хто бачить опитування)
+create or replace function public.poll_counts(p_poll bigint)
+returns table (choice int, votes bigint)
+language sql stable security definer set search_path = public as $$
+  select c, count(*) from public.poll_votes v, unnest(v.choices) c
+  where v.poll_id = p_poll
+    and (public.is_coach() or exists (select 1 from public.polls p where p.id = p_poll
+      and public.is_member() and (p.audience = 'all' or p.audience = public.my_role() || 's')
+      and public.is_my_group(p.group_name, p.section)))
+  group by c;
+$$;
+revoke execute on function public.poll_counts(bigint) from public, anon;
+grant execute on function public.poll_counts(bigint) to authenticated;
+
+-- Кому надсилати: опитування — як оголошення
+create or replace function public.notify_emails(p_kind text, p_audience text, p_section text, p_group text, p_exclude text)
+returns table (email text)
+language sql stable security definer set search_path = public as $$
+  with coaches_all as (
+    select email from public.coaches
+    union select email from public.members where role = 'coach'
+  ),
+  linked as (
+    select m.email, m.role, a.section, a.group_name
+    from public.members m
+    join public.member_athletes ma on ma.email = m.email
+    join public.athletes a on a.id = ma.athlete_id
+    where m.role in ('parent','athlete')
+  ),
+  who as (
+    select email from linked where p_kind in ('announcement','poll')
+      and (p_audience = 'all' or role || 's' = p_audience)
+      and (p_group is null or group_name = p_group)
+      and (p_section is null or section is null or section = p_section)
+    union select email from linked where p_kind = 'event'
+    union select email from linked where p_kind = 'plan' and role = 'athlete'
+      and (p_group is null or group_name = p_group)
+    union select email from linked where p_kind = 'chat' and role = 'athlete'
+    union select email from coaches_all where p_kind in ('chat','joined','request')
+  )
+  select distinct lower(email) from who where lower(email) is distinct from lower(p_exclude);
+$$;
+revoke execute on function public.notify_emails(text,text,text,text,text) from public, anon, authenticated;
+grant execute on function public.notify_emails(text,text,text,text,text) to service_role;
+
+-- Telegram-чати з email (для опитувань — щоб знати, кому вони надіслані)
+create or replace function public.telegram_targets_email(p_kind text, p_audience text, p_section text, p_group text, p_exclude text)
+returns table (chat_id bigint, email text)
+language sql stable security definer set search_path = public as $$
+  select t.chat_id, lower(t.email) from public.telegram_links t
+  where lower(t.email) in (select e.email from public.notify_emails(p_kind, p_audience, p_section, p_group, p_exclude) e);
+$$;
+revoke execute on function public.telegram_targets_email(text,text,text,text,text) from public, anon, authenticated;
+grant execute on function public.telegram_targets_email(text,text,text,text,text) to service_role;
+
+notify pgrst, 'reload schema';`;
+  // Завантажити опитування з голосами: [{ ...poll, counts: Map(choice → n), total, mine: [choices] | null, votes }]
+  async function loadPolls(limit = 20) {
+    const res = await db.from('polls').select('*').order('created_at', { ascending: false }).limit(limit);
+    if (res.error) return null;
+    const polls = res.data || [];
+    if (!polls.length) return [];
+    const ids = polls.map(p => p.id);
+    const [cnt, votes] = await Promise.all([
+      Promise.all(ids.map(id => db.rpc('poll_counts', { p_poll: id }).then(r => r.data || []))),
+      db.from('poll_votes').select('poll_id, email, choices, via').in('poll_id', ids).then(r => r.data || []),
+    ]);
+    const me = String(state.email || '').toLowerCase();
+    return polls.map((p, i) => {
+      const counts = new Map(cnt[i].map(r => [Number(r.choice), Number(r.votes)]));
+      const pv = votes.filter(v => String(v.poll_id) === String(p.id));
+      const mine = pv.find(v => String(v.email).toLowerCase() === me);
+      return { ...p, counts, voters: isCoach() ? pv.length : null, votes: pv, mine: mine ? mine.choices.map(Number) : null };
+    });
+  }
+  function pollCard(p, coach, names) {
+    const opts = Array.isArray(p.options) ? p.options : [];
+    const sum = [...p.counts.values()].reduce((a, b) => a + b, 0);
+    const canVote = !coach && !p.closed;
+    const showRes = coach || p.closed || p.mine;
+    const scope = [AUDIENCE[p.audience] && p.audience !== 'all' ? AUDIENCE[p.audience] : '', p.section, p.group_name].filter(Boolean).join(' · ');
+    const optRow = (o, i) => {
+      const n = p.counts.get(i) || 0, pct = sum ? Math.round(n / sum * 100) : 0;
+      const picked = p.mine && p.mine.includes(i);
+      const who = coach && names ? p.votes.filter(v => v.choices.map(Number).includes(i)).map(v => names(v.email) + (v.via === 'telegram' ? ' ✈️' : '')) : [];
+      return `<label class="poll-opt ${picked ? 'on' : ''}" ${canVote ? '' : 'style="cursor:default"'}>
+        ${canVote ? `<input type="${p.multi ? 'checkbox' : 'radio'}" name="pv${esc(p.id)}" value="${i}" ${picked ? 'checked' : ''}>` : ''}
+        <span class="poll-txt">${esc(o)}${showRes ? `<b>${n}${sum ? ' · ' + pct + '%' : ''}</b>` : ''}</span>
+        ${showRes ? `<i class="poll-bar" style="width:${pct}%"></i>` : ''}
+        ${who.length ? `<small class="muted" style="display:block;margin-top:2px">${esc(who.join(', '))}</small>` : ''}
+      </label>`;
+    };
+    return `<div class="panel poll" data-poll="${esc(p.id)}">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+        <strong>📊 ${esc(p.question)}</strong>
+        ${p.closed ? '<span class="badge bad">закрито</span>' : p.mine ? '<span class="badge ok">✓ ви проголосували</span>' : ''}
+      </div>
+      <span class="muted small">${annDate(p)}${p.multi ? ' · можна кілька варіантів' : ''}${scope ? ' · ' + esc(scope) : ''}${coach ? ` · проголосували: ${p.voters}` : ''}</span>
+      <div class="poll-opts">${opts.map(optRow).join('')}</div>
+      ${canVote ? `<button type="button" class="btn sm" data-vote="${esc(p.id)}">${p.mine ? 'Змінити відповідь' : 'Проголосувати'}</button>` : ''}
+      ${coach ? `<div style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap">
+        ${p.closed ? '' : `<button type="button" class="linkbtn" data-close="${esc(p.id)}">Закрити опитування</button>`}
+        <button type="button" class="linkbtn" data-pdel="${esc(p.id)}" style="color:var(--bad)">Видалити</button></div>` : ''}
+    </div>`;
+  }
+  // Імена для тренера: «Петренко Іван (батьки)»
+  async function voterNames() {
+    const [mem, ma, ath] = await Promise.all([
+      db.from('members').select('email, full_name, role').then(r => r.data || []),
+      db.from('member_athletes').select('email, athlete_id').then(r => r.data || []),
+      db.from('athletes').select('id, full_name').then(r => r.data || []),
+    ]);
+    const athName = new Map(ath.map(a => [String(a.id), a.full_name]));
+    return email => {
+      const e = String(email).toLowerCase();
+      const m = mem.find(x => String(x.email).toLowerCase() === e);
+      const kids = ma.filter(x => String(x.email).toLowerCase() === e).map(x => athName.get(String(x.athlete_id))).filter(Boolean);
+      const role = m?.role === 'athlete' ? 'спортсмен' : m?.role === 'parent' ? 'батьки' : '';
+      return kids.length ? kids.join(', ') + (role ? ` (${role})` : '') : (m?.full_name || e);
+    };
+  }
+  function bindPolls(box, polls, reload) {
+    box.addEventListener('click', async e => {
+      const v = e.target.closest('[data-vote]'), c = e.target.closest('[data-close]'), d = e.target.closest('[data-pdel]');
+      if (v) {
+        const card = v.closest('[data-poll]');
+        const choices = [...card.querySelectorAll('input:checked')].map(x => Number(x.value));
+        if (!choices.length) return toast('Виберіть варіант', true);
+        v.disabled = true;
+        try {
+          await q(db.from('poll_votes').upsert({ poll_id: Number(v.dataset.vote), email: String(state.email).toLowerCase(), choices, via: 'app', updated_at: new Date().toISOString() }));
+          toast('Дякуємо, ваш голос враховано');
+          reload();
+        } catch (err) { v.disabled = false; }
+      }
+      if (c && confirm('Закрити опитування? Голосувати більше не можна буде (і в Telegram теж).')) {
+        await q(db.from('polls').update({ closed: true }).eq('id', Number(c.dataset.close)));
+        notify('poll_close', { poll_id: Number(c.dataset.close) });
+        toast('Опитування закрито'); reload();
+      }
+      if (d && confirm('Видалити опитування разом з усіма голосами?')) {
+        await q(db.from('polls').delete().eq('id', Number(d.dataset.pdel)));
+        toast('Видалено'); reload();
+      }
+    });
+  }
+  function pollForm() {
+    openForm({
+      title: 'Нове опитування',
+      values: { audience: 'all', multi: false },
+      fields: [
+        { name: 'question', label: 'Питання', required: true, attrs: 'maxlength="300" placeholder="Хто їде на змагання 15 грудня?"' },
+        { name: 'opts', label: 'Варіанти відповіді — кожен з нового рядка (2–10)', type: 'textarea', rows: 4, required: true, attrs: 'placeholder="Так, їдемо\nНі\nЩе не знаю"' },
+        { name: 'multi', label: 'Можна вибрати кілька варіантів', type: 'checkbox' },
+        { name: 'audience', label: 'Кому', type: 'select', required: true, options: Object.entries(AUDIENCE) },
+        { name: 'section', label: SECTIONS.length === 2 ? 'Секція (порожньо — обидві)' : 'Секція (порожньо — усі)', type: 'select', options: SECTIONS },
+        { name: 'group_name', label: 'Група (порожньо — усі)', type: 'select', options: GROUPS },
+      ],
+      extra: '📊 Опитування прийде в застосунок і в Telegram (там можна відповісти одним натиском).',
+      onSave: async obj => {
+        const options = [...new Set(String(obj.opts || '').split('\n').map(x => x.trim().slice(0, 100)).filter(Boolean))];
+        if (options.length < 2 || options.length > 10) { toast('Потрібно від 2 до 10 варіантів', true); throw new Error('options'); }
+        const row = { question: obj.question, options, multi: !!obj.multi, audience: obj.audience, section: obj.section, group_name: obj.group_name };
+        const { data, error } = await db.from('polls').insert(row).select('id').single();
+        if (error) { toast('Не вдалося: ' + error.message, true); throw error; }
+        notify('poll', { poll_id: data.id, audience: row.audience, section: row.section, group: row.group_name,
+          title: '📊 Опитування', body: row.question, url: './#news' })
+          .then(({ data: r, error: err }) => {
+            if (err || !r || r.error) return toast('Опитування створено, але не надіслано: ' + (r?.error || err?.message || 'функція notify не відповіла'), true);
+            toast(`Надіслано: Telegram — ${r.telegram || 0}, на телефон — ${r.sent || 0}`);
+          });
+      },
+    });
+  }
+
   function annItem(n, clickable) {
     return `<${clickable ? 'button' : 'div'} class="row" ${clickable ? `data-ann="${esc(n.id)}"` : 'style="cursor:default"'}
         ${n.important ? 'style="box-shadow:inset 3px 0 0 var(--bad)"' : ''}>
@@ -3726,17 +4035,29 @@ notify pgrst, 'reload schema';`;
   }
   async function newsView() {
     const coach = isCoach();
-    setActions(coach ? '<button class="btn" id="addBtn">+ Нове</button>' : '');
-    if (coach) $('#addBtn').onclick = () => newsForm();
-    const res = await db.from('announcements').select('*').order('created_at', { ascending: false }).limit(60);
+    setActions(coach ? '<button class="btn light" id="pollBtn">📊 Опитування</button> <button class="btn" id="addBtn">+ Нове</button>' : '');
+    if (coach) { $('#addBtn').onclick = () => newsForm(); $('#pollBtn').onclick = () => polls === null ? toast('Спершу виконайте SQL для опитувань (нижче)', true) : pollForm(); }
+    const [res, polls, names] = await Promise.all([
+      db.from('announcements').select('*').order('created_at', { ascending: false }).limit(60),
+      loadPolls().catch(() => null),
+      coach ? voterNames().catch(() => null) : null,
+    ]);
     if (res.error) {
       $('#view').innerHTML = coach ? sqlCard('Оголошення та сповіщення', NEWS_SQL) : '<div class="empty">Оголошень поки немає</div>';
       return;
     }
     const all = res.data || [];
-    $('#view').innerHTML = `<div class="list">${all.map(n => annItem(n, coach)).join('') ||
-      `<div class="empty">Оголошень поки немає.${coach ? ' Натисніть «+ Нове» — побачать батьки та спортсмени, яких ви оберете.' : ''}</div>`}</div>`;
+    const openP = (polls || []).filter(p => !p.closed), oldP = (polls || []).filter(p => p.closed);
+    $('#view').innerHTML = `
+      ${polls === null && coach ? sqlCard('Опитування', POLLS_SQL) : ''}
+      ${openP.length ? `<h3 style="margin:4px 0 8px">Опитування</h3><div id="pollBox">${openP.map(p => pollCard(p, coach, names)).join('')}</div>` : ''}
+      ${openP.length || oldP.length ? '' : ''}
+      <div class="list">${all.map(n => annItem(n, coach)).join('') ||
+      `<div class="empty">Оголошень поки немає.${coach ? ' Натисніть «+ Нове» — побачать батьки та спортсмени, яких ви оберете.' : ''}</div>`}</div>
+      ${oldP.length ? `<details style="margin-top:18px"><summary class="muted">Завершені опитування (${oldP.length})</summary><div id="pollOld" style="margin-top:8px">${oldP.map(p => pollCard(p, coach, names)).join('')}</div></details>` : ''}`;
+    ['#pollBox', '#pollOld'].forEach(sel => { const b = $(sel); if (b) bindPolls(b, polls, () => newsView()); });
     if (coach) $('#view').onclick = e => {
+      if (e.target.closest('[data-poll]')) return;
       const r = e.target.closest('[data-ann]');
       if (r) newsForm(all.find(x => String(x.id) === r.dataset.ann));
     };
