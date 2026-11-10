@@ -2248,7 +2248,7 @@ notify pgrst, 'reload schema';`;
     const [kids0, schAll, ev, att, rating, news, pushC] = await Promise.all([
       q(db.from('athletes').select('*').order('full_name')),
       q(db.from('schedule').select('*').order('start_time')),
-      q(db.from('events').select('*').gte('date', t).order('date').limit(5)),
+      q(db.from('events').select('*').gte('date', t).order('date')),
       q(db.from('attendance').select('athlete_id, date').eq('present', true).gte('date', monthStart)),
       db.rpc('team_rating').then(r => r.data || []),
       db.from('announcements').select('*').gte('created_at', new Date(Date.now() - 21 * 864e5).toISOString())
@@ -2307,6 +2307,18 @@ notify pgrst, 'reload schema';`;
       тут зʼявляться його відвідування, пояси та найближчі тренування.</div>`;
 
     const going = e => (Array.isArray(e.participants) ? e.participants.map(String) : []).filter(id => state.kidIds.includes(id));
+    // Найближча подія, в списку учасників якої є мій спортсмен
+    const myEv = canSee('events') ? ev.find(e => going(e).length) : null;
+    let myEvBlock = '';
+    if (myEv) {
+      const dd = Math.round((new Date(myEv.date + 'T12:00') - new Date(t + 'T12:00')) / 864e5);
+      const whenEv = dd === 0 ? 'сьогодні' : dd === 1 ? 'завтра' : `через ${dd} дн.`;
+      const who = kids.length > 1 || !isAthleteM()
+        ? going(myEv).map(id => kids.find(a => String(a.id) === id)?.full_name).filter(Boolean).map(firstNameOf).join(', ') : '';
+      myEvBlock = `<a class="now${dd <= 7 ? '' : ' soon'}" href="#events"><i class="dot"></i>
+        <div><b>🥋 ${isAthleteM() && kids.length === 1 ? 'Твоя наступна подія' : 'Наступна подія'}: ${whenEv}</b>
+          <span>${esc(myEv.title)} · ${fmtDate(myEv.date, { weekday: 'short', day: 'numeric', month: 'long' })}${myEv.place ? ' · ' + esc(myEv.place) : ''}${who ? '<br>Бере участь: ' + esc(who) : ''}</span></div><i class="go">›</i></a>`;
+    }
     const evHtml = ev.length && canSee('events') ? `<h3>Найближчі події</h3><div class="list">${ev.slice(0, 3).map(e => {
         const g = going(e).map(id => kids.find(a => String(a.id) === id)?.full_name).filter(Boolean).map(firstNameOf);
         return `<a class="row" href="#events"><div><strong>${esc(e.title)}</strong>
@@ -2323,6 +2335,7 @@ notify pgrst, 'reload schema';`;
     $('#view').innerHTML = `
       ${installCard()}
       ${pushC}
+      ${myEvBlock}
       ${nextBlock}
       ${kids.length ? `<h3>${kids.length > 1 ? 'Мої спортсмени' : (isAthleteM() ? 'Моя картка' : 'Мій спортсмен')}</h3><div class="list">${kids.map(kidCard).join('')}</div>` : noKids}
       ${pollsNow.length ? `<a class="now soon" href="#news"><i class="dot"></i>
@@ -4347,7 +4360,18 @@ notify pgrst, 'reload schema';`;
       const btn = form.querySelector('[type=submit]');
       btn.disabled = true;
       const ids = ath.filter(a => chosen.has(String(a.id))).map(a => a.id);
-      try { await q(db.from('events').update({ participants: ids }).eq('id', ev.id)); dlg.close(); toast(`Учасників: ${ids.length}`); render(); }
+      const before = new Set((Array.isArray(ev.participants) ? ev.participants : []).map(String));
+      const added = ids.filter(id => !before.has(String(id)));
+      try {
+        await q(db.from('events').update({ participants: ids }).eq('id', ev.id));
+        // Сповіщення лише тим, кого щойно додали (самим спортсменам і їхнім батькам)
+        if (added.length && ev.date >= today()) notify('event_join', { athlete_ids: added,
+          title: '🥋 Участь у події: ' + ev.title,
+          body: 'Вас (або вашого спортсмена) додано до списку учасників.\n' +
+            fmtDate(ev.date, { weekday: 'short', day: 'numeric', month: 'long' }) + (ev.place ? ' · ' + ev.place : ''),
+          url: './#events' });
+        dlg.close(); toast(`Учасників: ${ids.length}${added.length && ev.date >= today() ? ' · сповіщення надіслано новим' : ''}`); render();
+      }
       catch (err) { btn.disabled = false; }
     };
     draw();

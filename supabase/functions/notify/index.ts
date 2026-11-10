@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     const allowed = kind === "chat" ? await rpc("is_athlete_member")
       : kind === "joined" ? await rpc("is_member")
       : kind === "request" ? await rpc("has_join_request")
-      : ["announcement", "event", "plan", "poll", "poll_close"].includes(kind) ? await rpc("is_coach")
+      : ["announcement", "event", "event_join", "plan", "poll", "poll_close"].includes(kind) ? await rpc("is_coach")
       : false;
     if (!allowed) return json({ error: "forbidden" }, 403);
 
@@ -50,13 +50,25 @@ Deno.serve(async (req) => {
       }
       return json({ stopped });
     }
-    const { data: targets, error } = await admin.rpc("push_targets", {
-      p_kind: kind,
-      p_audience: b.audience ?? "all",
-      p_section: b.section || null,
-      p_group: b.group || null,
-      p_exclude: user.email,
-    });
+    // Учасники події: лише акаунти, привʼязані до доданих спортсменів (спортсмени й батьки)
+    let joinEmails: string[] | null = null;
+    if (kind === "event_join") {
+      const ids = (Array.isArray(b.athlete_ids) ? b.athlete_ids : []).map(String).slice(0, 300);
+      const { data: links } = ids.length
+        ? await admin.from("member_athletes").select("email").in("athlete_id", ids) : { data: [] };
+      joinEmails = [...new Set((links ?? []).map((l: { email: string }) => String(l.email).toLowerCase()))]
+        .filter((e) => e !== user.email!.toLowerCase());
+      if (!joinEmails.length) return json({ sent: 0, telegram: 0, telegram_targets: 0 });
+    }
+    const { data: targets, error } = joinEmails
+      ? await admin.from("push_subscriptions").select("endpoint, sub").in("email", joinEmails)
+      : await admin.rpc("push_targets", {
+        p_kind: kind,
+        p_audience: b.audience ?? "all",
+        p_section: b.section || null,
+        p_group: b.group || null,
+        p_exclude: user.email,
+      });
 
     // Web Push — окремо: якщо ключі VAPID не задані чи щось зламалось, Telegram однаково піде
     let sent = 0;
@@ -86,7 +98,9 @@ Deno.serve(async (req) => {
     const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
     if (!token) tgError = "no_bot_token";
     if (token) {
-      const { data: chats, error: tgErr } = await admin.rpc(kind === "poll" ? "telegram_targets_email" : "telegram_targets", {
+      const { data: chats, error: tgErr } = joinEmails
+        ? await admin.from("telegram_links").select("chat_id").in("email", joinEmails)
+        : await admin.rpc(kind === "poll" ? "telegram_targets_email" : "telegram_targets", {
         p_kind: kind,
         p_audience: b.audience ?? "all",
         p_section: b.section || null,
