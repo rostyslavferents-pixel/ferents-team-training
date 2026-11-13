@@ -150,7 +150,8 @@
     .row.tick input { width: 26px; height: 26px; flex: none; accent-color: var(--ok); }
     .chev { color: var(--muted); font-size: 22px; }
     .row.plan { align-items: flex-start; }
-    .tasks { white-space: pre-line; font-size: 14px; color: var(--ink); margin-top: 8px; line-height: 1.5; }
+    .tasks { white-space: pre-line; font-size: 14px; color: var(--ink); margin-top: 8px; line-height: 1.5; overflow-wrap: anywhere; }
+    .tasks a { color: var(--gold-ink, var(--gold)); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
     .row input.kg { width: 92px; flex: none; text-align: center; }
     .day-title { font-size: 13px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 18px 4px 6px; }
     .empty { padding: 18px 16px; color: var(--muted); }
@@ -766,6 +767,28 @@
   function $(sel) { return document.querySelector(sel); }
   function esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  // Текст із клікабельними посиланнями: https://…, www.… або [назва](https://…)
+  function linkify(s) {
+    const a = (url, label) => {
+      const href = /^www\./i.test(url) ? 'https://' + url : url;
+      return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
+    };
+    const re = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|((?:https?:\/\/|www\.)[^\s<>"']+)/gi;
+    let out = '', last = 0, m;
+    const str = String(s ?? '');
+    while ((m = re.exec(str))) {
+      out += esc(str.slice(last, m.index));
+      if (m[1]) out += a(m[2], m[1]);
+      else {
+        let url = m[3], tail = '';
+        const t = url.match(/[.,;:!?)»]+$/);   // розділові знаки в кінці — не частина посилання
+        if (t) { tail = t[0]; url = url.slice(0, -tail.length); }
+        out += a(url, url.replace(/^https?:\/\//i, '').replace(/\/$/, '')) + esc(tail);
+      }
+      last = re.lastIndex;
+    }
+    return out + esc(str.slice(last));
   }
   function today() { return new Date().toLocaleDateString('sv-SE'); } // YYYY-MM-DD
   function shiftDate(iso, days) {
@@ -3561,19 +3584,20 @@ notify pgrst, 'reload schema';`;
     const upcoming = rows.filter(p => p.date >= t);
     const past = rows.filter(p => p.date < t).reverse().slice(0, 15);
 
-    const item = p => `<button class="row plan" data-id="${esc(p.id)}">
+    const item = p => `<div class="row plan" data-id="${esc(p.id)}"${coach ? ' role="button" tabindex="0"' : ' style="cursor:default"'}>
         <div style="min-width:0">
           <strong>${esc(p.title)}</strong>
           <span>${fmtDate(p.date, { weekday: 'short', day: 'numeric', month: 'long' })} · ${esc(p.group_name || 'Всі групи')}</span>
-          ${p.tasks ? `<div class="tasks">${esc(p.tasks)}</div>` : ''}
+          ${p.tasks ? `<div class="tasks">${linkify(p.tasks)}</div>` : ''}
         </div>
         ${p.date === t ? '<span class="badge gold">сьогодні</span>' : ''}
-      </button>`;
+      </div>`;
 
     $('#view').innerHTML = `${coach ? chips() : ''}
       <div class="list">${upcoming.map(item).join('') || `<div class="empty">Запланованих завдань немає.${coach ? ' Натисніть «+ Додати».' : ''}</div>`}</div>
       ${past.length ? `<h3>Минулі</h3><div class="list">${past.map(item).join('')}</div>` : ''}`;
     $('#view').onclick = e => {
+      if (e.target.closest('a')) return; // натиснули на посилання — просто відкриваємо його
       const r = e.target.closest('.row[data-id]');
       if (r && coach) planForm(all.find(x => String(x.id) === r.dataset.id));
     };
@@ -3588,7 +3612,7 @@ notify pgrst, 'reload schema';`;
         { name: 'group_name', label: 'Група (порожньо — всі групи)', type: 'select', options: GROUPS },
         { name: 'title', label: 'Тема', required: true, attrs: 'placeholder="напр. Кіхон, ката Пінан Соно Ічі, спаринги"' },
         { name: 'tasks', label: 'Завдання та план (кожне з нового рядка)', type: 'textarea', rows: 8,
-          attrs: 'placeholder="1. Розминка — 10 хв\n2. Кіхон: удари руками — 15 хв\n3. Ката\n4. ОФП"' },
+          attrs: 'placeholder="1. Розминка — 10 хв\n2. Кіхон: удари руками — 15 хв\n3. Ката — відео: https://youtu.be/...\n4. ЗФП\n\nПосилання можна вставити просто так або як [Назва](https://...)"' },
       ],
       onSave: async obj => {
         if (p) return q(db.from('training_plans').update(obj).eq('id', p.id));
