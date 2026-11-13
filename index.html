@@ -4063,12 +4063,12 @@ notify pgrst, 'reload schema';`;
   }
 
   function annItem(n, clickable) {
-    return `<${clickable ? 'button' : 'div'} class="row" ${clickable ? `data-ann="${esc(n.id)}"` : 'style="cursor:default"'}
-        ${n.important ? 'style="box-shadow:inset 3px 0 0 var(--bad)"' : ''}>
+    const st = [clickable ? '' : 'cursor:default', n.important ? 'box-shadow:inset 3px 0 0 var(--bad)' : ''].filter(Boolean).join(';');
+    return `<div class="row" ${clickable ? `data-ann="${esc(n.id)}" role="button" tabindex="0"` : ''}${st ? ` style="${st}"` : ''}>
       <div style="min-width:0"><strong>${n.important ? '❗ ' : '📢 '}${esc(n.title)}</strong>
-        ${n.body ? `<div class="tasks" style="white-space:pre-wrap">${esc(n.body)}</div>` : ''}
+        ${n.body ? `<div class="tasks" style="white-space:pre-wrap">${linkify(n.body)}</div>` : ''}
         <span>${annDate(n)}${isCoach() ? ' · ' + esc(annWho(n)) : ''}</span></div>
-    </${clickable ? 'button' : 'div'}>`;
+    </div>`;
   }
   async function newsView() {
     const coach = isCoach();
@@ -4094,7 +4094,7 @@ notify pgrst, 'reload schema';`;
       ${oldP.length ? `<details style="margin-top:18px"><summary class="muted">Завершені опитування (${oldP.length})</summary><div id="pollOld" style="margin-top:8px">${oldP.map(p => pollCard(p, coach, names)).join('')}</div></details>` : ''}`;
     ['#pollBox', '#pollOld'].forEach(sel => { const b = $(sel); if (b) bindPolls(b, polls, () => newsView()); });
     if (coach) $('#view').onclick = e => {
-      if (e.target.closest('[data-poll]')) return;
+      if (e.target.closest('[data-poll]') || e.target.closest('a')) return;
       const r = e.target.closest('[data-ann]');
       if (r) newsForm(all.find(x => String(x.id) === r.dataset.ann));
     };
@@ -4120,7 +4120,7 @@ notify pgrst, 'reload schema';`;
       values: n || { audience: 'all', important: false },
       fields: [
         { name: 'title', label: 'Заголовок', required: true, attrs: 'maxlength="120" placeholder="Завтра тренування не буде"' },
-        { name: 'body', label: 'Текст (необовʼязково)', type: 'textarea', rows: 5, attrs: 'maxlength="3000"' },
+        { name: 'body', label: 'Текст (необовʼязково)', type: 'textarea', rows: 5, attrs: 'maxlength="3000" placeholder="Посилання можна вставити просто так або як [Назва](https://...)"' },
         { name: 'audience', label: 'Кому', type: 'select', required: true, options: Object.entries(AUDIENCE) },
         { name: 'section', label: SECTIONS.length === 2 ? 'Секція (порожньо — обидві)' : 'Секція (порожньо — усі)', type: 'select', options: SECTIONS },
         { name: 'group_name', label: 'Група (порожньо — усі)', type: 'select', options: GROUPS },
@@ -4176,7 +4176,7 @@ notify pgrst, 'reload schema';`;
       const body = `<div><strong>${esc(e.title)}</strong>
         <span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}${e.place ? ' · ' + esc(e.place) : ''}</span>
         ${isCoach() && n ? `<span>👥 ${n} ${n % 10 === 1 && n % 100 !== 11 ? 'учасник' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'учасники' : 'учасників'}</span>` : ''}
-        ${!isCoach() && e.description ? `<span>${esc(e.description)}</span>` : ''}
+        ${!isCoach() && e.description ? `<span class="tasks" style="margin-top:2px">${linkify(e.description)}</span>` : ''}
         ${eventStreams(e).length ? (isCoach() ? `<span>📺 ${eventStreams(e).map(streamName).join(', ')}</span>` : `<span>${streamLinks(e)}</span>`) : ''}
         ${!isCoach() && kidsIn(e).length ? `<span style="color:var(--ok)">🥋 бере участь: ${esc(kidsIn(e).join(', '))}</span>` : ''}</div>${badge}`;
       return isCoach()
@@ -4223,7 +4223,7 @@ notify pgrst, 'reload schema';`;
           ${days === 0 ? ' · <b>сьогодні</b>' : days > 0 ? ` · через ${days} дн.` : ''}</div>
         ${ev.place ? `<div class="note">📍 ${esc(ev.place)}</div>` : ''}
         ${eventStreams(ev).length ? `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${streamLinks(ev, 'btn sm')}</div>` : ''}
-        ${ev.description ? `<div class="note">${esc(ev.description)}</div>` : ''}
+        ${ev.description ? `<div class="note tasks">${linkify(ev.description)}</div>` : ''}
       </div>
       ${hasCol ? `
         <div class="sec"><h3>Учасники · ${people.length}</h3><button type="button" class="btn sm" id="pickBtn">${people.length ? 'Змінити список' : '+ Вибрати'}</button></div>
@@ -4424,7 +4424,7 @@ notify pgrst, 'reload schema';`;
         { name: 'title', label: 'Назва (змагання, атестація, збори…)', required: true },
         { name: 'date', label: 'Дата', type: 'date', required: true },
         { name: 'place', label: 'Місце' },
-        { name: 'description', label: 'Опис', type: 'textarea' },
+        { name: 'description', label: 'Опис', type: 'textarea', attrs: 'placeholder="Посилання можна вставити просто так або як [Назва](https://...)"' },
       ],
       extra: `<b>📺 Трансляції</b><br><span class="muted small">Татамі (буква чи цифра) і посилання. Якщо трансляція одна — татамі можна не писати.</span>
         <div id="stRows">${(rowsInit.length ? rowsInit : [{}]).map(streamRow).join('')}</div>
