@@ -231,6 +231,7 @@
     .mi-home     { --c1: #ecc76a; --c2: #b8862b; }
     .mi-chat     { --c1: #5eb0ff; --c2: #2563eb; }
     .mi-users    { --c1: #3ddc9f; --c2: #0e9467; }
+    .mi-stats    { --c1: #ffb347; --c2: #e0701b; }
     .mi-settings { --c1: #9aa6b8; --c2: #4b5567; }
     .mi-install  { --c1: #b197fc; --c2: #6d3fe0; }
     .mi-logout   { --c1: #ff8a80; --c2: #d93636; }
@@ -357,6 +358,39 @@
     .chips.seg { padding-bottom: 4px; }
     .chips.seg .chip { font-weight: 600; }
     .chips.seg .chip.on { background: var(--gold); color: #111827; }
+    /* Статистика (тренер) */
+    .st-lock { font-size: 12px; color: var(--muted); margin: 0 2px 8px; }
+    .st-kpi { grid-template-columns: repeat(2, 1fr); }
+    .st-kpi .stat b { font-size: 22px; }
+    .st-sort { align-items: center; }
+    .st-sort .chip { padding: 6px 12px; font-size: 13px; }
+    .st-wrap { overflow-x: auto; background: var(--card); border-radius: 14px; box-shadow: 0 2px 8px #0000000d; margin-bottom: 8px; -webkit-overflow-scrolling: touch; }
+    .stbl { border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 100%; font-variant-numeric: tabular-nums; }
+    .stbl th, .stbl td { padding: 7px 6px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    .stbl thead th { font-size: 12px; font-weight: 600; color: var(--muted); position: sticky; top: 0; background: var(--card); }
+    .stbl th.d b { display: block; color: var(--ink); font-size: 13px; }
+    .stbl th.d small { font-weight: 400; font-size: 10px; }
+    .stbl th[scope=row], .stbl th.nm { position: sticky; left: 0; z-index: 1; background: var(--card); text-align: left; font-weight: 500;
+      max-width: 150px; overflow: hidden; text-overflow: ellipsis; box-shadow: 1px 0 0 var(--line); }
+    .stbl thead th.nm { z-index: 2; }
+    .stbl th[scope=row] a { color: var(--ink); text-decoration: none; }
+    .stbl tbody tr:last-child th, .stbl tbody tr:last-child td { border-bottom: 0; }
+    .stbl tfoot th, .stbl tfoot td { font-weight: 600; border-top: 2px solid var(--line); border-bottom: 0; }
+    .stbl small { display: block; font-size: 10px; color: var(--muted); font-weight: 400; }
+    .stbl td.tot small { display: inline; }
+    .stbl td.y, .st-leg .y { color: var(--ok); font-size: 15px; }
+    .stbl td.n, .st-leg .n { color: var(--bad); }
+    .stbl td.x { background: color-mix(in srgb, var(--line) 35%, transparent); }
+    .stbl td.tot { font-weight: 700; }
+    .stbl td.pay-ok { background: var(--ok-bg); color: var(--ok); font-weight: 600; cursor: pointer; }
+    .stbl td.pay-no { background: var(--bad-bg); color: var(--bad); }
+    .stbl td.bad, .st-leg .bad { color: var(--bad); font-weight: 700; }
+    .stbl td.ok, .st-leg .ok { color: var(--ok); font-weight: 600; }
+    .stbl td.pc { min-width: 64px; position: relative; }
+    .pbar { display: block; height: 4px; border-radius: 2px; margin: 0 auto 3px; width: 44px;
+      background: linear-gradient(90deg, var(--ok) var(--p), var(--line) var(--p)); }
+    .st-leg { margin: 4px 2px 14px; line-height: 1.5; }
+    .st-link { display: block; text-align: center; margin: 10px 0 4px; font-size: 14px; }
     .sum-sec { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 8px 0; border-bottom: 1px solid var(--line); }
     .sum-sec:last-child { border-bottom: 0; }
     .assign-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
@@ -612,7 +646,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.37';
+  const APP_VERSION = 'v3.38';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -747,13 +781,14 @@
     kid: '<circle cx="12" cy="7.5" r="4.5"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/>',
     news: '<path d="M3 10v4a1 1 0 0 0 1 1h3l6 4V5L7 9H4a1 1 0 0 0-1 1z"/><path d="M17 8a5 5 0 0 1 0 8M20 5a9 9 0 0 1 0 14"/>',
     plans: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
+    stats: '<path d="M3 3v18h18"/><path d="M7 16v-4M12 16V8M17 16v-7"/>',
   };
   function icon(name) { return `<svg class="ic-svg" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; }
 
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -2249,7 +2284,8 @@ notify pgrst, 'reload schema';`;
         ${tile('events', 'events', 'Календар подій', 'Змагання, збори')}
         ${tile('links', 'links', 'Відео', 'Ката, техніка, посилання')}
         ${tile('members', 'members', 'Учасники', 'Доступ для батьків')}
-        ${tile('applications', 'form', 'Заяви', 'Анкети вступу з підписом', 'wide')}
+        ${tile('stats', 'stats', 'Статистика', 'Таблиці відміток і оплат')}
+        ${tile('applications', 'form', 'Заяви', 'Анкети вступу з підписом')}
       </div>`;
 
     // Перед переходом готуємо фільтри: сьогоднішня дата, поточний місяць, потрібна група
@@ -3270,7 +3306,8 @@ notify pgrst, 'reload schema';`;
       </div>
       ${rows.length ? '<button class="btn light wide" id="allBtn">Відмітити всіх присутніми</button>' : ''}
       <h3>${fmtMonth(state.date.slice(0, 7))}: відвідування</h3>
-      <div class="list" id="stats"></div>`;
+      <div class="list" id="stats"></div>
+      <a class="link st-link" href="#stats/att">📊 Таблиця і статистика відвідувань →</a>`;
 
     const updateSum = () => {
       const n = $('#attList').querySelectorAll('input:checked').length;
@@ -3367,7 +3404,8 @@ notify pgrst, 'reload schema';`;
         }).join('') || '<div class="empty">У цій групі немає активних спортсменів</div>'}
       </div>
       ${debtors.length ? `<button class="btn wide" id="remindBtn">📨 Нагадати батькам (${debtors.length})</button>
-        <button class="btn light wide" id="copyDebtors" style="margin-top:8px">Скопіювати список боржників</button>` : ''}`;
+        <button class="btn light wide" id="copyDebtors" style="margin-top:8px">Скопіювати список боржників</button>` : ''}
+      <a class="link st-link" href="#stats/pay">📊 Таблиця і статистика оплат →</a>`;
     const rb = $('#remindBtn');
     if (rb) rb.onclick = () => remindSheet(debtors, state.month);
 
@@ -3403,6 +3441,250 @@ notify pgrst, 'reload schema';`;
     };
     document.querySelectorAll('[data-mshift]').forEach(b =>
       b.onclick = () => { state.month = shiftMonth(state.month, Number(b.dataset.mshift)); render(); });
+  }
+
+  // ===== Статистика: таблиці відвідувань і оплат (бачить лише тренер) =====
+  // З якого місяця рахуємо оплати і борги (раніше записів в додатку не було)
+  const PAY_TRACK_FROM = '2026-11';
+  state.statTab = 'att'; state.statPeriod = 'month'; state.statMonth = today().slice(0, 7); state.statSort = 'name';
+  // Навчальний рік: вересень — червень
+  function seasonOf(ym) { const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5, 7)); return m >= 9 ? y : y - 1; }
+  function seasonMonths(y) {
+    return [9, 10, 11, 12, 1, 2, 3, 4, 5, 6].map(m => `${m >= 9 ? y : y + 1}-${String(m).padStart(2, '0')}`);
+  }
+  const MON_SHORT = ['січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'лип', 'сер', 'вер', 'жов', 'лис', 'гру'];
+  const WD_SHORT = ['', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'нд'];
+  const monShort = ym => MON_SHORT[Number(ym.slice(5, 7)) - 1];
+  // Усі рядки запиту по 1000 (Supabase більше за раз не віддає)
+  async function fetchRows(build) {
+    const out = [];
+    for (let from = 0; ; from += 1000) {
+      const data = await q(build().range(from, from + 999));
+      out.push(...data);
+      if (data.length < 1000) return out;
+    }
+  }
+  const pct = (a, b) => b ? Math.round(a * 100 / b) : 0;
+  const pctCell = p => `<td class="pc"><span class="pbar" style="--p:${p}%"></span>${p}%</td>`;
+  const nameCell = a => `<th scope="row"><a href="#athlete/${encodeURIComponent(a.id)}">${esc(a.full_name)}</a></th>`;
+  const kpi = (val, label, cls = '') => `<div class="stat ${cls}"><b>${val}</b><span>${label}</span></div>`;
+
+  async function statsView() {
+    if (!isCoach()) { location.hash = '#home'; return; }
+    // Перехід з «Відміток» чи «Оплат»: відкриваємо потрібну таблицю за той самий місяць
+    if (state.param === 'att' || state.param === 'pay') {
+      state.statTab = state.param; state.statPeriod = 'month';
+      state.statMonth = state.param === 'att' ? state.date.slice(0, 7) : state.month;
+      history.replaceState(null, '', '#stats');
+    }
+    setActions('<button class="btn light" id="stXls" aria-label="Скачати таблицю в Excel">⬇️ Excel</button>');
+    const tabs = `<div class="chips seg st-tabs">
+        <button type="button" class="chip ${state.statTab === 'att' ? 'on' : ''}" data-stab="att">✓ Відвідування</button>
+        <button type="button" class="chip ${state.statTab === 'pay' ? 'on' : ''}" data-stab="pay">₴ Оплати</button></div>`;
+    const periods = state.statTab === 'att' ? `<div class="chips seg">
+        <button type="button" class="chip ${state.statPeriod === 'month' ? 'on' : ''}" data-speriod="month">По днях місяця</button>
+        <button type="button" class="chip ${state.statPeriod === 'season' ? 'on' : ''}" data-speriod="season">За сезон</button></div>` : '';
+    const bySeason = state.statTab === 'pay' || state.statPeriod === 'season';
+    const sy = seasonOf(state.statMonth);
+    const bar = `<div class="bar">
+        <button class="btn light sq" data-sshift="-1" aria-label="Назад">‹</button>
+        <div class="picker"><span>${bySeason ? `Сезон ${sy}/${String(sy + 1).slice(2)}` : fmtMonth(state.statMonth)}</span></div>
+        <button class="btn light sq" data-sshift="1" aria-label="Вперед">›</button></div>`;
+    const sortChips = `<div class="chips st-sort"><span class="muted small">Сортувати:</span>
+        <button type="button" class="chip ${state.statSort === 'name' ? 'on' : ''}" data-ssort="name">за прізвищем</button>
+        <button type="button" class="chip ${state.statSort === 'top' ? 'on' : ''}" data-ssort="top">${state.statTab === 'att' ? 'за відвідуваністю' : 'за боргом'}</button></div>`;
+
+    const ath = await q(db.from('athletes').select('*').order('full_name'));
+    noteSection(ath);
+    const rows = ath.filter(a => isActive(a) && inFilter(a));
+    const res = state.statTab === 'att'
+      ? await (bySeason ? attSeasonStats(rows, sy) : attMonthStats(rows))
+      : await payStats(rows, sy);
+
+    $('#view').innerHTML = `
+      <p class="st-lock">🔒 Цей розділ бачите лише ви — спортсмени й батьки його не бачать</p>
+      ${tabs}${bar}${periods}${chips(true)}
+      <div class="stats st-kpi">${res.kpis}</div>
+      ${res.groups ? `<h3>По групах</h3><div class="st-wrap"><table class="stbl st-groups">${res.groups}</table></div>` : ''}
+      <h3>${res.title}</h3>
+      ${rows.length ? sortChips : ''}
+      ${rows.length ? `<div class="st-wrap"><table class="stbl">${res.table}</table></div>${res.legend || ''}`
+        : '<div class="empty">У цій групі немає активних спортсменів</div>'}`;
+
+    $('#view').onclick = e => {
+      const info = e.target.closest('[data-pinfo]');
+      if (info) { toast(info.dataset.pinfo); return; }
+      const b = e.target.closest('[data-stab],[data-speriod],[data-sshift],[data-ssort]');
+      if (!b) return;
+      if (b.dataset.stab) state.statTab = b.dataset.stab;
+      if (b.dataset.speriod) state.statPeriod = b.dataset.speriod;
+      if (b.dataset.ssort) state.statSort = b.dataset.ssort;
+      if (b.dataset.sshift) state.statMonth = shiftMonth(state.statMonth, Number(b.dataset.sshift) * (bySeason ? 12 : 1));
+      render();
+    };
+    $('#stXls').onclick = async () => {
+      try {
+        const scope = [state.section !== 'Усі' && state.hasSection ? state.section : '', state.group !== 'Усі' ? state.group : ''].filter(Boolean).join('-');
+        await saveFile(makeXlsx([{ name: res.title, rows: res.xls }]),
+          `Ferents-${state.statTab === 'att' ? 'Відвідування' : 'Оплати'}-${bySeason ? sy + '-' + (sy + 1) : state.statMonth}${scope ? '-' + scope : ''}.xlsx`);
+        toast('Файл Excel готовий');
+      } catch (err) { toast('Не вдалося зберегти файл', true); }
+    };
+  }
+
+  // Тренування групи = дні, коли в цій групі є хоч одна відмітка
+  const grpKey = a => (state.hasSection ? (a.section || '') : '') + '|' + (a.group_name || '');
+  const grpName = k => k.split('|').filter(Boolean).join(' · ') || 'Без групи';
+  function sortRows(rows, score) {
+    const out = rows.slice();
+    if (state.statSort === 'top') out.sort((x, y) => score(y) - score(x) || x.full_name.localeCompare(y.full_name, 'uk'));
+    return out;
+  }
+
+  async function attMonthStats(rows) {
+    const ym = state.statMonth, from = ym + '-01', to = shiftMonth(ym, 1) + '-01';
+    const marks0 = await fetchRows(() => db.from('attendance').select('athlete_id, date, present').gte('date', from).lt('date', to).order('date'));
+    const marks = withPending('attendance', marks0, r => r.date >= from && r.date < to);
+    const byId = new Map(rows.map(a => [String(a.id), a]));
+    const pres = new Map(), grpDays = new Map(), allDays = new Set();
+    marks.forEach(m => {
+      const a = byId.get(String(m.athlete_id)); if (!a) return;
+      const k = grpKey(a);
+      if (!grpDays.has(k)) grpDays.set(k, new Set());
+      grpDays.get(k).add(m.date); allDays.add(m.date);
+      if (m.present !== false) { const id = String(a.id); if (!pres.has(id)) pres.set(id, new Set()); pres.get(id).add(m.date); }
+    });
+    const days = [...allDays].sort();
+    const n = a => pres.get(String(a.id))?.size || 0;
+    const of = a => grpDays.get(grpKey(a))?.size || 0;
+    const visits = rows.reduce((s, a) => s + n(a), 0), possible = rows.reduce((s, a) => s + of(a), 0);
+    const sessions = [...grpDays.values()].reduce((s, d) => s + d.size, 0);
+    const zero = rows.filter(a => of(a) && !n(a)).length;
+    const kpis = kpi(sessions, 'тренувань груп') + kpi(sessions ? (visits / sessions).toFixed(1) : '0', 'у середньому на тренуванні') +
+      kpi(pct(visits, possible) + '%', 'відвідуваність') + kpi(zero, 'не були жодного разу', zero ? 'warn' : '');
+    const groups = groupAttTable(rows, grpDays, n);
+    const list = sortRows(rows, a => pct(n(a), of(a)) * 1000 + n(a));
+    const head = `<thead><tr><th class="nm">Спортсмен</th>${days.map(d => `<th class="d"><b>${Number(d.slice(8))}</b><small>${WD_SHORT[weekdayOf(d)]}</small></th>`).join('')}<th>Разом</th><th>%</th></tr></thead>`;
+    const body = list.map(a => {
+      const p = pres.get(String(a.id)), g = grpDays.get(grpKey(a));
+      return `<tr>${nameCell(a)}${days.map(d => p?.has(d) ? '<td class="y">●</td>' : g?.has(d) ? '<td class="n">–</td>' : '<td class="x"></td>').join('')}
+        <td class="tot">${n(a)}${of(a) ? `<small>/${of(a)}</small>` : ''}</td>${pctCell(pct(n(a), of(a)))}</tr>`;
+    }).join('');
+    const foot = `<tfoot><tr><th class="nm">Присутні</th>${days.map(d => `<td>${list.filter(a => pres.get(String(a.id))?.has(d)).length}</td>`).join('')}<td class="tot">${visits}</td>${pctCell(pct(visits, possible))}</tr></tfoot>`;
+    const dmy = d => d.split('-').reverse().slice(0, 2).join('.');
+    return {
+      kpis, groups, title: `Відвідування · ${fmtMonth(ym)}`,
+      table: head + `<tbody>${body}</tbody>` + foot,
+      legend: '<p class="muted small st-leg"><span class="y">●</span> був · <span class="n">–</span> пропустив тренування своєї групи · порожньо — у групи не було тренування</p>',
+      xls: [['Спортсмен', 'Секція', 'Група', ...days.map(dmy), 'Разом', 'Тренувань групи', '%'],
+        ...list.map(a => [a.full_name, a.section || '', a.group_name || '', ...days.map(d => pres.get(String(a.id))?.has(d) ? '+' : grpDays.get(grpKey(a))?.has(d) ? '–' : ''), n(a), of(a), pct(n(a), of(a))])],
+    };
+  }
+
+  async function attSeasonStats(rows, sy) {
+    const months = seasonMonths(sy), from = months[0] + '-01', to = shiftMonth(months[9], 1) + '-01';
+    const marks0 = await fetchRows(() => db.from('attendance').select('athlete_id, date, present').gte('date', from).lt('date', to).order('date'));
+    const marks = withPending('attendance', marks0, r => r.date >= from && r.date < to);
+    const byId = new Map(rows.map(a => [String(a.id), a]));
+    const cnt = new Map(), grpDays = new Map(), grpMonDays = new Map();
+    marks.forEach(m => {
+      const a = byId.get(String(m.athlete_id)); if (!a) return;
+      const k = grpKey(a), mk = k + '#' + m.date.slice(0, 7);
+      if (!grpDays.has(k)) grpDays.set(k, new Set()); grpDays.get(k).add(m.date);
+      if (!grpMonDays.has(mk)) grpMonDays.set(mk, new Set()); grpMonDays.get(mk).add(m.date);
+      if (m.present !== false) {
+        const id = String(a.id), key = id + '#' + m.date.slice(0, 7);
+        cnt.set(key, (cnt.get(key) || 0) + 1); cnt.set(id, (cnt.get(id) || 0) + 1);
+      }
+    });
+    const used = months.filter(ym => [...grpMonDays.keys()].some(k => k.endsWith('#' + ym)));
+    const n = a => cnt.get(String(a.id)) || 0, of = a => grpDays.get(grpKey(a))?.size || 0;
+    const visits = rows.reduce((s, a) => s + n(a), 0), possible = rows.reduce((s, a) => s + of(a), 0);
+    const sessions = [...grpDays.values()].reduce((s, d) => s + d.size, 0);
+    const best = rows.filter(a => of(a)).sort((x, y) => n(y) - n(x))[0];
+    const kpis = kpi(sessions, 'тренувань груп') + kpi(visits, 'відвідувань') + kpi(pct(visits, possible) + '%', 'відвідуваність') +
+      kpi(best && n(best) ? esc(best.full_name.split(' ')[0]) : '—', best && n(best) ? `найчастіше: ${n(best)} разів` : 'найчастіше');
+    const groups = groupAttTable(rows, grpDays, n);
+    const list = sortRows(rows, a => pct(n(a), of(a)) * 1000 + n(a));
+    const cols = used.length ? used : months.slice(0, 1);
+    const head = `<thead><tr><th class="nm">Спортсмен</th>${cols.map(ym => `<th>${monShort(ym)}</th>`).join('')}<th>Разом</th><th>%</th></tr></thead>`;
+    const body = list.map(a => `<tr>${nameCell(a)}${cols.map(ym => {
+      const v = cnt.get(String(a.id) + '#' + ym) || 0, g = grpMonDays.get(grpKey(a) + '#' + ym)?.size || 0;
+      return g ? `<td class="${v ? '' : 'n'}">${v}<small>/${g}</small></td>` : '<td class="x"></td>';
+    }).join('')}<td class="tot">${n(a)}${of(a) ? `<small>/${of(a)}</small>` : ''}</td>${pctCell(pct(n(a), of(a)))}</tr>`).join('');
+    return {
+      kpis, groups, title: `Відвідування · сезон ${sy}/${String(sy + 1).slice(2)}`,
+      table: head + `<tbody>${body}</tbody>`,
+      legend: '<p class="muted small st-leg">У клітинці: скільки разів був / скільки тренувань мала його група за місяць</p>',
+      xls: [['Спортсмен', 'Секція', 'Група', ...cols.map(fmtMonth), 'Разом', 'Тренувань групи', '%'],
+        ...list.map(a => [a.full_name, a.section || '', a.group_name || '', ...cols.map(ym => cnt.get(String(a.id) + '#' + ym) || 0), n(a), of(a), pct(n(a), of(a))])],
+    };
+  }
+
+  function groupAttTable(rows, grpDays, n) {
+    const keys = [...new Set(rows.map(grpKey))].sort();
+    if (keys.length < 2) return '';
+    return `<thead><tr><th class="nm">Група</th><th>Людей</th><th>Тренувань</th><th>Сер. на трен.</th><th>%</th></tr></thead><tbody>` +
+      keys.map(k => {
+        const inG = rows.filter(a => grpKey(a) === k), d = grpDays.get(k)?.size || 0, v = inG.reduce((s, a) => s + n(a), 0);
+        return `<tr><th scope="row">${esc(grpName(k))}</th><td>${inG.length}</td><td>${d}</td><td>${d ? (v / d).toFixed(1) : '—'}</td>${pctCell(pct(v, d * inG.length))}</tr>`;
+      }).join('') + '</tbody>';
+  }
+
+  async function payStats(rows, sy) {
+    const months = seasonMonths(sy), cur = today().slice(0, 7);
+    const pays0 = await fetchRows(() => db.from('payments').select('athlete_id, month, amount, paid_at, note').gte('month', months[0] + '-01').lte('month', months[9] + '-01').order('month'));
+    const pays = withPending('payments', pays0, r => r.month >= months[0] + '-01' && r.month <= months[9] + '-01');
+    const ids = new Set(rows.map(a => String(a.id)));
+    const pay = new Map();
+    pays.forEach(p => { if (ids.has(String(p.athlete_id))) pay.set(String(p.athlete_id) + '#' + p.month.slice(0, 7), p); });
+    const fee = Number(defaultAmount()) || 0;
+    // Місяці, за які вже треба платити: від початку обліку (або коли спортсмена додали) до поточного
+    const startOf = a => { const c = a.created_at ? String(a.created_at).slice(0, 7) : ''; return c > PAY_TRACK_FROM ? c : PAY_TRACK_FROM; };
+    const due = (a, ym) => ym >= startOf(a) && ym <= cur;
+    const P = (a, ym) => pay.get(String(a.id) + '#' + ym);
+    const paidSum = a => months.reduce((s, ym) => s + Number(P(a, ym)?.amount || 0), 0);
+    const owed = a => months.filter(ym => due(a, ym) && !P(a, ym));
+    const debt = a => owed(a).length * fee;
+    const total = rows.reduce((s, a) => s + paidSum(a), 0);
+    const curYm = months.includes(cur) ? cur : months.filter(ym => ym <= cur).pop() || months[0];
+    const curPaid = rows.filter(a => P(a, curYm)), curSum = curPaid.reduce((s, a) => s + Number(P(a, curYm).amount || 0), 0);
+    const debtors = rows.filter(a => owed(a).length);
+    const debtTotal = rows.reduce((s, a) => s + debt(a), 0);
+    const kpis = kpi(fmtMoney(total), 'зібрано за сезон') + kpi(fmtMoney(curSum), `за ${MONTHS_IN[Number(curYm.slice(5)) - 1]}: ${curPaid.length} з ${rows.length}`) +
+      kpi(debtors.length, 'мають борг', debtors.length ? 'warn' : '') + kpi(fee ? fmtMoney(debtTotal) : rows.reduce((t, a) => t + owed(a).length, 0), fee ? 'загальний борг' : 'неоплачених місяців', debtTotal ? 'warn' : '');
+    // Показуємо місяці до поточного (і наперед, якщо хтось уже заплатив наперед)
+    const lastPaid = pays.reduce((m, p) => p.month.slice(0, 7) > m ? p.month.slice(0, 7) : m, '');
+    const cols = months.filter(ym => ym <= cur || ym <= lastPaid);
+    const shown = cols.length ? cols : months.slice(0, 1);
+    // По групах: за поточний місяць і за сезон
+    const keys = [...new Set(rows.map(grpKey))].sort();
+    const groups = keys.length < 2 ? '' : `<thead><tr><th class="nm">Група</th><th>Оплатили, ${monShort(curYm)}</th><th>Сума, ${monShort(curYm)}</th><th>За сезон</th><th>Борг</th></tr></thead><tbody>` +
+      keys.map(k => {
+        const inG = rows.filter(a => grpKey(a) === k), pd = inG.filter(a => P(a, curYm));
+        return `<tr><th scope="row">${esc(grpName(k))}</th><td>${pd.length} з ${inG.length}</td><td>${fmtMoney(pd.reduce((s, a) => s + Number(P(a, curYm).amount || 0), 0))}</td>
+          <td>${fmtMoney(inG.reduce((s, a) => s + paidSum(a), 0))}</td><td class="${inG.some(a => owed(a).length) ? 'bad' : ''}">${fee ? fmtMoney(inG.reduce((s, a) => s + debt(a), 0)) : inG.reduce((s, a) => s + owed(a).length, 0) + ' міс.'}</td></tr>`;
+      }).join('') + '</tbody>';
+    const list = sortRows(rows, a => owed(a).length * 1e6 - paidSum(a));
+    const money = v => Number(v).toLocaleString('uk-UA');
+    const head = `<thead><tr><th class="nm">Спортсмен</th>${shown.map(ym => `<th>${monShort(ym)}</th>`).join('')}<th>Сплачено</th><th>Борг</th></tr></thead>`;
+    const body = list.map(a => `<tr>${nameCell(a)}${shown.map(ym => {
+      const p = P(a, ym);
+      if (p) return `<td class="pay-ok" data-pinfo="${esc(a.full_name + ', ' + fmtMonth(ym).toLowerCase() + ': ' + fmtMoney(p.amount) + ', оплачено ' + fmtDate(p.paid_at) + (p.note ? ' · ' + p.note : ''))}">${money(p.amount)}${p._pending ? ' ⏳' : ''}</td>`;
+      return due(a, ym) ? '<td class="pay-no">✕</td>' : '<td class="x"></td>';
+    }).join('')}<td class="tot">${money(paidSum(a))}</td><td class="${owed(a).length ? 'bad' : 'ok'}">${owed(a).length ? (fee ? money(debt(a)) : owed(a).length + ' міс.') : '✓'}</td></tr>`).join('');
+    const foot = `<tfoot><tr><th class="nm">Разом</th>${shown.map(ym => {
+      const pd = list.filter(a => P(a, ym));
+      return `<td>${money(pd.reduce((s, a) => s + Number(P(a, ym).amount || 0), 0))}<small>${pd.length}/${list.length}</small></td>`;
+    }).join('')}<td class="tot">${money(total)}</td><td class="${debtTotal ? 'bad' : ''}">${fee ? money(debtTotal) : ''}</td></tr></tfoot>`;
+    return {
+      kpis, groups, title: `Оплати · сезон ${sy}/${String(sy + 1).slice(2)}`,
+      table: head + `<tbody>${body}</tbody>` + foot,
+      legend: `<p class="muted small st-leg"><span class="ok">сума</span> — оплачено (натисніть — побачите дату) · <span class="bad">✕</span> — не оплачено · порожньо — ще не треба платити.
+        Облік боргів — з ${['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'][Number(PAY_TRACK_FROM.slice(5)) - 1]} ${PAY_TRACK_FROM.slice(0, 4)}${fee ? `, внесок ${fmtMoney(fee)}/міс.` : '. Вкажіть суму оплати в «Керування командою», щоб бачити борг у гривнях.'}</p>`,
+      xls: [['Спортсмен', 'Секція', 'Група', ...shown.map(fmtMonth), 'Сплачено, грн', fee ? 'Борг, грн' : 'Неоплачених місяців'],
+        ...list.map(a => [a.full_name, a.section || '', a.group_name || '', ...shown.map(ym => P(a, ym) ? Number(P(a, ym).amount) : due(a, ym) ? 'не оплачено' : ''), paidSum(a), fee ? debt(a) : owed(a).length])],
+    };
   }
 
   // ===== Нагадування батькам про оплату: Viber / Telegram / SMS =====
@@ -5252,6 +5534,7 @@ notify pgrst, 'reload schema';`;
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
     close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
     chev: '<path d="m9 18 6-6-6-6"/>',
+    stats: '<path d="M3 3v18h18"/><path d="M7 16v-4M12 16V8M17 16v-7"/>',
   };
   const svgI = (n, w = 2, cls = '') => `<svg${cls ? ` class="${cls}"` : ''} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${MENU_ICONS[n]}</svg>`;
   const mIcon = n => `<span class="mi mi-${n}">${svgI(n)}</span>`;
@@ -5268,6 +5551,7 @@ notify pgrst, 'reload schema';`;
       <a class="menu-item" href="#home">${mIcon('home')}Головна${mChev}</a>
       ${isCoach() || canSee('news') ? `<a class="menu-item" href="#news">${mIcon('news')}Оголошення${mChev}</a>` : ''}
       ${canSee('chat') ? `<a class="menu-item" href="#chat">${mIcon('chat')}Чат команди${mChev}</a>` : ''}
+      ${isCoach() ? `<a class="menu-item" href="#stats">${mIcon('stats')}Статистика: відвідування й оплати${mChev}</a>` : ''}
       ${isCoach() ? `<a class="menu-item" href="#members">${mIcon('users')}Учасники та доступ${mChev}</a>` : ''}
       ${isCoach() ? `<a class="menu-item" href="#applications">${mIcon('news')}Заяви від батьків${mChev}</a>` : ''}
       ${isCoach() ? `<a class="menu-item" href="#manage">${mIcon('settings')}Керування командою${mChev}</a>` : ''}
@@ -5420,12 +5704,12 @@ notify pgrst, 'reload schema';`;
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
-    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView,
   };
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
   function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
-  const PARENT_ROUTE = { connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  const PARENT_ROUTE = { stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
