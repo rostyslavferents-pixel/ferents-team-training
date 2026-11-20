@@ -776,6 +776,20 @@
     .nfood th[scope=row] { white-space: normal; min-width: 170px; max-width: 220px; font-size: 13px; }
     .nnote { margin: 14px 4px 0; line-height: 1.5; }
 
+    /* Сон і відновлення */
+    h3 .ic-svg { margin-right: 6px; }
+    .sl-p { margin: 8px 0 14px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+    .sl-calc { display: grid; grid-template-columns: 1fr 1.3fr; gap: 12px; align-items: end; padding-top: 12px; border-top: 1px solid var(--line); }
+    .sl-calc label { margin: 0; }
+    .sl-out { font-size: 15px; line-height: 1.35; padding-bottom: 4px; }
+    .sl-out b { font-size: 18px; font-variant-numeric: tabular-nums; }
+    .sl-out small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .ic-box.sm { width: 34px; height: 34px; border-radius: 10px; align-self: flex-start; margin-top: 2px; }
+    .ic-box.sm .ic-svg { width: 18px; height: 18px; }
+    .sl-tips .row { align-items: flex-start; }
+    .sl-tips .row span span, .sl-tips .grow > span { line-height: 1.45; }
+    .sl-warn { margin-top: 12px; }
+
     /* Пошук */
     .hbtns { display: flex; gap: 8px; }
     .search-btn svg { width: 20px; height: 20px; fill: none; stroke: #e5e7eb; stroke-width: 2; stroke-linecap: round; }
@@ -879,7 +893,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.45';
+  const APP_VERSION = 'v3.46';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -1063,7 +1077,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -2733,7 +2747,7 @@ notify pgrst, 'reload schema';`;
         ${canSee('chat') && !isAthleteM() ? tile('chat', 'chat', 'Чат', 'Чат команди') : ''}
         ${canSee('rating') ? tile('rating', 'events', 'Рейтинг', 'Місця та заслуги') : ''}
         ${canSee('news') ? tile('news', 'news', 'Оголошення', 'Усі новини') : ''}
-        ${kids.filter(canNutri).slice(0, 1).map(a => tile('nutrition/' + encodeURIComponent(a.id), 'drop', 'Харчування', 'Білки, жири, вуглеводи')).join('')}
+        ${kids.filter(canNutri).slice(0, 1).map(a => tile('nutrition/' + encodeURIComponent(a.id), 'drop', 'Харчування і сон', 'БЖВ, рецепти, відновлення')).join('')}
       </div>`;
   }
 
@@ -3414,7 +3428,7 @@ notify pgrst, 'reload schema';`;
           : `<a class="stat" href="#rating"><b>${a.rating_place || '—'}</b><span>місце в рейтингу</span></a>`}
       </div>
       ${days.size ? `<h3>Відвідування у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</h3><div class="panel">${attCalendar(ym, new Set(att.map(x => x.date)), new Set([...days].map(Number)), t)}</div>` : ''}
-      ${canNutri(a) ? `<a class="card ncard" href="#nutrition/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('drop')}</span><span><strong>Харчування: білки, жири, вуглеводи</strong><span>Калькулятор на день тренування і відпочинку, приклади страв і рецепти</span></span><span class="chev">›</span></a>` : ''}
+      ${canNutri(a) ? `<a class="card ncard" href="#nutrition/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('drop')}</span><span><strong>Харчування і відновлення</strong><span>Білки, жири, вуглеводи на кожен день, рецепти, сон і поради з відновлення</span></span><span class="chev">›</span></a>` : ''}
       <h3>Відвідування за пів року</h3>
       <div class="panel">
         <div class="bars">${perMonth.map(n => `<div class="bcol ${n ? '' : 'zero'}"><span class="bval">${n}</span><div class="bbar" style="height:${n / maxV * 100}%"></div></div>`).join('')}</div>
@@ -3556,6 +3570,50 @@ notify pgrst, 'reload schema';`;
     };
   }
 
+  // ----- Сон і відновлення (довідка) -----
+  function sleepNeed(age) {
+    if (age != null && age < 13) return [9, 12];
+    if (age != null && age >= 18) return [7, 9];
+    return [8, 10];
+  }
+  function recoveryHtml(age) {
+    const [lo, hi] = sleepNeed(age);
+    let wake = '07:00';
+    try { wake = localStorage.getItem('ft_wake') || wake; } catch (e) {}
+    return `<h3 id="sleep">${icon('moon')}Сон і відновлення</h3>
+      <div class="hero sl">
+        <div class="nk"><b>${lo}–${hi} год</b><span>сну щоночі${age != null ? ` у ${age} ${yearsWord(age)}` : ''}</span></div>
+        <p class="sl-p">Саме уві сні ростуть мʼязи, відновлюються сили й запамʼятовується техніка. Після важких тренувань і змагань — ближче до верхньої межі.</p>
+        <div class="sl-calc"><label>О котрій прокидаєшся?<input type="time" id="slWake" value="${esc(wake)}"></label>
+          <div id="slOut" class="sl-out"></div></div>
+      </div>
+      <div class="list sl-tips">
+        ${[
+          ['clock', 'Один режим щодня', 'Лягай і вставай в один час — і у вихідні теж, різниця не більше години.'],
+          ['phone', 'Телефон — за годину до сну', 'Яскравий екран заважає заснути. Відклади телефон за 30–60 хв або хоча б увімкни нічний режим.'],
+          ['moon', 'Темна прохолодна кімната', 'Близько 18–20°, темно й тихо. Провітри перед сном.'],
+          ['training', 'Після вечірнього тренування', 'Поїж протягом години, але не переїдай перед сном. Теплий душ допомагає заснути. Без кави й енергетиків.'],
+          ['clock', 'Денний сон — коротко', 'Якщо не виспався — 20–30 хв удень, не пізніше 16:00. Довший сон зіб\'є нічний.'],
+          ['drop', 'Вода протягом дня', 'Пий рівномірно, а не все ввечері — щоб не прокидатися вночі.'],
+          ['users', 'Активне відновлення', 'У день відпочинку — прогулянка, легка розтяжка 10–15 хв. Відпочинок теж частина тренувань.'],
+          ['trophy', 'Перед змаганнями', 'Важливо добре спати 2–3 ночі перед стартом. Якщо в ніч перед змаганням не спиться від хвилювання — це нормально, головне, щоб попередні ночі були повноцінні.'],
+        ].map(([ic, t, d]) => `<div class="row" style="cursor:default"><span class="ic-box sm">${icon(ic)}</span><div class="grow"><strong>${t}</strong><span>${d}</span></div></div>`).join('')}
+      </div>
+      <div class="info sl-warn"><b>${icon('alert')}Скажи тренеру, якщо довго помічаєш:</b> постійну втому навіть після вихідних, результати гіршають, дратівливість, часто хворієш, біль не минає, погано спиш або пропав апетит. Це може бути перевтома — тоді треба змінити навантаження. Якщо часто не можеш заснути або сильно хропеш — варто сказати батькам і лікарю.</div>`;
+  }
+  function wireRecovery() {
+    const inp = $('#slWake'); if (!inp) return;
+    const age = Number(inp.closest('.sl').dataset.age);
+    const draw = () => {
+      const [lo, hi] = sleepNeed(Number.isFinite(age) ? age : null);
+      const [h, m] = (inp.value || '07:00').split(':').map(Number);
+      const at = mins => { const t = ((h * 60 + m - mins - 15) % 1440 + 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
+      $('#slOut').innerHTML = `Лягай між <b>${at(hi * 60)}</b> і <b>${at(lo * 60)}</b><small>з урахуванням ~15 хв, щоб заснути</small>`;
+      try { localStorage.setItem('ft_wake', inp.value); } catch (e) {}
+    };
+    inp.oninput = draw; draw();
+  }
+
   async function nutritionView() {
     setActions('');
     const found = await q(db.from('athletes').select('*').eq('id', state.param));
@@ -3636,7 +3694,9 @@ notify pgrst, 'reload schema';`;
     } else {
       res = `<div class="info">Заповни стать, зріст і вагу — і калькулятор покаже, скільки білків, жирів і вуглеводів тобі треба в день тренування і в день відпочинку, з прикладами страв.</div>`;
     }
-    $('#view').innerHTML = (ready ? res + `<h3>Дані для розрахунку</h3>` + formHtml : formHtml + res);
+    $('#view').innerHTML = (ready ? res + recoveryHtml(age) + `<h3>Дані для розрахунку</h3>` + formHtml : formHtml + res + recoveryHtml(age));
+    const sl = $('#view').querySelector('.sl'); if (sl && age != null) sl.dataset.age = age;
+    wireRecovery();
 
     const form = $('#nForm');
     form.onclick = e => {
