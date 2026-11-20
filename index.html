@@ -673,13 +673,67 @@
     .ic-box { width: 40px; height: 40px; flex: none; border-radius: 11px; display: grid; place-items: center; background: var(--bg); color: var(--ink); }
     .ic-box .ic-svg { width: 22px; height: 22px; }
 
+    /* Лічильник на плитці */
+    .tile .ic { position: relative; }
+    .cnt { position: absolute; top: -6px; right: -8px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+      background: var(--bad); color: #fff; font-size: 12px; font-weight: 700; line-height: 20px; font-style: normal; text-align: center; box-shadow: 0 0 0 2px var(--card); }
+
+    /* П'єдестал рейтингу */
+    .podium { display: grid; grid-template-columns: 1fr 1.1fr 1fr; align-items: end; gap: 8px; margin: 4px 0 14px; }
+    .pd { display: flex; flex-direction: column; align-items: center; text-align: center; text-decoration: none; color: var(--ink); min-width: 0; }
+    .pd b { font-size: 14px; font-weight: 700; margin-top: 8px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pd small { font-size: 12px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pd-av { width: 56px; height: 56px; font-size: 18px; }
+    .pd1 .pd-av { width: 70px; height: 70px; font-size: 22px; box-shadow: 0 0 0 3px var(--card), 0 0 0 5px #e0b43a; }
+    .pd2 .pd-av { box-shadow: 0 0 0 3px var(--card), 0 0 0 5px #b5bcc6; }
+    .pd3 .pd-av { box-shadow: 0 0 0 3px var(--card), 0 0 0 5px #c9834b; }
+    .pd-step { width: 100%; margin-top: 8px; border-radius: 12px 12px 0 0; background: var(--card); box-shadow: var(--hair);
+      display: flex; justify-content: center; padding-top: 10px; }
+    .pd1 .pd-step { height: 78px; } .pd2 .pd-step { height: 58px; } .pd3 .pd-step { height: 44px; }
+
+    /* Сходинки поясів */
+    .ladder { display: flex; gap: 3px; margin-top: 12px; }
+    .ladder i { flex: 1; height: 8px; border-radius: 3px; opacity: .28;
+      background: linear-gradient(90deg, var(--b) 0 60%, var(--s) 60% 80%, var(--b) 80%); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12); }
+    .ladder i.done { opacity: .75; }
+    .ladder i.cur { opacity: 1; height: 12px; margin-top: -2px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .2), 0 0 0 2px var(--card), 0 0 0 3.5px var(--ink); }
+    .ladder-cap { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; font-size: 13px; color: var(--muted); }
+    .ladder-cap b { color: var(--ink); }
+
+    /* Кільце відвідуваності */
+    .ring-wrap { position: relative; width: 50px; height: 50px; margin-bottom: 4px; }
+    .ring-wrap b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px !important; letter-spacing: 0 !important; margin: 0 !important; }
+    .ring { width: 50px; height: 50px; transform: rotate(-90deg); }
+    .ring-bg { fill: none; stroke: var(--line); stroke-width: 5; }
+    .ring-fg { fill: none; stroke: var(--ok); stroke-width: 5; stroke-linecap: round; stroke-dasharray: var(--c); stroke-dashoffset: var(--o);
+      animation: ringIn .9s var(--ease) both; }
+    @keyframes ringIn { from { stroke-dashoffset: var(--c); } }
+
+    /* Календар відвідувань */
+    .cal-h, .cal-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+    .cal-h span { font-size: 11px; color: var(--muted); text-align: center; font-weight: 600; }
+    .cal-g { margin-top: 6px; }
+    .cal-g i { aspect-ratio: 1; border-radius: 9px; display: grid; place-items: center; font-style: normal; font-size: 13px; color: var(--muted);
+      font-variant-numeric: tabular-nums; }
+    .cal-g i.e { visibility: hidden; }
+    .cal-g i.y { background: var(--ok); color: #fff; font-weight: 700; }
+    :root[data-theme="dark"] .cal-g i.y { color: #08210f; }
+    .cal-g i.n { background: var(--bad-bg); color: var(--bad); font-weight: 600; }
+    .cal-g i.f { box-shadow: inset 0 0 0 1.5px var(--border); color: var(--ink); }
+    .cal-g i.t { outline: 2px solid var(--ink); outline-offset: 1px; }
+    .cal-leg { display: flex; gap: 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+    .cal-leg span { display: flex; align-items: center; gap: 5px; }
+    .cal-leg i { width: 10px; height: 10px; border-radius: 3px; }
+    .cal-leg i.y { background: var(--ok); } .cal-leg i.n { background: var(--bad-bg); box-shadow: inset 0 0 0 1px var(--bad); }
+    .cal-leg i.f { box-shadow: inset 0 0 0 1.5px var(--border); }
+
     /* Поява екрана: блоки по черзі, ледь помітно */
     #view.enter { animation: none; }
     #view.enter > * { animation: rise .35s var(--ease) both; }
     #view.enter > :nth-child(2) { animation-delay: .03s; } #view.enter > :nth-child(3) { animation-delay: .06s; }
     #view.enter > :nth-child(4) { animation-delay: .09s; } #view.enter > :nth-child(n+5) { animation-delay: .12s; }
     @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
-    @media (prefers-reduced-motion: reduce) { #view.enter > *, .tab.on::before { animation: none !important; } .card, .tile, a.stat, .now, .btn, .chip { transition: none !important; } }
+    @media (prefers-reduced-motion: reduce) { #view.enter > *, .tab.on::before, .ring-fg { animation: none !important; } .card, .tile, a.stat, .now, .btn, .chip { transition: none !important; } }
   </style>
 </head>
 
@@ -797,8 +851,9 @@
 
   // ===== Налаштування команди (спільні для всіх; редагує тренер у «Керування командою») =====
   // Розділи, які можна вмикати/вимикати для батьків і спортсменів
-  const ACCESS_PARTS = [['rating', icon('trophy') + 'Рейтинг'], ['events', icon('calendar') + 'Календар подій'], ['news', icon('megaphone') + 'Оголошення'],
-    ['schedule', icon('clock') + 'Розклад тренувань'], ['plans', icon('note') + 'Завдання на тренування'], ['links', icon('film') + 'Відео та посилання'], ['chat', icon('chatb') + 'Чат команди']];
+  const ACCESS_PARTS = [['rating', 'Рейтинг'], ['events', 'Календар подій'], ['news', 'Оголошення'],
+    ['schedule', 'Розклад тренувань'], ['plans', 'Завдання на тренування'], ['links', 'Відео та посилання'], ['chat', 'Чат команди']];
+  const ACCESS_IC = { rating: 'trophy', events: 'calendar', news: 'megaphone', schedule: 'clock', plans: 'note', links: 'film', chat: 'chatb' };
   const TEAM_DEFAULTS = {
     brand: 'FERENTS TEAM', title: 'Training', motto: 'Дисципліна. Праця. Результат.',
     welcome: 'Вкажіть, хто ви, і прізвище та імʼя дитини. Застосунок сам знайде дитину в команді, тренер лише підтвердить — і ви її побачите.',
@@ -1847,6 +1902,56 @@ notify pgrst, 'reload schema';`;
     const hue = [8, 28, 45, 145, 175, 200, 220, 255, 285, 330][x % 10];
     return `background:hsl(${hue} 70% 55% / .2);color:hsl(${hue} 55% 42%)`;
   }
+  // П'єдестал для трьох перших місць рейтингу
+  function podiumHtml(list, urlOf = () => '', href = () => '') {
+    if (list.length < 3) return '';
+    const name = n => { const [sur, ...rest] = String(n).split(' '); return `<b>${esc(sur)}</b><small>${esc(rest.join(' '))}</small>`; };
+    const col = (a, place) => { const h = href(a), tag = h ? 'a' : 'div';
+      return `<${tag} class="pd pd${place}"${h ? ` href="${h}"` : ''}>${avatarHtml(a, urlOf(a.photo), 'av pd-av')}${name(a.full_name)}
+        <span class="pd-step"><span class="rank r${place}">${place}</span></span></${tag}>`; };
+    return `<div class="podium">${col(list[1], 2)}${col(list[0], 1)}${col(list[2], 3)}</div>`;
+  }
+  // Сходинки поясів: де спортсмен зараз і який наступний
+  function beltLadder(belt) {
+    const i = BELTS.indexOf(belt);
+    if (i < 0) return '';
+    const nx = i < BELTS.length - 1 ? BELTS[i + 1] : null;
+    return `<div class="ladder">${BELTS.map((b, k) => {
+        const main = beltMain(b) || '#ccc', stripe = /смуж/i.test(b) ? (/^\s*1\s*кю/i.test(b) ? BELT_GOLD : BELT_SILVER) : main;
+        return `<i class="${k < i ? 'done' : k === i ? 'cur' : ''}" style="--b:${main};--s:${stripe}" title="${esc(b)}"></i>`; }).join('')}</div>
+      <div class="ladder-cap"><span>Крок ${i + 1} з ${BELTS.length}</span>${nx ? `<span>Наступний: <b>${esc(beltShort(nx))}</b></span>` : '<span><b>Найвищий пояс у списку</b></span>'}</div>`;
+  }
+  // Кільце з відсотком
+  function ringHtml(pct) {
+    const r = 21, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, pct || 0));
+    return `<svg class="ring" viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="${r}" class="ring-bg"/>
+      <circle cx="25" cy="25" r="${r}" class="ring-fg" style="--c:${c.toFixed(1)};--o:${(c * (1 - v / 100)).toFixed(1)}"/></svg>`;
+  }
+  // Календар відвідувань місяця: зелене — був, червоне — пропустив, рамка — тренування попереду
+  function attCalendar(ym, present, trainDays, t) {
+    const first = ym + '-01', dim = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 0).getDate();
+    const lead = weekdayOf(first) - 1; // понеділок першим
+    const cells = [];
+    for (let k = 0; k < lead; k++) cells.push('<i class="e"></i>');
+    for (let d = 1; d <= dim; d++) {
+      const date = `${ym}-${String(d).padStart(2, '0')}`, wd = weekdayOf(date);
+      const was = present.has(date), plan = trainDays.has(wd);
+      const cls = was ? 'y' : plan && date < t ? 'n' : plan ? 'f' : '';
+      cells.push(`<i class="${cls}${date === t ? ' t' : ''}">${d}</i>`);
+    }
+    return `<div class="cal"><div class="cal-h">${['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'].map(x => `<span>${x}</span>`).join('')}</div>
+      <div class="cal-g">${cells.join('')}</div>
+      <div class="cal-leg"><span><i class="y"></i>був</span><span><i class="n"></i>пропустив</span><span><i class="f"></i>попереду</span></div></div>`;
+  }
+  // Живий відлік «через 2 год 15 хв» для елементів з data-countdown
+  function cdText(ms) {
+    const m = Math.max(0, Math.round(ms / 60000)), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+    if (m <= 0) return 'зараз';
+    return 'через ' + (d ? `${d} дн ${h} год` : h ? `${h} год${mm ? ' ' + mm + ' хв' : ''}` : `${mm} хв`);
+  }
+  setInterval(() => document.querySelectorAll('[data-countdown]').forEach(el => {
+    el.textContent = cdText(new Date(el.dataset.countdown) - Date.now()); }), 30000);
+
   function avatarHtml(a, url, cls = 'av') {
     const ini = esc(initialsOf(a.full_name));
     return `<span class="${cls}"${url ? '' : ` style="${avatarColor(a.full_name)}"`}>${url ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode('${ini}'))">` : ini}</span>`;
@@ -2347,8 +2452,8 @@ notify pgrst, 'reload schema';`;
       if (next.days) {
         inTxt = next.days === 1 ? 'завтра' : fmtDate(next.date, { weekday: 'long', day: 'numeric', month: 'long' });
       } else {
-        const left = next.st - nowM;
-        inTxt = left >= 60 ? `через ${Math.floor(left / 60)} год ${left % 60 ? (left % 60) + ' хв' : ''}` : `через ${left} хв`;
+        const at = new Date(t + 'T' + hhmm(next.s.start_time));
+        inTxt = `<span data-countdown="${at.toISOString()}">${cdText(at - Date.now())}</span>`;
       }
       nowBlock = `<a class="now soon" href="#attendance" data-now-group="${esc(next.s.group_name || '')}" data-now-section="${esc(next.s.section || '')}">
         <i class="dot"></i>
@@ -2378,8 +2483,8 @@ notify pgrst, 'reload schema';`;
       ? `<br><br><b>Найближча подія:</b> ${esc(ev[0].title)}, ${fmtDate(ev[0].date)}`
       : '';
 
-    const tile = (route, ic, title, sub, cls = '') =>
-      `<a class="tile ${cls}" href="#${route}"><span class="ic">${icon(ic)}</span><span><strong>${title}</strong><small>${sub}</small></span></a>`;
+    const tile = (route, ic, title, sub, cls = '', n = 0) =>
+      `<a class="tile ${cls}" href="#${route}"><span class="ic">${icon(ic)}${n ? `<em class="cnt">${n}</em>` : ''}</span><span><strong>${title}</strong><small>${sub}</small></span></a>`;
 
     const pushC = await pushCard();
     const ls = await linkStatus().catch(() => null);
@@ -2423,9 +2528,9 @@ notify pgrst, 'reload schema';`;
         ${tile('training', 'training', 'Тренування', 'Розклад, завдання, тести')}
         ${tile('events', 'events', 'Календар подій', 'Змагання, збори')}
         ${tile('links', 'links', 'Відео', 'Ката, техніка, посилання')}
-        ${tile('members', 'members', 'Учасники', 'Доступ для батьків')}
+        ${tile('members', 'members', 'Учасники', 'Доступ для батьків', '', reqN || 0)}
         ${tile('stats', 'stats', 'Статистика', 'Таблиці відміток і оплат')}
-        ${tile('applications', 'form', 'Заяви', 'Анкети вступу з підписом')}
+        ${tile('applications', 'form', 'Заяви', 'Анкети вступу з підписом', '', appN || 0)}
       </div>`;
 
     // Перед переходом готуємо фільтри: сьогоднішня дата, поточний місяць, потрібна група
@@ -2481,7 +2586,7 @@ notify pgrst, 'reload schema';`;
       let when;
       if (nextDay.d === 0) {
         if (nowM >= st) when = 'зараз іде';
-        else { const left = st - nowM; when = left >= 60 ? `сьогодні, через ${Math.floor(left / 60)} год${left % 60 ? ' ' + (left % 60) + ' хв' : ''}` : `сьогодні, через ${left} хв`; }
+        else { const at = new Date(nextDay.date + 'T' + hhmm(nextDay.list[0].start_time)); when = `сьогодні, <span data-countdown="${at.toISOString()}">${cdText(at - Date.now())}</span>`; }
       } else when = nextDay.d === 1 ? 'завтра, ' + fmtDate(nextDay.date, { weekday: 'long' }) : fmtDate(nextDay.date, { weekday: 'long', day: 'numeric', month: 'long' });
       const lines = nextDay.list.map(s => `${hhmm(s.start_time)}${s.end_time ? '–' + hhmm(s.end_time) : ''} — ${esc([kids.length > 1 ? s.group_name : '', s.place].filter(Boolean).join(' · ') || s.group_name)}`).join('<br>');
       nextBlock = `<div class="now soon"><i class="dot"></i>
@@ -2880,7 +2985,10 @@ notify pgrst, 'reload schema';`;
     const { data, error } = await db.rpc('team_rating');
     if (error) { $('#view').innerHTML = '<div class="empty">Рейтинг поки недоступний</div>'; return; }
     const mine = new Set((await q(db.from('athletes').select('id'))).map(a => String(a.id)));
-    $('#view').innerHTML = `<div class="list rating">${(data || []).map((a, i) => {
+    const rows = data || [];
+    const pod = podiumHtml(rows, () => '', a => mine.has(String(a.id)) ? '#athlete/' + encodeURIComponent(a.id) : '');
+    $('#view').innerHTML = `${pod}<div class="list rating">${rows.map((a, i) => {
+        if (pod && i < 3) return '';
         const own = mine.has(String(a.id));
         const body = `<span class="rank ${i < 3 ? 'r' + (i + 1) : ''}">${a.rating_place}</span>
           <div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}${own ? ' <span class="badge ok">мій</span>' : ''}</strong>
@@ -2907,7 +3015,9 @@ notify pgrst, 'reload schema';`;
     $('#view').innerHTML = `
       ${athTabs('rating')}
       ${edit ? '<button type="button" class="btn wide" id="addRated" style="margin:0 0 12px">+ Додати спортсмена до рейтингу</button>' : ''}
+      ${edit ? '' : podiumHtml(rated, urlOf, a => '#athlete/' + encodeURIComponent(a.id))}
       <div class="list rating">${rated.map((a, i) => {
+        if (!edit && rated.length >= 3 && i < 3) return '';
         const body = `<span class="rank ${i < 3 ? 'r' + (i + 1) : ''}">${i + 1}</span>
           ${avatarHtml(a, urlOf(a.photo))}
           <div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong>
@@ -3204,6 +3314,7 @@ notify pgrst, 'reload schema';`;
           <div><h2>${esc(a.full_name)}</h2><span>${esc(sub)}${bdayLine}</span>
           ${coach ? '' : `<label class="link small" style="display:inline-block;margin-top:4px;cursor:pointer" for="myPhoto">${a.photo ? 'Змінити фото' : icon('camera') + 'Додати фото'}</label>`}</div></div>
         <div class="hero-belt">${a.belt ? beltTag(a.belt, true) + esc(a.belt) : '<span class="muted">Пояс не вказано</span>'}</div>
+        ${a.belt ? beltLadder(a.belt) : ''}
         <div class="hero-w">${icon('scale')}${lastW ? `<b>${fmtKg(lastW.kg)}</b> <span class="muted small">· ${fmtDate(lastW.date)}${lastW.date.slice(0, 4) !== t.slice(0, 4) ? ' ' + lastW.date.slice(0, 4) : ''}</span>` : '<span class="muted">Вага не вказана</span>'}</div>
         ${coach && a.parent_name ? `<div class="note">Батьки: ${esc(a.parent_name)}${a.phone ? ' · ' + esc(a.phone) : ''}</div>` : ''}
         ${coach && a.notes ? `<div class="note">${esc(a.notes)}</div>` : ''}
@@ -3217,10 +3328,11 @@ notify pgrst, 'reload schema';`;
       </div>
       <div class="stats">
         <div class="stat"><b>${visits}</b><span>тренувань у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</span></div>
-        <div class="stat"><b>${pct === null ? '—' : pct + '%'}</b><span>${pct === null ? 'немає розкладу групи' : `з ${planned} за розкладом`}</span></div>
+        <div class="stat ${pct === null ? '' : 'has-ring'}">${pct === null ? '<b>—</b>' : `<div class="ring-wrap">${ringHtml(pct)}<b>${pct}%</b></div>`}<span>${pct === null ? 'немає розкладу групи' : `відвідуваність з ${planned}`}</span></div>
         ${coach ? `<a class="stat ${paidNow ? '' : 'warn'}" href="#payments" data-month="${ym}"><b>${paidNow ? '✓' : '✗'}</b><span>${paidNow ? 'оплачено' : 'не оплачено'} за місяць</span></a>`
           : `<a class="stat" href="#rating"><b>${a.rating_place || '—'}</b><span>місце в рейтингу</span></a>`}
       </div>
+      ${days.size ? `<h3>Відвідування у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</h3><div class="panel">${attCalendar(ym, new Set(att.map(x => x.date)), new Set([...days].map(Number)), t)}</div>` : ''}
       <h3>Відвідування за пів року</h3>
       <div class="panel">
         <div class="bars">${perMonth.map(n => `<div class="bcol ${n ? '' : 'zero'}"><span class="bval">${n}</span><div class="bbar" style="height:${n / maxV * 100}%"></div></div>`).join('')}</div>
@@ -5470,7 +5582,7 @@ notify pgrst, 'reload schema';`;
         <p class="muted small">Підставляється в оплати й нагадування. Порожньо — остання введена сума.</p></div>
       <div class="set-block"><h3>${icon('eye')}Хто що бачить</h3>
         <table class="acc"><thead><tr><th style="text-align:left">Розділ</th><th>Батьки</th><th>Спортсмени</th></tr></thead><tbody>
-        ${ACCESS_PARTS.map(([k, l]) => `<tr><td>${l}</td>
+        ${ACCESS_PARTS.map(([k, l]) => `<tr><td>${icon(ACCESS_IC[k])}${l}</td>
           <td class="c"><input type="checkbox" data-acc="parent" data-part="${k}" ${T.access.parent[k] ? 'checked' : ''} aria-label="${esc(l)} — батьки"></td>
           <td class="c"><input type="checkbox" data-acc="athlete" data-part="${k}" ${T.access.athlete[k] ? 'checked' : ''} aria-label="${esc(l)} — спортсмени"></td></tr>`).join('')}
         </tbody></table>
