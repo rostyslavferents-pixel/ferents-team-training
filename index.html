@@ -926,7 +926,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.49';
+  const APP_VERSION = 'v3.50';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -6139,9 +6139,10 @@ notify pgrst, 'reload schema';`;
       <div class="set-block"><h3>${icon('home')}Що показувати на головній</h3>
         ${[['showToday', 'Блок «Сьогодні»'], ...(isCoach() ? [['showStats', 'Цифри: спортсмени, присутні, боржники'], ['showBdays', 'Дні народження']] : [])]
           .map(([k, l]) => `<label class="check"><input type="checkbox" data-check="${k}" ${settings[k] ? 'checked' : ''}>${l}</label>`).join('')}</div>
-      ${isCoach() ? `<div class="set-block"><h3>${icon('box')}Резервна копія в Excel</h3>
-        <p class="muted small" style="margin:0 0 8px">Спортсмени, оплати, відвідування, вага, атестації й доступи — в одному файлі. Робіть раз на місяць.</p>
-        <button type="button" class="btn" id="expBtn">⬇️ Скачати все в Excel</button>
+      ${isCoach() ? `<div class="set-block"><h3>${icon('box')}Резервна копія</h3>
+        <p class="muted small" style="margin:0 0 8px"><b>Повна копія (ZIP)</b> — усе, щоб відновити додаток з нуля: структура бази, усі дані, заяви з підписами, фото, файли сайту й інструкція. Робіть раз на місяць і зберігайте в Google Диску.</p>
+        <button type="button" class="btn wide" id="fullBtn" style="margin:0 0 8px">${icon('save')}Скачати повну копію (ZIP)</button>
+        <button type="button" class="btn light wide" id="expBtn" style="margin:0">⬇️ Тільки таблиця Excel</button>
         <p class="muted small" id="expLast">${lastExport() ? 'Остання копія: ' + fmtDate(lastExport(), { day: 'numeric', month: 'long', year: 'numeric' }) : 'Копій ще не було'}</p></div>` : ''}
       <div class="set-block"><h3>${icon('bell')}Сповіщення на телефон</h3><div id="pushSet" class="muted small">Перевіряю…</div></div>
       <div class="set-block"><h3>${icon('send')}Сповіщення в Telegram</h3><div id="tgSet" class="small">Перевіряю…</div></div>
@@ -6167,6 +6168,14 @@ notify pgrst, 'reload schema';`;
       saveSettings(); settingsView();
     };
     document.querySelectorAll('[data-check]').forEach(c => c.onchange = () => { settings[c.dataset.check] = c.checked; saveSettings(); });
+    const full = $('#fullBtn');
+    if (full) full.onclick = async () => {
+      full.disabled = true;
+      try { await exportFull(t => { full.textContent = '⏳ ' + t; }); toast('Повна копія готова'); }
+      catch (e) { toast(isNetErr(e) ? 'Немає інтернету' : 'Не вдалося: ' + (e.message || e), true); }
+      full.disabled = false; full.innerHTML = icon('save') + 'Скачати повну копію (ZIP)';
+      $('#expLast').textContent = lastExport() ? 'Остання копія: ' + fmtDate(lastExport(), { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    };
     const exp = $('#expBtn');
     if (exp) exp.onclick = async () => {
       exp.disabled = true; exp.textContent = '⏳ Збираю дані…';
@@ -6253,6 +6262,10 @@ notify pgrst, 'reload schema';`;
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
   }
   async function exportExcel() {
+    await saveFile(await buildExcel(), `Ferents-Team-${today()}.xlsx`);
+    try { localStorage.setItem('ft_last_export', today()); } catch (e) {}
+  }
+  async function buildExcel() {
     const [ath, pays, att, wts, grs, mem, links] = await Promise.all([
       fetchAll('athletes', '*', 'full_name'), fetchAll('payments', '*', 'month'), fetchAll('attendance', 'athlete_id, date, present', 'date'),
       fetchAll('weights', 'athlete_id, date, weight', 'date'), fetchAll('gradings', '*', 'date'), fetchAll('members', '*', 'full_name'), fetchAll('member_athletes', '*'),
@@ -6275,7 +6288,107 @@ notify pgrst, 'reload schema';`;
       ...grs.slice().reverse().map(g => [dmy(g.date), nm(g.athlete_id), g.belt, g.passed === false ? 'не здав' : 'здав', g.note || ''])] });
     if (mem) sheets.push({ name: 'Доступ', rows: [['Імʼя', 'Email', 'Роль', 'Спортсмени'],
       ...mem.map(m => [m.full_name, m.email, ROLES[m.role] || m.role, (links || []).filter(l => l.email === m.email).map(l => nm(l.athlete_id)).join(', ')])] });
-    await saveFile(makeXlsx(sheets), `Ferents-Team-${today()}.xlsx`);
+    return makeXlsx(sheets);
+  }
+  // ===== Повна резервна копія (ZIP): структура бази, усі дані, фото, файли додатку, інструкція =====
+  const RESTORE_TXT = (stamp, files) => `FERENTS TEAM TRAINING — ПОВНА РЕЗЕРВНА КОПІЯ
+Створено: ${stamp}
+
+ЩО ВСЕРЕДИНІ
+  1-structure.sql      — структура бази: таблиці, звʼязки, функції, права доступу, сховище фото
+  2-data/              — усі дані, по файлу на таблицю (номери = порядок запуску)
+  data-json/           — ті самі дані у форматі JSON (запасний варіант)
+  Ferents-Team.xlsx    — зручна для читання копія в Excel (спортсмени, оплати, відвідування…)
+  photos/              — фото спортсменів
+  app/                 — файли самого додатку (сайт)
+  functions/           — серверні функції: сповіщення (notify) і Telegram-бот (telegram)
+
+НАЙПРОСТІШЕ ВІДНОВЛЕННЯ
+  Віддайте цей ZIP-архів Claude і напишіть: «Віднови мій додаток з цієї копії».
+
+ВІДНОВЛЕННЯ ВРУЧНУ (≈ 30–60 хв)
+  1. supabase.com → New project (регіон Central EU / Frankfurt). Запишіть пароль бази.
+  2. SQL Editor → New query → вставте весь 1-structure.sql → Run.
+  3. Так само по черзі запустіть файли з 2-data/ — строго за номерами (01, 02, 03…).
+     Великі файли (заяви з підписами) можна відкрити й вставити окремо — це нормально.
+  4. Storage → бакет athlete-photos → Upload → завантажте вміст папки photos/ (з підпапками).
+  5. Edge Functions → створіть дві функції з папки functions/:
+       notify   — з перевіркою JWT (Verify JWT: увімкнено)
+       telegram — без перевірки JWT (Verify JWT: вимкнено)
+     Edge Functions → Secrets: TELEGRAM_BOT_TOKEN (з @BotFather), VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY.
+     Ключі VAPID можна згенерувати нові (напр., на vapidkeys.com) — тоді новий публічний ключ
+     треба вписати й у app/index.html (рядок const VAPID_PUBLIC = '…').
+  6. Додаток: у app/index.html замініть два рядки на дані нового проєкту
+     (Project Settings → API):  const SUPABASE_URL = '…';  const SUPABASE_KEY = '…';
+     Завантажте вміст app/ у репозиторій GitHub → Settings → Pages → гілка main.
+  7. Authentication → URL Configuration → Site URL: адреса вашого сайту.
+  8. Увійдіть у додаток з тією ж поштою, що й раніше (тренер — та, що в таблиці coaches).
+  9. Налаштування → Сповіщення в Telegram → підключіть бота заново.
+
+ЩО НЕ ПЕРЕНОСИТЬСЯ (і що з цим робити)
+  • Паролі акаунтів — Supabase їх не віддає. Батьки й спортсмени реєструються заново з ТІЄЮ Ж поштою —
+    привʼязка до дітей і ролі відновляться самі.
+  • Сповіщення на телефонах — кожен вмикає заново в Налаштуваннях.
+  • Секретні ключі (токен бота, ключі VAPID) — їх немає в копії з міркувань безпеки; збережіть окремо.
+
+Файлів у копії: ${files}
+Робіть таку копію раз на місяць і зберігайте в Google Диску або на компʼютері.
+`;
+  function topoOrder(deps) {
+    const out = [], seen = new Set(), visit = (t, stack = new Set()) => {
+      if (seen.has(t) || stack.has(t)) return; stack.add(t);
+      (deps[t] || []).forEach(d => visit(d, stack)); seen.add(t); out.push(t);
+    };
+    Object.keys(deps).sort().forEach(t => visit(t));
+    return out;
+  }
+  async function exportFull(progress = () => {}) {
+    const enc = new TextEncoder(), files = [], stamp = new Date().toLocaleString('uk-UA');
+    progress('Структура бази…');
+    const sch = await db.rpc('backup_schema');
+    if (sch.error) throw new Error(/backup_schema|function/i.test(sch.error.message) ? 'у базі немає функції резервної копії' : sch.error.message);
+    files.push({ name: '1-structure.sql', data: sch.data });
+    progress('Дані…');
+    const dat = await db.rpc('backup_data');
+    if (dat.error) throw new Error(dat.error.message);
+    const { tables, deps } = dat.data;
+    const order = topoOrder(deps);
+    order.forEach((t, i) => {
+      const rows = tables[t] || [];
+      const js = JSON.stringify(rows);
+      files.push({ name: `data-json/${t}.json`, data: JSON.stringify(rows, null, 1) });
+      const tag = '$ftdata$';
+      files.push({ name: `2-data/${String(i + 1).padStart(2, '0')}-${t}.sql`, data: `-- ${t}: ${rows.length} рядків\n` + (rows.length
+        ? `insert into public.${t} overriding system value\nselect * from json_populate_recordset(null::public.${t}, ${tag}${js}${tag}::json)\non conflict do nothing;\n` : '') });
+    });
+    files.push({ name: `2-data/${String(order.length + 1).padStart(2, '0')}-лічильники.sql`, data: `-- Після всіх даних: щоб нові записи отримували правильні номери
+do $$ declare r record; begin
+  for r in select table_name, column_name from information_schema.columns where table_schema = 'public' and is_identity = 'YES' loop
+    execute format('select setval(pg_get_serial_sequence(%L, %L), coalesce((select max(%I) from public.%I), 0) + 1, false)',
+      'public.' || r.table_name, r.column_name, r.column_name, r.table_name);
+  end loop;
+end $$;\n` });
+    progress('Excel…');
+    try { files.push({ name: 'Ferents-Team.xlsx', data: new Uint8Array(await (await buildExcel()).arrayBuffer()) }); } catch (e) {}
+    progress('Фото…');
+    const paths = (tables.athletes || []).map(a => a.photo).filter(Boolean);
+    for (let i = 0; i < paths.length; i += 40) {
+      const { data: urls } = await db.storage.from(PHOTO_BUCKET).createSignedUrls(paths.slice(i, i + 40), 600);
+      for (const u of urls || []) {
+        if (!u.signedUrl) continue;
+        try { const r = await fetch(u.signedUrl); if (r.ok) files.push({ name: 'photos/' + u.path, data: new Uint8Array(await r.arrayBuffer()) }); } catch (e) {}
+      }
+      progress(`Фото ${Math.min(i + 40, paths.length)} з ${paths.length}…`);
+    }
+    progress('Файли додатку…');
+    const own = ['index.html', 'zayava.html', 'sw.js', 'manifest.webmanifest', 'README.md', 'icons/karate-192.png', 'icons/karate-512.png',
+      'icons/karate-apple-180.png', 'icons/karate-maskable-512.png', 'fonts/manrope.woff', 'fonts/OFL-Manrope.txt', 'supabase-schema.sql'];
+    for (const f of own) { try { const r = await fetch('./' + f, { cache: 'no-store' }); if (r.ok) files.push({ name: 'app/' + f, data: new Uint8Array(await r.arrayBuffer()) }); } catch (e) {} }
+    for (const f of ['notify', 'telegram']) { try { const r = await fetch(`./supabase/functions/${f}/index.ts`, { cache: 'no-store' }); if (r.ok) files.push({ name: `functions/${f}/index.ts`, data: new Uint8Array(await r.arrayBuffer()) }); } catch (e) {} }
+    files.unshift({ name: 'ВІДНОВЛЕННЯ.txt', data: RESTORE_TXT(stamp, files.length + 1) });
+    progress('Пакую архів…');
+    const blob = zipStore(files.map(f => ({ name: f.name, data: typeof f.data === 'string' ? enc.encode(f.data) : f.data })));
+    await saveFile(new Blob([blob], { type: 'application/zip' }), `FERENTS-TEAM-повна-копія-${today()}.zip`);
     try { localStorage.setItem('ft_last_export', today()); } catch (e) {}
   }
   function lastExport() { try { return localStorage.getItem('ft_last_export') || ''; } catch (e) { return ''; } }
