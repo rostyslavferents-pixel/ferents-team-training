@@ -313,6 +313,10 @@
     .tab.on::before { content: ''; position: absolute; top: -1px; left: 28%; right: 28%; height: 3px; border-radius: 0 0 3px 3px; background: var(--gold); }
     body.has-tabs { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
     body.has-tabs .toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
+    .medal { width: 1.35em; height: 1.35em; vertical-align: -0.32em; flex: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.18)); }
+    .medal + .medal { margin-left: -0.15em; }
+    .medal-n { font-weight: 700; margin: 0 6px 0 1px; }
+    .btn > .ic-svg, h3 > .ic-svg { width: 1.15em; height: 1.15em; vertical-align: -0.2em; margin-right: 2px; }
     .ic-svg { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 
     /* Головна: плитки розділів */
@@ -767,6 +771,7 @@
 
   // Іконки (лінійні, беруть колір тексту)
   const ICONS = {
+    medal: '<path d="M7.5 2.5h3.5l2.2 5.8M16.5 2.5H13l-1 2.6"/><circle cx="12" cy="15" r="6.5"/><path d="m12 11.8 1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z"/>',
     home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
     attendance: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>',
     payments: '<rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20M6 15h4"/>',
@@ -3096,7 +3101,7 @@ notify pgrst, 'reload schema';`;
       ${evs.length ? `<h3>Найближчі події</h3><div class="list">${evs.map(e => `<a class="row" href="#event/${encodeURIComponent(e.id)}">
           <div><strong>${esc(e.title)}</strong><span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long' })}${e.place ? ' · ' + esc(e.place) : ''}</span></div>
           <span class="chev">›</span></a>`).join('')}</div>` : ''}
-      ${resEvs.length ? `<div class="sec"><h3>🏆 Результати змагань</h3><span class="muted small">${['1', '2', '3'].map(p => medalN(p) ? placeIcon(p) + '×' + medalN(p) : '').filter(Boolean).join(' ')}</span></div>
+      ${resEvs.length ? `<div class="sec"><h3>🏆 Результати змагань</h3><span class="muted small">${['1', '2', '3'].map(p => medalN(p) ? placeIcon(p) + '<span class="medal-n">×' + medalN(p) + '</span>' : '').filter(Boolean).join(' ')}</span></div>
         <div class="stats">
           <div class="stat"><b>${resEvs.length}</b><span>змагань</span></div>
           <div class="stat"><b>${wlAll.w}</b><span>перемог</span></div>
@@ -4514,7 +4519,7 @@ notify pgrst, 'reload schema';`;
             return `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">
             <div><strong>${beltTag(a.belt)}${esc(a.full_name)}${rs.length ? ' ' + rs.map(x => placeIcon(x.p)).join('') : ''}</strong><span>${esc(rs.length ? rs.map(placeText).join('; ') : line(a).split(' — ').slice(1).join(' · '))}</span></div>
             <span class="chev">›</span></a>`; }).join('') || '<div class="empty">Учасників ще не вибрано</div>'}</div>
-        ${people.length ? `<button type="button" class="btn wide" id="resBtn" style="margin-bottom:8px">🏅 ${people.some(a => resultsOf(ev, a.id).length) ? 'Змінити результати' : 'Внести результати'}</button>
+        ${people.length ? `<button type="button" class="btn wide" id="resBtn" style="margin-bottom:8px">${icon('medal')} ${people.some(a => resultsOf(ev, a.id).length) ? 'Змінити результати' : 'Внести результати'}</button>
           <button type="button" class="btn light wide" id="copyBtn">📋 Скопіювати список для заявки</button>` : ''}`
       : `<div class="info"><b>Учасники подій</b><br>Щоб додавати учасників, один раз виконайте в Supabase → SQL Editor:
           <code style="display:block;margin:8px 0;padding:8px;background:var(--card);border-radius:8px;font-size:12px;word-break:break-all">${esc(sql)}</code>
@@ -4538,13 +4543,32 @@ notify pgrst, 'reload schema';`;
   }
 
   // ----- Результати змагань: events.results = { athlete_id: [{ p: '1', n: 'куміте −40 кг' }] } -----
-  const PLACES = [['1', '🥇 1 місце'], ['2', '🥈 2 місце'], ['3', '🥉 3 місце'], ['4', '4 місце'], ['5', '5 місце'], ['u', 'Участь']];
+  const PLACES = [['1', '1 місце'], ['2', '2 місце'], ['3', '3 місце'], ['4', '4 місце'], ['5', '5 місце'], ['u', 'Участь']];
   const RESULTS_SQL = "alter table public.events add column if not exists results jsonb not null default '{}'::jsonb;";
   function resultsOf(ev, id) {
     const r = ev && ev.results && typeof ev.results === 'object' ? ev.results[String(id)] : null;
     return Array.isArray(r) ? r.filter(x => x && x.p) : [];
   }
-  function placeIcon(p) { return { 1: '🥇', 2: '🥈', 3: '🥉' }[p] || (p === 'u' ? '🎽' : p + ' м.'); }
+  // Медалі — власні SVG (метал з градієнтом, стрічка, номер місця)
+  const MEDAL_COLORS = {
+    1: ['#fff3c4', '#e6b93d', '#9c7414', 'золото'],
+    2: ['#ffffff', '#c3c9d2', '#6f7782', 'срібло'],
+    3: ['#f6c9a0', '#c47c3e', '#7a4519', 'бронза'],
+  };
+  let medalSeq = 0;
+  function medalSvg(p) {
+    const c = MEDAL_COLORS[p]; if (!c) return '';
+    const id = 'mg' + (++medalSeq);
+    return `<svg class="medal" viewBox="0 0 24 24" role="img" aria-label="${p} місце (${c[3]})"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c[0]}"/><stop offset=".55" stop-color="${c[1]}"/><stop offset="1" stop-color="${c[2]}"/></linearGradient></defs>`
+      + `<path d="M6.3 1.2h4.4l3.1 7.6H9.4z" fill="#2a4a85"/><path d="M17.7 1.2h-4.4l-3.1 7.6h4.4z" fill="#1a3160"/><path d="M8.9 1.2h1.1l3.1 7.6H12z" fill="#d6404a" opacity=".9"/>`
+      + `<circle cx="12" cy="15.6" r="7" fill="url(#${id})" stroke="${c[2]}" stroke-width=".8"/><circle cx="12" cy="15.6" r="5.1" fill="none" stroke="${c[2]}" stroke-width=".7" opacity=".55"/>`
+      + `<text x="12" y="18.4" text-anchor="middle" font-family="Manrope, system-ui, sans-serif" font-size="7.6" font-weight="800" fill="${c[2]}">${p}</text></svg>`;
+  }
+  function placeIcon(p) {
+    if (MEDAL_COLORS[p]) return medalSvg(p);
+    const t = p === 'u' ? 'участь' : esc(p) + ' м.';
+    return `<span class="badge" style="font-size:11px;padding:1px 7px;background:var(--line)">${t}</span>`;
+  }
   function placeText(x) {
     const lbl = (PLACES.find(([v]) => v === x.p) || [, x.p])[1];
     const wl = (x.w || x.l) ? ` · ${x.w || 0} перем. / ${x.l || 0} пор.` : '';
@@ -4577,7 +4601,7 @@ notify pgrst, 'reload schema';`;
         </div>`;
       }).join('');
     };
-    dlg.innerHTML = `<form><h3>🏅 Результати: ${esc(ev.title)}</h3>
+    dlg.innerHTML = `<form><h3>${icon('medal')} Результати: ${esc(ev.title)}</h3>
       <p class="muted small" style="margin:4px 0 10px">Місце та дисципліна для кожного учасника. Результат автоматично зʼявиться в профілі спортсмена.</p>
       <div id="rList"></div>
       <div class="dlg-actions"><span class="spacer"></span>
