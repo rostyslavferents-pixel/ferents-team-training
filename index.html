@@ -1006,7 +1006,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.51';
+  const APP_VERSION = 'v3.52';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -2733,9 +2733,14 @@ notify pgrst, 'reload schema';`;
         <div class="m-acts">${[['attendance', 'attendance', 'Відмітки', '#22c55e', 0], ['payments', 'payments', 'Оплати', '#3b82f6', unpaid && dayN <= 10 ? unpaid : 0],
           ['members', 'members', 'Запити', '#d946ef', reqN || 0], ['applications', 'form', 'Заяви', '#14b8a6', appN || 0]].map(([r, ic, l, c, n]) =>
           `<a href="#${r}" data-reset="${r}" style="--mc:${c}"><span>${icon(ic)}${n ? `<em>${n}</em>` : ''}</span>${l}</a>`).join('')}</div>`;
+      monoReady = '';
+    }
+    {
       const rc = await readyCounts().catch(() => null);
       if (rc) monoReady = `<a class="now soon m-ready" href="#readiness"><i class="dot"></i><div><b>Готовність старшої групи</b>
           <span>${rc.n ? `<i style="color:#22c55e">● ${rc.g}</i> <i style="color:#eab308">● ${rc.y}</i> <i style="color:#ef4444">● ${rc.r}</i> · відмітились ${rc.n}` : 'Сьогодні ще ніхто не відмітився'}</span></div><i class="go">›</i></a>`;
+    }
+    if (BETA) {
       monoToday = sch.length ? `<h3>Сьогодні в залі</h3><div class="list m-feed">${sch.map(s => {
           const [n, total] = groupCount(s.group_name, s.section), st = mins(s.start_time), en = s.end_time ? mins(s.end_time) : st + 90;
           const stat = nowM > en ? 'завершено' : nowM >= st ? 'зараз' : 'о ' + hhmm(s.start_time);
@@ -2877,6 +2882,7 @@ notify pgrst, 'reload schema';`;
 
     // Пробна версія: стиль Monobank + «Готовність» для старшої групи
     let monoTop = '', readyHtml = '', monoFeed = '';
+    if (kids.length && isAthleteM() && canReady(kids[0])) readyHtml = await readyCardHtml(kids[0]).catch(() => '');
     if (BETA && kids.length) {
       const k = kids[0];
       const visits = att.filter(x => String(x.athlete_id) === String(k.id)).length;
@@ -2894,7 +2900,6 @@ notify pgrst, 'reload schema';`;
           canNutri(k) && ['nutrition/' + encodeURIComponent(k.id), 'drop', 'Харчування', '#22c55e'], canSee('news') && ['news', 'news', 'Новини', '#d946ef'],
           canSee('events') && ['events', 'calendar', 'Події', '#f97316']].filter(Boolean).slice(0, 4).map(([r, ic, l, c]) =>
           `<a href="#${r}" style="--mc:${c}"><span>${icon(ic)}</span>${l}</a>`).join('')}</div>`;
-      if (isAthleteM() && canReady(k)) readyHtml = await readyCardHtml(k).catch(() => '');
       const visitsList = att.filter(x => String(x.athlete_id) === String(k.id)).sort((x, y) => y.date.localeCompare(x.date)).slice(0, 3);
       const feed = [
         ...ev.filter(e => going(e).length).slice(0, 2).map(e => ({ d: e.date, ic: 'trophy', c: '#eab308', t: e.title, s: fmtDate(e.date, { day: 'numeric', month: 'long' }) + (e.place ? ' · ' + e.place : ''), v: (() => { const dd = Math.round((new Date(e.date + 'T12:00') - new Date(t + 'T12:00')) / 864e5); return dd === 0 ? 'сьогодні' : dd === 1 ? 'завтра' : 'через ' + dd + ' дн'; })(), vc: '#eab308', href: '#events' })),
