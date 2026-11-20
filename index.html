@@ -1006,7 +1006,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.52';
+  const APP_VERSION = 'v3.53';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -6386,6 +6386,7 @@ notify pgrst, 'reload schema';`;
         <button type="button" class="btn wide" id="fullBtn" style="margin:0 0 8px">${icon('save')}Скачати повну копію (ZIP)</button>
         <button type="button" class="btn light wide" id="expBtn" style="margin:0">⬇️ Тільки таблиця Excel</button>
         <p class="muted small" id="expLast">${lastExport() ? 'Остання копія: ' + fmtDate(lastExport(), { day: 'numeric', month: 'long', year: 'numeric' }) : 'Копій ще не було'}</p></div>` : ''}
+      ${isCoach() ? `<div class="set-block" id="remSet"><h3>${icon('clock')}Нагадування спортсменам</h3><p class="muted small" style="margin:0">Завантаження…</p></div>` : ''}
       <div class="set-block"><h3>${icon('bell')}Сповіщення на телефон</h3><div id="pushSet" class="muted small">Перевіряю…</div></div>
       <div class="set-block"><h3>${icon('send')}Сповіщення в Telegram</h3><div id="tgSet" class="small">Перевіряю…</div></div>
       <p class="muted small">Ці налаштування зберігаються на цьому пристрої.</p>`;
@@ -6410,6 +6411,7 @@ notify pgrst, 'reload schema';`;
       saveSettings(); settingsView();
     };
     document.querySelectorAll('[data-check]').forEach(c => c.onchange = () => { settings[c.dataset.check] = c.checked; saveSettings(); });
+    if ($('#remSet')) remindersBlock();
     const full = $('#fullBtn');
     if (full) full.onclick = async () => {
       full.disabled = true;
@@ -6426,6 +6428,29 @@ notify pgrst, 'reload schema';`;
       exp.disabled = false; exp.textContent = '⬇️ Скачати все в Excel';
       $('#expLast').textContent = lastExport() ? 'Остання копія: ' + fmtDate(lastExport(), { day: 'numeric', month: 'long', year: 'numeric' }) : '';
     };
+  }
+
+  // ===== Нагадування спортсменам старшої групи (Telegram, щогодини з сервера) =====
+  async function remindersBlock() {
+    const box = $('#remSet');
+    const { data } = await db.from('team_settings').select('value').eq('key', 'reminders').maybeSingle();
+    const cfg = { enabled: true, morning: true, training: true, water: true, morning_hour: 8, ...((data && data.value) || {}) };
+    const opt = (k, l, d) => `<label class="check"><input type="checkbox" data-rem="${k}" ${cfg[k] ? 'checked' : ''}><span>${l}<small class="muted" style="display:block;font-size:12px">${d}</small></span></label>`;
+    box.innerHTML = `<h3>${icon('clock')}Нагадування спортсменам</h3>
+      <p class="muted small" style="margin:0 0 6px">Старша група, у Telegram (тим, хто підключив бота).</p>
+      ${opt('enabled', '<b>Увімкнено</b>', 'Головний перемикач для всіх нагадувань')}
+      ${opt('morning', 'Ранкова відмітка + норма води', 'Лише тим, хто ще не відмітив «Готовність»')}
+      <label style="margin:4px 0 0 32px">О котрій<select id="remHour" style="margin-top:4px;max-width:140px">${[6, 7, 8, 9, 10].map(h => `<option value="${h}" ${Number(cfg.morning_hour) === h ? 'selected' : ''}>${h}:00</option>`).join('')}</select></label>
+      ${opt('training', 'Перед і після тренування', 'За 2 год — перекус і вода з собою; після — поїсти, попити, вчасно спати')}
+      ${opt('water', 'Вода о 13:00', 'Коротке нагадування випити склянку води')}`;
+    const save = async () => {
+      box.querySelectorAll('[data-rem]').forEach(c => { cfg[c.dataset.rem] = c.checked; });
+      cfg.morning_hour = Number($('#remHour').value);
+      const { error } = await db.from('team_settings').upsert({ key: 'reminders', value: cfg });
+      toast(error ? 'Не вдалося зберегти: ' + error.message : 'Збережено', !!error);
+    };
+    box.querySelectorAll('[data-rem]').forEach(c => c.onchange = save);
+    $('#remHour').onchange = save;
   }
 
   // ===== Резервна копія в Excel (.xlsx без сторонніх бібліотек) =====

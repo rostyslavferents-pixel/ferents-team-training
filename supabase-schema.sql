@@ -1010,3 +1010,13 @@ create policy athlete_own on public.readiness for all to authenticated
 revoke all on public.readiness from anon;
 grant select, insert, update, delete on public.readiness to authenticated;
 notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+-- Нагадування спортсменам старшої групи (Telegram). Функція: supabase/functions/reminders (Verify JWT вимкнено).
+-- Таблиці reminder_log, private_keys; функція reminder_targets(date); щогодинний запуск через pg_cron:
+--   select cron.schedule('ft-reminders', '0 * * * *', $c$ select net.http_post(
+--     url := 'https://<проєкт>.supabase.co/functions/v1/reminders',
+--     headers := jsonb_build_object('Content-Type','application/json','x-cron-key',(select v from public.private_keys where k='cron')),
+--     body := '{}'::jsonb, timeout_milliseconds := 30000); $c$);
+-- Налаштування: team_settings key 'reminders' (вмикає тренер у застосунку).
