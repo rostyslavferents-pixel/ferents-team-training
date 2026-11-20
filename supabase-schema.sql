@@ -952,3 +952,37 @@ create policy athlete_own on public.nutrition for all to authenticated
 revoke all on public.nutrition from anon;
 grant select, insert, update, delete on public.nutrition to authenticated;
 notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+-- Рецепти команди: спортсмени пропонують, тренер схвалює
+create table if not exists public.recipes (
+  id           bigint generated always as identity primary key,
+  title        text not null check (length(title) between 2 and 80),
+  tag          text not null default 'Перекус',
+  ingredients  text not null check (length(ingredients) <= 1500),
+  how          text check (length(how) <= 1500),
+  p            numeric(6,1) not null default 0,
+  f            numeric(6,1) not null default 0,
+  c            numeric(6,1) not null default 0,
+  author_name  text,
+  status       text not null default 'pending' check (status in ('pending','approved')),
+  created_by   text not null default lower(auth.jwt() ->> 'email'),
+  created_at   timestamptz not null default now()
+);
+alter table public.recipes enable row level security;
+drop policy if exists coach_all on public.recipes;
+drop policy if exists member_read on public.recipes;
+drop policy if exists athlete_suggest on public.recipes;
+drop policy if exists athlete_own_delete on public.recipes;
+create policy coach_all on public.recipes for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+create policy member_read on public.recipes for select to authenticated
+  using (public.is_member() and (status = 'approved' or created_by = lower(auth.jwt() ->> 'email')));
+create policy athlete_suggest on public.recipes for insert to authenticated
+  with check (public.my_role() = 'athlete' and status = 'pending' and created_by = lower(auth.jwt() ->> 'email'));
+create policy athlete_own_delete on public.recipes for delete to authenticated
+  using (status = 'pending' and created_by = lower(auth.jwt() ->> 'email'));
+revoke all on public.recipes from anon;
+grant select, insert, update, delete on public.recipes to authenticated;
+notify pgrst, 'reload schema';

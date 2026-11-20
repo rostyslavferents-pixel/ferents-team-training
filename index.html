@@ -790,6 +790,14 @@
     .sl-tips .row span span, .sl-tips .grow > span { line-height: 1.45; }
     .sl-warn { margin-top: 12px; }
 
+    /* Рецепти: підрахунок складу */
+    .rcalc { margin-top: 8px; font-size: 13px; line-height: 1.4; }
+    .rcalc > div { padding: 4px 0; }
+    .rcalc .ok .ic-svg { color: var(--ok); } .rcalc .no { color: var(--bad); }
+    .rcalc span { color: var(--muted); }
+    .rcalc .tot { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 14px; }
+    .rcp .chips { flex-wrap: wrap; margin-top: 6px; }
+
     /* Пошук */
     .hbtns { display: flex; gap: 8px; }
     .search-btn svg { width: 20px; height: 20px; fill: none; stroke: #e5e7eb; stroke-width: 2; stroke-linecap: round; }
@@ -893,7 +901,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.46';
+  const APP_VERSION = 'v3.47';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -1077,7 +1085,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -2472,6 +2480,7 @@ notify pgrst, 'reload schema';`;
     const t = today();
     const reqP = db.from('join_requests').select('id', { count: 'exact', head: true });
     const appP = db.from('applications').select('id', { count: 'exact', head: true }).eq('status', 'new');
+    const recP = db.from('recipes').select('id', { count: 'exact', head: true }).eq('status', 'pending');
     let [ath, att, pay, sch, ev, pl] = await Promise.all([
       q(db.from('athletes').select('*')),
       q(db.from('attendance').select('athlete_id, date').eq('date', t).eq('present', true)),
@@ -2593,6 +2602,9 @@ notify pgrst, 'reload schema';`;
     const reqBlock = reqN ? `<a class="now soon" href="#members"><i class="dot"></i>
         <div><b>${icon('hand')}Запити на доступ: ${reqN}</b><span>Чекають вашого підтвердження</span></div><i class="go">›</i></a>` : '';
     const { count: appN } = await appP;
+    const { count: recN } = await recP.catch(() => ({ count: 0 }));
+    const recBlock = recN ? `<a class="now soon" href="#recipes"><i class="dot"></i>
+        <div><b>${icon('note')}Нові рецепти від спортсменів: ${recN}</b><span>Перегляньте й схваліть — тоді їх побачить уся старша група</span></div><i class="go">›</i></a>` : '';
     const dayN = Number(t.slice(8, 10));
     const payBlock = unpaid && dayN >= 8 && dayN <= 10 ? `<a class="now soon" href="#payments" data-reset="payments"><i class="dot"></i>
         <div><b>Нагадати про оплату: ${unpaid} не оплатили</b><span>${dayN === 10 ? 'Сьогодні останній день оплати' : 'Оплата до 10 числа'} · Оплати → Нагадати батькам</span></div><i class="go">›</i></a>` : '';
@@ -2608,6 +2620,7 @@ notify pgrst, 'reload schema';`;
       ${reqBlock}
       ${linkBlock}
       ${appBlock}
+      ${recBlock}
       ${payBlock}
       ${expBlock}
       ${nowBlock}
@@ -3570,6 +3583,125 @@ notify pgrst, 'reload schema';`;
     };
   }
 
+  // ----- Автопідрахунок БЖВ зі складу страви -----
+  // [аліаси, Б, Ж, В на 100 г, вага 1 шт (г) або 0]
+  const FOOD_DB = [
+    [['гречк', 'гречан'], 3.4, 0.6, 20, 0], [['рис'], 2.7, 0.3, 28, 0], [['вівсян', 'вівсянк', 'геркулес'], 12, 6, 60, 0],
+    [['макарон', 'спагеті', 'паста '], 5, 1, 25, 0], [['булгур', 'кус-кус', 'кускус'], 3.5, 0.3, 19, 0], [['пшон'], 3.5, 1, 23, 0],
+    [['картопл', 'пюре'], 2, 0.1, 17, 0], [['хліб', 'тост', 'батон'], 8, 2.5, 45, 30], [['лаваш', 'тортил'], 9, 1, 56, 0],
+    [['хлібц'], 10, 3, 70, 10], [['млинц', 'налисник'], 6, 7, 28, 50],
+    [['булоч', 'булк', 'круасан'], 8, 9, 50, 60], [['печив'], 7, 15, 70, 10], [['вареник'], 6, 2, 28, 0], [['піц'], 11, 10, 30, 0],
+    [['борщ', 'суп', 'бульйон'], 1.5, 1.5, 5, 0], [['сирник'], 17, 9, 15, 0],
+    [['курк', 'куряч', 'філе'], 27, 3, 0, 0], [['стегн'], 20, 10, 0, 0], [['індич', 'індик'], 24, 4, 0, 0],
+    [['яловичин', 'телятин'], 26, 10, 0, 0], [['свинин'], 25, 14, 0, 0], [['фарш'], 18, 15, 0, 0],
+    [['хек', 'минтай', 'тріск', 'риб'], 17, 2, 0, 0], [['лосос', 'сьомг', 'форел'], 20, 13, 0, 0], [['тунц', 'тунец'], 24, 1, 0, 0],
+    [['яйц', 'яєць', 'яйце'], 12.7, 10.9, 0.7, 55], [['кисломолочн', 'сир ', 'творог', 'сирник'], 17, 5, 3, 0],
+    [['сир твердий', 'твердий сир', 'моцарел', 'пармезан', 'сир тертий', 'тертий сир', 'сиру'], 25, 28, 0, 20],
+    [['молок'], 3, 2.5, 4.7, 0], [['кефір', 'ряжанк'], 3, 2.5, 4, 0], [['грецьк'], 9, 3, 4, 0], [['йогурт'], 4, 2, 6, 0],
+    [['сметан'], 2.6, 15, 3.6, 0], [['вершков', 'масл'], 0.5, 82, 0.8, 0], [['олі'], 0, 100, 0, 0],
+    [['мед', 'мёд'], 0.3, 0, 82, 0], [['цукор', 'цукру'], 0, 0, 100, 0], [['варення', 'джем'], 0.3, 0, 60, 0],
+    [['банан'], 1.1, 0.3, 23, 120], [['яблук'], 0.3, 0.2, 14, 180], [['груш'], 0.4, 0.1, 15, 170], [['апельсин', 'мандарин'], 0.9, 0.2, 12, 130],
+    [['ягід', 'ягод', 'полуниц', 'чорниц', 'малин'], 1, 0.3, 10, 0], [['родзинк', 'курага', 'фінік'], 3, 0.5, 66, 0],
+    [['огір', 'помідор', 'томат ', 'перець', 'салат', 'зелен', 'овоч', 'кабачк'], 0.9, 0.2, 4, 0], [['морк'], 1.3, 0.1, 7, 0],
+    [['броколі', 'цвітн'], 2.8, 0.4, 7, 0], [['капуст'], 1.3, 0.1, 6, 0], [['цибул'], 1.1, 0.1, 9, 0], [['гриб', 'печериц'], 3, 0.5, 3, 0],
+    [['томатн', 'кетчуп'], 1.5, 0.2, 7, 0], [['квасол', 'нут'], 8, 0.5, 21, 0], [['сочевиц'], 9, 0.4, 20, 0], [['горошок', 'кукурудз'], 4, 1, 15, 0],
+    [['арахісов'], 25, 50, 20, 0], [['горіх', 'мигдал', 'кешью', 'арахіс'], 18, 55, 12, 0], [['насінн'], 20, 50, 12, 0],
+    [['шоколад'], 6, 35, 52, 0], [['какао'], 3.5, 3, 10, 0], [['сосиск'], 11, 23, 2, 50], [['ковбас', 'шинк'], 14, 20, 1, 0],
+  ];
+  // (\b не працює з кирилицею, тому межі слова — пробіл, цифра або розділовий знак)
+  const UNIT_G = [[/[\s\d]кг(?=[\s.,;)]|$)|кілограм/, 1000], [/ст\.?\s*л|столов/, 15], [/ч\.?\s*л|чайн/, 5], [/[\s\d]л(?=[\s.,;)]|$)|літр/, 1000],
+    [/склян|чашк/, 250], [/жмен/, 30], [/шматоч|шматк|скибк|слайс/, 'piece'], [/[\s\d]шт(?=[\s.,;)]|$)|штук/, 'piece'], [/[\s\d](мл|г|гр|грам\S*)(?=[\s.,;)]|$)/, 1]];
+  function parseIngredient(line) {
+    const L = ' ' + line.toLowerCase().replace(/[’'`ʼ]/g, '').replace(/ё/g, 'е') + ' ';
+    let best = null;
+    for (const f of FOOD_DB) for (const al of f[0]) { const i = L.indexOf(al); if (i >= 0 && (!best || al.length > best.al.length)) best = { f, al }; }
+    if (!best) return { line, ok: false };
+    const [, p, fat, c, piece] = best.f;
+    const num = (L.match(/(\d+(?:[.,]\d+)?)/) || [])[1];
+    let n = num ? Number(num.replace(',', '.')) : null, grams = null;
+    let unit = null;
+    for (const [re, g] of UNIT_G) if (re.test(L)) { unit = g; break; }
+    if (unit === 'piece') grams = (n || 1) * (piece || 50);
+    else if (typeof unit === 'number') grams = (n || 1) * unit;
+    else if (n != null) grams = piece && n <= 12 ? n * piece : n; // «2 яйця» → штуки, «200 гречки» → грами
+    else if (piece) grams = piece;
+    if (!grams) return { line, ok: false, need: true };
+    const k = grams / 100;
+    return { line, ok: true, g: Math.round(grams), p: p * k, f: fat * k, c: c * k };
+  }
+  function calcIngredients(text) {
+    const items = String(text || '').split(/\n|;/).map(s => s.replace(/^[\s\-•·*\d.)]*(?=\D)/, m => /\d/.test(m.replace(/^[\s\-•·*]*/, '')) ? m : '').trim()).filter(Boolean).map(parseIngredient);
+    const tot = items.filter(x => x.ok).reduce((s, x) => [s[0] + x.p, s[1] + x.f, s[2] + x.c], [0, 0, 0]).map(v => Math.round(v));
+    return { items, tot };
+  }
+  const RECIPE_TAGS = ['Сніданок', 'Обід', 'Вечеря', 'Перекус', 'До тренування', 'Після тренування'];
+
+  function recipeForm(authorName) {
+    const coach = isCoach();
+    const dlg = $('#dlg');
+    let tag = 'Перекус';
+    dlg.innerHTML = `<form class="rcp"><h3>${coach ? 'Новий рецепт' : 'Запропонувати рецепт'}</h3>
+      ${coach ? '' : '<p class="muted small" style="margin:4px 0 0">Тренер перегляне — і рецепт побачить уся старша група з підписом автора.</p>'}
+      <label>Назва<input id="rT" maxlength="80" required placeholder="напр. Рис з куркою і овочами"></label>
+      <label>Коли їсти</label><div class="chips" id="rTag">${RECIPE_TAGS.map(t => `<button type="button" class="chip ${t === tag ? 'on' : ''}" data-t="${t}">${t}</button>`).join('')}</div>
+      <label>Склад — кожен продукт з нового рядка, з вагою<textarea id="rI" rows="5" maxlength="1500" required placeholder="рис 200 г\nкуряче філе 120 г\nперець, морква 150 г\nолія 1 ст. л."></textarea></label>
+      <div id="rCalc" class="rcalc"></div>
+      <label>Як готувати<textarea id="rH" rows="3" maxlength="1500" placeholder="Коротко: що з чим і скільки хвилин"></textarea></label>
+      <div class="dlg-actions"><span class="spacer"></span><button type="button" class="btn light" data-act="cancel">Скасувати</button>
+        <button type="submit" class="btn">${coach ? 'Додати' : 'Надіслати тренеру'}</button></div></form>`;
+    const form = dlg.querySelector('form');
+    const draw = () => {
+      const { items, tot } = calcIngredients($('#rI').value);
+      $('#rCalc').innerHTML = items.length ? `${items.map(x => x.ok
+          ? `<div class="ok">${icon('check')}${esc(x.line)} <span>≈ ${x.g} г · Б ${Math.round(x.p)} · Ж ${Math.round(x.f)} · В ${Math.round(x.c)}</span></div>`
+          : `<div class="no">${icon('alert')}${esc(x.line)} <span>${x.need ? 'додай вагу, напр. «150 г»' : 'не впізнав продукт — напиши простіше або пропусти'}</span></div>`).join('')}
+        <div class="tot">Разом на порцію: <b>Б ${tot[0]} · Ж ${tot[1]} · В ${tot[2]} · ${kcalOf(tot)} ккал</b></div>` : '';
+    };
+    $('#rI').oninput = draw;
+    $('#rTag').onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; tag = b.dataset.t; $('#rTag').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); };
+    form.querySelector('[data-act=cancel]').onclick = () => dlg.close();
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const { items, tot } = calcIngredients($('#rI').value);
+      if (!items.some(x => x.ok)) return toast('Не вдалося порахувати жоден продукт — перевір склад', true);
+      const row = { title: $('#rT').value.trim(), tag, ingredients: $('#rI').value.trim(), how: $('#rH').value.trim() || null,
+        p: tot[0], f: tot[1], c: tot[2], author_name: authorName || null, status: coach ? 'approved' : 'pending' };
+      const btn = form.querySelector('[type=submit]'); btn.disabled = true;
+      try {
+        await q(db.from('recipes').insert(row)); dlg.close();
+        toast(coach ? 'Рецепт додано' : 'Надіслано тренеру — дякуємо!');
+        render();
+      } catch (err) { btn.disabled = false; }
+    };
+    dlg.showModal();
+    setTimeout(() => $('#rT').focus(), 50);
+  }
+  function recipeItem(r, tools = '') {
+    const m = [Number(r.p), Number(r.f), Number(r.c)];
+    return `<details class="row nrec"><summary><div class="grow"><strong>${esc(r.title)}${r.status === 'pending' ? ' <span class="badge gold">на перевірці</span>' : ''}</strong>
+        <span>${esc(r.tag)} · Б ${Math.round(m[0])} · Ж ${Math.round(m[1])} · В ${Math.round(m[2])} · ${kcalOf(m)} ккал${r.author_name ? ` · від ${esc(r.author_name)}` : ''}</span></div><span class="chev">›</span></summary>
+        <div class="nrec-b"><p><b>Склад:</b><br>${esc(r.ingredients).replace(/\n/g, '<br>')}</p>${r.how ? `<p>${esc(r.how)}</p>` : ''}${tools}</div></details>`;
+  }
+  // Тренер: перевірка запропонованих рецептів
+  async function recipesView() {
+    setActions(isCoach() ? '<button class="btn" id="addR">+ Рецепт</button>' : '');
+    const { data, error } = await db.from('recipes').select('*').order('created_at', { ascending: false });
+    if (error) { $('#view').innerHTML = `<div class="empty">Рецепти поки недоступні: ${esc(error.message)}</div>`; return; }
+    const pend = data.filter(r => r.status === 'pending'), ok = data.filter(r => r.status === 'approved');
+    const tools = r => isCoach() ? `<div class="rem-btns">${r.status === 'pending' ? `<button type="button" class="btn sm" data-ok="${r.id}">${icon('check')}Схвалити</button>` : ''}
+        <button type="button" class="btn light sm" data-del="${r.id}">Видалити</button></div>` : '';
+    $('#view').innerHTML = `${pend.length ? `<h3>Чекають перевірки (${pend.length})</h3><div class="list">${pend.map(r => recipeItem(r, tools(r))).join('')}</div>` : ''}
+      <h3>Рецепти команди</h3><div class="list">${ok.map(r => recipeItem(r, tools(r))).join('') || '<div class="empty">Ще немає рецептів від команди</div>'}</div>
+      <p class="muted small" style="margin:12px 4px 0">Білки, жири й вуглеводи пораховано автоматично за складом — приблизно. Перед схваленням гляньте, чи все впізнано правильно.</p>`;
+    if ($('#addR')) $('#addR').onclick = () => recipeForm('Тренер');
+    $('#view').onclick = async e => {
+      const okB = e.target.closest('[data-ok]'), del = e.target.closest('[data-del]');
+      if (okB) { await q(db.from('recipes').update({ status: 'approved' }).eq('id', okB.dataset.ok)); toast('Схвалено — тепер рецепт бачать усі'); render(); }
+      if (del && await confirmSheet({ title: 'Видалити рецепт?', text: 'Його більше ніхто не побачить.' })) {
+        await q(db.from('recipes').delete().eq('id', del.dataset.del)); toast('Видалено'); render(); }
+    };
+  }
+
   // ----- Сон і відновлення (довідка) -----
   function sleepNeed(age) {
     if (age != null && age < 13) return [9, 12];
@@ -3629,6 +3761,7 @@ notify pgrst, 'reload schema';`;
     }
     const age = ageOf(a) ?? (a.birth_year ? new Date().getFullYear() - a.birth_year : null);
     const ready = n.sex && n.weight_kg && n.height_cm;
+    const teamR = ((await db.from('recipes').select('*').order('created_at', { ascending: false })).data || []).filter(r => r.status === 'approved' || !isCoach());
     const mode = state.nutriMode || 'train';
     const seg = (name, val, opts) => `<div class="chips seg">${opts.map(([v, l]) => `<button type="button" class="chip ${String(val) === String(v) ? 'on' : ''}" data-${name}="${v}">${l}</button>`).join('')}</div>`;
     const fmtG = g => `${g}<small> г</small>`;
@@ -3683,7 +3816,8 @@ notify pgrst, 'reload schema';`;
         ${extraTxt ? `<div class="row" style="cursor:default"><div class="grow"><strong>${icon('check')}Додати протягом дня</strong><span>${extraTxt}</span></div></div>` : ''}
         <div class="row" style="cursor:default"><span class="muted small">Разом ≈ Б ${tot[0]} · Ж ${tot[1]} · В ${tot[2]} · ${kcalOf(tot)} ккал. Страви можна міняти місцями й замінювати на схожі.</span></div>
       </div>
-      <h3>Усі рецепти</h3>
+      <div class="sec"><h3>Усі рецепти</h3>${isCoach() ? '<a class="btn light sm" href="#recipes">Рецепти команди</a>' : '<button type="button" class="btn light sm" id="suggestR">+ Свій рецепт</button>'}</div>
+      ${teamR.length ? `<div class="list" style="margin-bottom:10px">${teamR.map(r => recipeItem(r)).join('')}</div>` : ''}
       <div class="list">${Object.values(RECIPES).map(x => `<details class="row nrec"><summary><div class="grow"><strong>${esc(x.t)}</strong>
           <span>${esc(x.tag)} · Б ${x.m[0]} · Ж ${x.m[1]} · В ${x.m[2]} · ${kcalOf(x.m)} ккал</span></div><span class="chev">›</span></summary>
           <div class="nrec-b"><p><b>Склад:</b> ${esc(x.ing)}</p><p>${esc(x.how)}</p></div></details>`).join('')}</div>
@@ -3717,6 +3851,7 @@ notify pgrst, 'reload schema';`;
       try { await q(db.from('nutrition').upsert(row)); toast('Збережено'); render(); }
       catch (e) { $('#nSave').disabled = false; }
     };
+    const sug = $('#suggestR'); if (sug) sug.onclick = () => recipeForm(a.full_name);
     const modes = $('#view').querySelector('.nmode');
     if (modes) modes.onclick = e => { const m = e.target.closest('[data-mode]'); if (!m) return; e.preventDefault(); state.nutriMode = m.dataset.mode; render(); };
   }
@@ -6341,12 +6476,12 @@ notify pgrst, 'reload schema';`;
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
-    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView,
   };
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
   function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
-  const PARENT_ROUTE = { stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  const PARENT_ROUTE = { recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
