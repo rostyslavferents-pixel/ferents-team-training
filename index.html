@@ -727,6 +727,30 @@
     .cal-leg i.y { background: var(--ok); } .cal-leg i.n { background: var(--bad-bg); box-shadow: inset 0 0 0 1px var(--bad); }
     .cal-leg i.f { box-shadow: inset 0 0 0 1.5px var(--border); }
 
+    /* Швидка відмітка присутності */
+    .att-prog { height: 4px; border-radius: 2px; background: var(--line); margin: -4px 2px 12px; overflow: hidden; }
+    .att-prog i { display: block; height: 100%; width: 0; background: var(--ok); border-radius: 2px; transition: width .35s var(--ease); }
+    .att .row { gap: 12px; padding: 11px 14px; transition: background-color .2s; user-select: none; -webkit-user-select: none; }
+    .att .row input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+    .att .row.on { background: color-mix(in srgb, var(--ok) 9%, var(--card)); }
+    .att .row:active { background: color-mix(in srgb, var(--line) 70%, var(--card)); }
+    .mk { flex: none; width: 30px; height: 30px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--border); display: grid; place-items: center;
+      transition: background-color .2s, box-shadow .2s, transform .25s var(--ease); }
+    .mk svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+      stroke-dasharray: 20; stroke-dashoffset: 20; transition: stroke-dashoffset .25s ease .05s; }
+    .row.on .mk { background: var(--ok); box-shadow: none; transform: scale(1.08); }
+    .row.on .mk svg { stroke-dashoffset: 0; }
+    :root[data-theme="dark"] .mk svg { stroke: #08210f; }
+    .att .row:active .mk { transform: scale(.88); }
+
+    /* Пошук */
+    .hbtns { display: flex; gap: 8px; }
+    .search-btn svg { width: 20px; height: 20px; fill: none; stroke: #e5e7eb; stroke-width: 2; stroke-linecap: round; }
+    .srch input[type=search] { margin-top: 10px; font-size: 17px; }
+    .srch-res { min-height: 120px; max-height: 55dvh; overflow-y: auto; margin-top: 6px; }
+    .srch-res .list { margin-bottom: 4px; }
+    .srch-hint { margin: 14px 4px; }
+
     /* Заставка при запуску */
     .splash { position: fixed; inset: 0; z-index: 50; background: #0f1115; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 28px; transition: opacity .35s ease, visibility .35s; }
@@ -767,7 +791,8 @@
         <h1>Training</h1>
         <p class="motto" id="motto">Дисципліна. Праця. Результат.</p>
       </div>
-      <button id="menuBtn" class="menu-btn" aria-label="Меню" hidden><span></span><span></span><span></span></button>
+      <div class="hbtns"><button id="searchBtn" class="menu-btn search-btn" aria-label="Пошук" hidden><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+      <button id="menuBtn" class="menu-btn" aria-label="Меню" hidden><span></span><span></span><span></span></button></div>
     </div>
   </header>
 
@@ -821,7 +846,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.43';
+  const APP_VERSION = 'v3.44';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -3560,6 +3585,7 @@ notify pgrst, 'reload schema';`;
     const rows = ath.filter(a => isActive(a) && inFilter(a));
     const byId = new Map(rows.map(a => [String(a.id), a]));
     const present = new Set(marks.filter(m => m.present).map(m => String(m.athlete_id)));
+    const urlOf = state.hasPhoto ? await photoUrls(rows.map(a => a.photo)).catch(() => () => '') : () => '';
 
     $('#view').innerHTML = `
       <div class="bar">
@@ -3570,11 +3596,14 @@ notify pgrst, 'reload schema';`;
       </div>
       ${chips(true)}
       <p class="summary" id="attSum"></p>
-      <div class="list" id="attList">
+      <div class="att-prog"><i id="attBar"></i></div>
+      <div class="list att" id="attList">
         ${rows.map(a => `
-          <label class="row tick">
-            <span><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([groupLabel(a), beltShort(a.belt)].filter(Boolean).join(' · '))}<i class="wait" ${waiting.has(String(a.id)) ? '' : 'hidden'}> · ⏳ чекає відправки</i></span></span>
+          <label class="row tick ${present.has(String(a.id)) ? 'on' : ''}">
+            ${avatarHtml(a, urlOf(a.photo))}
+            <span class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([groupLabel(a), beltShort(a.belt)].filter(Boolean).join(' · '))}<i class="wait" ${waiting.has(String(a.id)) ? '' : 'hidden'}> · ⏳ чекає відправки</i></span></span>
             <input type="checkbox" data-id="${esc(a.id)}" ${present.has(String(a.id)) ? 'checked' : ''}>
+            <span class="mk" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 12.5 4 4 8-9"/></svg></span>
           </label>`).join('') || '<div class="empty">У цій групі немає активних спортсменів</div>'}
       </div>
       ${rows.length ? '<button class="btn light wide" id="allBtn">Відмітити всіх присутніми</button>' : ''}
@@ -3585,6 +3614,7 @@ notify pgrst, 'reload schema';`;
     const updateSum = () => {
       const n = $('#attList').querySelectorAll('input:checked').length;
       $('#attSum').innerHTML = `${fmtDate(state.date, { weekday: 'long', day: 'numeric', month: 'long' })} · присутні <b>${n}</b> з ${rows.length}`;
+      $('#attBar').style.width = (rows.length ? n / rows.length * 100 : 0) + '%';
     };
     updateSum();
 
@@ -3615,9 +3645,12 @@ notify pgrst, 'reload schema';`;
     $('#attList').onchange = async e => {
       const box = e.target;
       if (!box.dataset.id) return;
+      const row = box.closest('.row');
+      row.classList.toggle('on', box.checked);
+      try { navigator.vibrate && navigator.vibrate(box.checked ? 12 : [6, 40, 6]); } catch (e) {}
       updateSum();
       try { await save([box.dataset.id], box.checked); }
-      catch (err) { box.checked = !box.checked; updateSum(); }
+      catch (err) { box.checked = !box.checked; row.classList.toggle('on', box.checked); updateSum(); }
     };
     const allBtn = $('#allBtn');
     if (allBtn) allBtn.onclick = async () => {
@@ -5872,6 +5905,45 @@ notify pgrst, 'reload schema';`;
     m.showModal();
   }
   $('#menuBtn').onclick = openMenu;
+  $('#searchBtn').onclick = openSearch;
+
+  // ----- Пошук по всьому додатку (тренер): спортсмени, батьки, події, розділи -----
+  async function openSearch() {
+    const dlg = $('#dlg');
+    dlg.innerHTML = `<form class="srch" onsubmit="return false"><h3>Пошук</h3>
+      <input type="search" id="srchQ" placeholder="Прізвище, імʼя, подія або розділ" autocomplete="off" enterkeyhint="search">
+      <div id="srchRes" class="srch-res"><p class="muted small srch-hint">Почніть вводити — наприклад, «Петренко», «Вільнюс» або «оплати»</p></div>
+      <div class="dlg-actions"><span class="spacer"></span><button type="button" class="btn light" data-act="cancel">Закрити</button></div></form>`;
+    dlg.querySelector('[data-act=cancel]').onclick = () => dlg.close();
+    dlg.showModal();
+    setTimeout(() => $('#srchQ').focus(), 50);
+    const [ath, evs] = await Promise.all([
+      q(db.from('athletes').select('*').order('full_name')).catch(() => []),
+      q(db.from('events').select('id, title, date, place').order('date', { ascending: false })).catch(() => []),
+    ]);
+    const norm = x => String(x || '').toLowerCase().replace(/[’'`ʼ]/g, '').replace(/ё/g, 'е').trim();
+    const pages = Object.entries(TITLES).filter(([r]) => VIEWS[r] && !['athlete', 'event', 'join', 'rating'].includes(r));
+    const draw = () => {
+      const qs = norm($('#srchQ').value);
+      const box = $('#srchRes');
+      if (!qs) { box.innerHTML = '<p class="muted small srch-hint">Почніть вводити — наприклад, «Петренко», «Вільнюс» або «оплати»</p>'; return; }
+      const words = qs.split(/\s+/);
+      const hit = text => words.every(w => norm(text).includes(w));
+      const A = ath.filter(a => hit([a.full_name, a.parent_name, a.phone].join(' '))).slice(0, 8);
+      const E = evs.filter(e => hit([e.title, e.place].join(' '))).slice(0, 5);
+      const P = pages.filter(([r, t]) => hit(t)).slice(0, 4);
+      const go = (href, inner) => `<a class="row" href="${href}" data-go>${inner}<span class="chev">›</span></a>`;
+      box.innerHTML = (A.length ? `<div class="day-title">Спортсмени</div><div class="list">${A.map(a => go('#athlete/' + encodeURIComponent(a.id),
+          `${avatarHtml(a, '')}<div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([groupLabel(a), isActive(a) ? '' : 'неактивний', a.parent_name ? 'батьки: ' + a.parent_name : ''].filter(Boolean).join(' · '))}</span></div>`)).join('')}</div>` : '')
+        + (E.length ? `<div class="day-title">Події</div><div class="list">${E.map(e => go('#event/' + encodeURIComponent(e.id),
+          `<div class="grow"><strong>${icon('calendar')}${esc(e.title)}</strong><span>${fmtDate(e.date, { day: 'numeric', month: 'long', year: 'numeric' })}${e.place ? ' · ' + esc(e.place) : ''}</span></div>`)).join('')}</div>` : '')
+        + (P.length ? `<div class="day-title">Розділи</div><div class="list">${P.map(([r, t]) => go('#' + r, `<div class="grow"><strong>${esc(t)}</strong></div>`)).join('')}</div>` : '')
+        || '<div class="empty">Нічого не знайдено</div>';
+    };
+    $('#srchQ').oninput = draw;
+    draw();
+    $('#srchRes').onclick = e => { if (e.target.closest('[data-go]')) dlg.close(); };
+  }
 
   // ----- Додаток на телефоні: встановлення, робота без інтернету -----
   let installEvent = null;
@@ -6072,6 +6144,7 @@ notify pgrst, 'reload schema';`;
       : route === 'athlete' && !isCoach() ? (isAthleteM() ? 'Моя картка' : 'Моя дитина') : TITLES[route];
     document.body.classList.toggle('inner', route !== 'home');
     document.body.dataset.route = route;
+    $('#searchBtn').hidden = !isCoach();
     drawTabbar(route);
     const isTab = isCoach() ? (TABS.some(([r]) => r === route) || route === 'rating') : isTabRoute(route);
     $('#backLink').hidden = route === 'home' || isTab;
@@ -6143,6 +6216,7 @@ notify pgrst, 'reload schema';`;
     $('#loginSection').hidden = on;
     $('#appSection').hidden = !on;
     $('#menuBtn').hidden = !on;
+    if (!on) $('#searchBtn').hidden = true;
     if (on) {
       state.email = (session.user.email || '').toLowerCase();
       $('#view').innerHTML = skeleton();
