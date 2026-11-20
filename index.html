@@ -823,6 +823,86 @@
     .tile[href="#chat"] .ic { --ic: #0284c7; }
     .tile[href="#news"] .ic { --ic: #ea580c; }
     .tile[href^="#nutrition"] .ic { --ic: #16a34a; }
+    /* Готовність */
+    .rd-card { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .rd-head { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+    .rd-head span { font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--muted); }
+    .rd-ring { position: relative; }
+    .rd-ring svg { width: 100%; height: 100%; }
+    .rd-bg { fill: none; stroke: var(--line); stroke-width: 12; }
+    .rd-fg { fill: none; stroke-width: 12; stroke-linecap: round; stroke-dasharray: var(--c); stroke-dashoffset: var(--o); animation: ringIn 1s var(--ease) both; }
+    .rd-ring > div { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .rd-ring b { font-size: 46px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+    .rd-ring span { font-size: 14px; font-weight: 700; margin-top: 6px; }
+    .rd-tip { margin: 0; text-align: center; font-size: 14px; line-height: 1.5; color: var(--muted); }
+    .rd-stats { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; text-align: center; }
+    .rd-stats b { display: block; font-size: 18px; font-weight: 800; }
+    .rd-stats span { font-size: 12px; color: var(--muted); }
+    .rd-week { width: 100%; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; height: 70px; padding-top: 8px; border-top: 1px solid var(--line); }
+    .rd-day { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 62px; }
+    .rd-day i { width: 100%; max-width: 20px; border-radius: 5px; }
+    .rd-day span { font-size: 11px; color: var(--muted); }
+    .rd-card .btn.wide { margin-top: 0; }
+    .rd-sleep { display: flex; align-items: center; justify-content: space-between; margin: 8px 0 4px; }
+    .rd-sleep b { font-size: 36px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .rd-scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+    .rd-scale .chip { min-height: 46px; font-size: 16px; font-weight: 800; }
+    .rd-lohi { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* ===== Пробна версія: стиль Monobank ===== */
+    :root.mono { --bg: #000; --card: #15171b; --ink: #fff; --muted: #8e8e93; --line: #25272c; --border: #34363c; --head: #000;
+      --sh-1: none; --sh-2: none; --hair: inset 0 0 0 1px #1f2126; color-scheme: dark; }
+    :root.mono body { background: #000; }
+    :root.mono header { background: #000; border-bottom: 0; }
+    :root.mono header::after { display: none; }
+    :root.mono header h1, :root.mono .motto { display: none; }
+    :root.mono header { padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: 6px; }
+    :root.mono .hwrap { align-items: center; }
+    :root.mono .menu-btn { border: 0; background: #1c1c1e; border-radius: 50%; }
+    :root.mono .tabbar { background: rgb(10 10 11 / .9); border-top-color: #1c1c1e; }
+    :root.mono .tab.on::before { background: #2a2416; }
+    :root.mono .card, :root.mono .tile, :root.mono .list, :root.mono .stat, :root.mono .hero, :root.mono .panel, :root.mono .set-block, :root.mono .now.soon, :root.mono .bday, :root.mono .install { border-radius: 20px; }
+    :root.mono h2 { font-size: 26px; }
+    :root.mono #view h3 { font-size: 13px; letter-spacing: .02em; color: var(--muted); font-weight: 700; margin: 22px 4px 8px; }
+    :root.mono .tile .ic { border-radius: 50%; }
+    :root.mono .now:not(.soon) { background: var(--gold); color: #1a1205; box-shadow: none; }
+    .m-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 10px 0 18px; gap: 2px; }
+    .m-hero span { font-size: 14px; color: var(--muted); font-weight: 600; }
+    .m-hero b { font-size: 64px; font-weight: 800; letter-spacing: -.045em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+    .m-hero b small { font-size: 30px; color: var(--muted); letter-spacing: -.02em; }
+    .m-hero em { font-style: normal; font-size: 14px; font-weight: 700; }
+    .m-hero em.ok { color: #4ade80; } .m-hero em.bad { color: #f87171; }
+    .m-acts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 4px 0 16px; }
+    .m-acts a { display: flex; flex-direction: column; align-items: center; gap: 8px; text-decoration: none; color: #d1d1d6; font-size: 12px; font-weight: 600; }
+    .m-acts a > span { position: relative; width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+      background: color-mix(in srgb, var(--mc) 22%, #000); color: color-mix(in srgb, var(--mc) 60%, #fff); transition: transform .2s var(--ease); }
+    .m-acts a:active > span { transform: scale(.9); }
+    .m-acts .ic-svg { width: 24px; height: 24px; margin: 0; }
+    .m-acts em { position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px;
+      background: #ef4444; color: #fff; font: 800 12px/20px Manrope, sans-serif; font-style: normal; text-align: center; }
+    .m-card { position: relative; display: flex; flex-direction: column; justify-content: space-between; height: 190px; padding: 18px 20px; margin: 0 0 18px;
+      border-radius: 20px; background: #16181d; border: 1px solid #23262d; overflow: hidden; color: #fff; text-decoration: none; box-sizing: border-box; }
+    .m-card > * { position: relative; }
+    .m-belt { position: absolute !important; left: 0; right: 0; top: 92px; height: 22px; }
+    .m-stripe { position: absolute !important; left: 62%; top: 92px; width: 34px; height: 22px; }
+    .m-card-top { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; }
+    .m-card-top span:first-child { letter-spacing: .18em; color: var(--gold); }
+    .m-card-top span:last-child { color: var(--muted); }
+    .m-card-bot { display: flex; justify-content: space-between; align-items: flex-end; }
+    .m-card-bot b { display: block; font-size: 18px; font-weight: 800; }
+    .m-card-bot span { font-size: 13px; color: var(--muted); }
+    .m-feed .row { gap: 12px; }
+    .m-ic { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800;
+      background: color-mix(in srgb, var(--mc, #8e8e93) 20%, var(--card)); color: color-mix(in srgb, var(--mc, #8e8e93) 65%, #fff); }
+    .m-ic.on { --mc: #eab308; }
+    .m-ic .ic-svg { width: 20px; height: 20px; margin: 0; }
+    .m-val { font-size: 15px; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .m-ready span i { font-style: normal; font-weight: 800; }
+    :root.mono body[data-route="home"] .topbar { display: none; }
+    :root.mono .chip.on { background: var(--gold); color: #1a1205; }
+    :root.mono .rd-card .btn, :root.mono .rd-form .btn:not(.light) { background: var(--gold); color: #1a1205; }
+    :root.mono .btn:not(.light):not(.danger) { background-color: var(--gold); color: #1a1205; }
+
     /* Пошук */
     .hbtns { display: flex; gap: 8px; }
     .search-btn svg { width: 20px; height: 20px; fill: none; stroke: #e5e7eb; stroke-width: 2; stroke-linecap: round; }
@@ -926,8 +1006,12 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.50';
-  document.getElementById('appVersion').textContent = APP_VERSION;
+  const APP_VERSION = 'v3.51';
+  // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
+  const BETA = /\/beta(\/|$)/.test(location.pathname);
+  if (BETA) document.documentElement.classList.add('mono');
+  const ROOTP = BETA ? '../' : './'; // де лежать спільні файли сайту
+  document.getElementById('appVersion').textContent = APP_VERSION + (BETA ? ' · пробна версія' : '');
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
   const DEFAULT_SETTINGS = { theme: 'auto', accent: '#d1a84b', zoom: 1, motto: '', showStats: true, showToday: true, showBdays: true };
@@ -939,11 +1023,11 @@
   })();
   const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
   function applySettings() {
-    const dark = settings.theme === 'dark' || (settings.theme === 'auto' && darkMq.matches);
+    const dark = BETA || settings.theme === 'dark' || (settings.theme === 'auto' && darkMq.matches);
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
     document.documentElement.style.setProperty('--gold', settings.accent);
     document.body.style.zoom = settings.zoom;
-    document.querySelector('meta[name=theme-color]').content = dark ? '#05080d' : '#111827';
+    document.querySelector('meta[name=theme-color]').content = BETA ? '#000000' : dark ? '#05080d' : '#111827';
   }
   function saveSettings() {
     try { localStorage.setItem('ft_settings', JSON.stringify(settings)); } catch (e) {}
@@ -1110,7 +1194,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -2639,23 +2723,46 @@ notify pgrst, 'reload schema';`;
     const expBlock = active.length && (!le || (Date.now() - new Date(le + 'T12:00')) > 30 * 864e5)
       ? `<a class="install" href="#settings" style="text-decoration:none;color:inherit"><span class="ic-box">${icon('box')}</span>
           <div><b>Час зробити резервну копію</b>${le ? 'Остання — ' + fmtDate(le, { day: 'numeric', month: 'long' }) : 'Збережіть усю базу в Excel'} · Налаштування →</div></a>` : '';
+    // Пробна версія: верх у стилі Monobank, готовність старшої групи, групи сьогодні
+    let monoTop = '', monoReady = '', monoToday = '';
+    if (BETA) {
+      const paidN = active.length - unpaid;
+      monoTop = `<div class="m-hero"><span>Оплатили за ${MONTHS[Number(t.slice(5, 7)) - 1].toLowerCase()}</span>
+          <b>${paidN}<small> / ${active.length}</small></b>
+          <em class="${unpaid ? 'bad' : 'ok'}">${unpaid ? `${unpaid} ще не оплатили · до 10 числа` : 'Усі оплатили'}</em></div>
+        <div class="m-acts">${[['attendance', 'attendance', 'Відмітки', '#22c55e', 0], ['payments', 'payments', 'Оплати', '#3b82f6', unpaid && dayN <= 10 ? unpaid : 0],
+          ['members', 'members', 'Запити', '#d946ef', reqN || 0], ['applications', 'form', 'Заяви', '#14b8a6', appN || 0]].map(([r, ic, l, c, n]) =>
+          `<a href="#${r}" data-reset="${r}" style="--mc:${c}"><span>${icon(ic)}${n ? `<em>${n}</em>` : ''}</span>${l}</a>`).join('')}</div>`;
+      const rc = await readyCounts().catch(() => null);
+      if (rc) monoReady = `<a class="now soon m-ready" href="#readiness"><i class="dot"></i><div><b>Готовність старшої групи</b>
+          <span>${rc.n ? `<i style="color:#22c55e">● ${rc.g}</i> <i style="color:#eab308">● ${rc.y}</i> <i style="color:#ef4444">● ${rc.r}</i> · відмітились ${rc.n}` : 'Сьогодні ще ніхто не відмітився'}</span></div><i class="go">›</i></a>`;
+      monoToday = sch.length ? `<h3>Сьогодні в залі</h3><div class="list m-feed">${sch.map(s => {
+          const [n, total] = groupCount(s.group_name, s.section), st = mins(s.start_time), en = s.end_time ? mins(s.end_time) : st + 90;
+          const stat = nowM > en ? 'завершено' : nowM >= st ? 'зараз' : 'о ' + hhmm(s.start_time);
+          return `<a class="row" href="#attendance" data-now-group="${esc(s.group_name || '')}" data-now-section="${esc(s.section || '')}"><span class="m-ic${nowM >= st && nowM <= en ? ' on' : ''}">${hhmm(s.start_time)}</span>
+            <div class="grow"><strong>${esc(s.group_name || '')}</strong><span>${esc([s.section, stat].filter(Boolean).join(' · '))}</span></div><b class="m-val">${n}/${total}</b></a>`; }).join('')}</div>` : '';
+    }
     $('#view').innerHTML = `
+      ${monoTop}
       ${installCard()}
       ${pushC}
-      ${reqBlock}
+      ${BETA ? '' : reqBlock}
       ${linkBlock}
-      ${appBlock}
+      ${BETA ? '' : appBlock}
       ${recBlock}
       ${payBlock}
       ${expBlock}
       ${nowBlock}
-      ${settings.showStats ? `<div class="stats">
+      ${monoReady}
+      ${monoToday}
+      ${settings.showStats && !BETA ? `<div class="stats">
         <a class="stat" href="#athletes" data-reset="athletes"><b>${active.length}</b><span>спортсменів</span></a>
         <a class="stat" href="#attendance" data-reset="attendance"><b>${att.length}</b><span>сьогодні на тренуванні</span></a>
         <a class="stat ${unpaid ? 'warn' : ''}" href="#payments" data-reset="payments"><b>${unpaid}</b><span>не оплатили за місяць</span></a>
       </div>` : ''}
-      ${settings.showToday ? `<div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${plansText}${nextEvent}</div>` : ''}
+      ${settings.showToday && !BETA ? `<div class="today"><strong>СЬОГОДНІ, ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</strong>${todayText}${plansText}${nextEvent}</div>` : ''}
       ${settings.showBdays ? bdayBlock : ''}
+      ${BETA ? '<h3>Розділи</h3>' : ''}
       <div class="tiles">
         ${tile('training', 'training', 'Тренування', 'Розклад, завдання, тести')}
         ${tile('events', 'events', 'Календар подій', 'Змагання, збори')}
@@ -2768,11 +2875,42 @@ notify pgrst, 'reload schema';`;
     const tile = (route, ic, title, sub) =>
       `<a class="tile" href="#${route}"><span class="ic">${icon(ic)}</span><span><strong>${title}</strong><small>${sub}</small></span></a>`;
 
+    // Пробна версія: стиль Monobank + «Готовність» для старшої групи
+    let monoTop = '', readyHtml = '', monoFeed = '';
+    if (BETA && kids.length) {
+      const k = kids[0];
+      const visits = att.filter(x => String(x.athlete_id) === String(k.id)).length;
+      const days = new Set(schAll.filter(s => forKid(s, k)).map(s => Number(s.weekday)));
+      let planned = 0; for (let d = monthStart; d <= t; d = shiftDate(d, 1)) if (days.has(weekdayOf(d))) planned++;
+      const pct = planned ? Math.min(100, Math.round(visits / planned * 100)) : null, place = placeOf.get(String(k.id));
+      const main = beltMain(k.belt) || '#3a3d44', stripe = /смуж/i.test(k.belt || '') ? (/^\s*1\s*кю/i.test(k.belt) ? BELT_GOLD : BELT_SILVER) : main;
+      monoTop = `<div class="m-hero"><span>Тренувань у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</span>
+          <b>${visits}${planned ? `<small> / ${planned}</small>` : ''}</b>
+          <em class="ok">${[pct !== null ? pct + '% відвідуваність' : '', place ? place + ' місце в рейтингу' : ''].filter(Boolean).join(' · ')}</em></div>
+        <a class="m-card" href="#athlete/${encodeURIComponent(k.id)}"><i class="m-belt" style="background:${main}"></i><i class="m-stripe" style="background:${stripe}"></i>
+          <div class="m-card-top"><span>${esc(TEAM.brand || 'FERENTS TEAM')}</span><span>${esc([k.section, k.group_name].filter(Boolean).join(' · '))}</span></div>
+          <div class="m-card-bot"><div><b>${esc(k.full_name)}</b><span>${esc(k.belt || 'Пояс не вказано')}</span></div>${kids.length > 1 ? `<span>+${kids.length - 1}</span>` : ''}</div></a>
+        <div class="m-acts">${[canSee('schedule') && ['schedule', 'training', 'Розклад', '#3b82f6'], canSee('rating') && ['rating', 'events', 'Рейтинг', '#eab308'],
+          canNutri(k) && ['nutrition/' + encodeURIComponent(k.id), 'drop', 'Харчування', '#22c55e'], canSee('news') && ['news', 'news', 'Новини', '#d946ef'],
+          canSee('events') && ['events', 'calendar', 'Події', '#f97316']].filter(Boolean).slice(0, 4).map(([r, ic, l, c]) =>
+          `<a href="#${r}" style="--mc:${c}"><span>${icon(ic)}</span>${l}</a>`).join('')}</div>`;
+      if (isAthleteM() && canReady(k)) readyHtml = await readyCardHtml(k).catch(() => '');
+      const visitsList = att.filter(x => String(x.athlete_id) === String(k.id)).sort((x, y) => y.date.localeCompare(x.date)).slice(0, 3);
+      const feed = [
+        ...ev.filter(e => going(e).length).slice(0, 2).map(e => ({ d: e.date, ic: 'trophy', c: '#eab308', t: e.title, s: fmtDate(e.date, { day: 'numeric', month: 'long' }) + (e.place ? ' · ' + e.place : ''), v: (() => { const dd = Math.round((new Date(e.date + 'T12:00') - new Date(t + 'T12:00')) / 864e5); return dd === 0 ? 'сьогодні' : dd === 1 ? 'завтра' : 'через ' + dd + ' дн'; })(), vc: '#eab308', href: '#events' })),
+        ...visitsList.map(x => ({ d: x.date, ic: 'check', c: '#22c55e', t: 'Тренування', s: fmtDate(x.date, { weekday: 'long', day: 'numeric', month: 'long' }), v: '+1', vc: '#22c55e', href: '#athlete/' + encodeURIComponent(k.id) })),
+      ];
+      monoFeed = feed.length ? `<h3>Історія</h3><div class="list m-feed">${feed.map(f => `<a class="row" href="${f.href}"><span class="m-ic" style="--mc:${f.c}">${icon(f.ic)}</span>
+          <div class="grow"><strong>${esc(f.t)}</strong><span>${esc(f.s)}</span></div><b class="m-val" style="color:${f.vc}">${f.v}</b></a>`).join('')}</div>` : '';
+    }
     $('#view').innerHTML = `
+      ${monoTop}
+      ${readyHtml}
       ${installCard()}
       ${pushC}
       ${myEvBlock}
       ${nextBlock}
+      ${monoFeed}
       ${kids.length ? `<h3>${kids.length > 1 ? 'Мої спортсмени' : (isAthleteM() ? 'Моя картка' : 'Мій спортсмен')}</h3><div class="list">${kids.map(kidCard).join('')}</div>` : noKids}
       ${pollsNow.length ? `<a class="now soon" href="#news"><i class="dot"></i>
         <div><b>${icon('chart')}Нове опитування${pollsNow.length > 1 ? ' (' + pollsNow.length + ')' : ''}</b><span>${esc(pollsNow[0].question)} · відповісти ›</span></div><i class="go">›</i></a>` : ''}
@@ -3725,6 +3863,105 @@ notify pgrst, 'reload schema';`;
       if (del && await confirmSheet({ title: 'Видалити рецепт?', text: 'Його більше ніхто не побачить.' })) {
         await q(db.from('recipes').delete().eq('id', del.dataset.del)); toast('Видалено'); render(); }
     };
+  }
+
+  // ===================== ГОТОВНІСТЬ (ранкова відмітка, старша група) =====================
+  const canReady = a => !!a && a.group_name === NUTRI_GROUP;
+  function readyScore(sleep, feel, sore, age) {
+    const lo = sleepNeed(age)[0];
+    const s = Math.max(0, Math.min(1, (Number(sleep) - 5) / (lo - 5)));
+    return Math.round(100 * (0.45 * s + 0.30 * (feel - 1) / 4 + 0.25 * (5 - sore) / 4));
+  }
+  function readyZone(s) {
+    if (s >= 67) return { c: '#22c55e', l: 'Готовий', tip: 'Добре відновився — сьогодні можна тренуватися на повну.' };
+    if (s >= 34) return { c: '#eab308', l: 'Помірно', tip: 'Тренуйся, але без надриву. Увечері — раніше спати.' };
+    return { c: '#ef4444', l: 'Треба відпочити', tip: 'Організм втомлений. Скажи тренеру — краще легке тренування. Сьогодні — більше сну.' };
+  }
+  function readyRing(score, size = 176) {
+    const r = size / 2 - 12, c = 2 * Math.PI * r, z = readyZone(score);
+    return `<div class="rd-ring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Готовність ${score}%">
+      <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="rd-bg"/>
+      <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="rd-fg" stroke="${z.c}" style="--c:${c.toFixed(1)};--o:${(c * (1 - score / 100)).toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/></svg>
+      <div><b>${score}%</b><span style="color:${z.c}">${z.l}</span></div></div>`;
+  }
+  async function readyCardHtml(a) {
+    const t = today();
+    const { data, error } = await db.from('readiness').select('*').eq('athlete_id', a.id).gte('date', shiftDate(t, -6)).order('date');
+    if (error) return '';
+    const todayRow = (data || []).find(r => r.date === t);
+    const days = [...Array(7)].map((_, i) => shiftDate(t, i - 6));
+    const bars = days.map(d => { const r = (data || []).find(x => x.date === d);
+      return `<div class="rd-day"><i style="height:${r ? Math.max(6, Math.round(r.score * 0.5)) : 4}px;background:${r ? readyZone(r.score).c : 'var(--line)'}"></i><span>${fmtDate(d, { weekday: 'short' }).slice(0, 2)}</span></div>`; }).join('');
+    if (!todayRow) return `<div class="hero rd-card"><div class="rd-head"><span>ГОТОВНІСТЬ ДО ТРЕНУВАННЯ</span></div>
+      <p class="rd-tip">Як ти сьогодні? 10 секунд — і побачиш, наскільки відновився.</p>
+      <button type="button" class="btn wide" data-checkin="${esc(a.id)}">Відмітити ранок</button>
+      ${(data || []).length ? `<div class="rd-week">${bars}</div>` : ''}</div>`;
+    const z = readyZone(todayRow.score);
+    const hh = Math.floor(todayRow.sleep_h), mm = Math.round((todayRow.sleep_h - hh) * 60);
+    return `<div class="hero rd-card"><div class="rd-head"><span>ГОТОВНІСТЬ ДО ТРЕНУВАННЯ</span><button type="button" class="linkbtn" data-checkin="${esc(a.id)}">змінити</button></div>
+      ${readyRing(todayRow.score)}
+      <p class="rd-tip">${z.tip}</p>
+      <div class="rd-stats"><div><b>${hh}:${String(mm).padStart(2, '0')}</b><span>сон</span></div><div><b>${todayRow.feel}/5</b><span>самопочуття</span></div><div><b>${['', 'ні', 'трохи', 'помірно', 'сильно', 'дуже'][todayRow.sore]}</b><span>болять мʼязи</span></div></div>
+      <div class="rd-week">${bars}</div></div>`;
+  }
+  function checkinForm(a) {
+    const age = ageOf(a);
+    const st = { sleep: 8.5, feel: 4, sore: 2 };
+    const dlg = $('#dlg');
+    const scale = (key, title, lo, hi) => `<label>${title}</label><div class="rd-scale" data-key="${key}">${[1, 2, 3, 4, 5].map(n =>
+      `<button type="button" class="chip ${st[key] === n ? 'on' : ''}" data-n="${n}" aria-label="${title}: ${n}">${n}</button>`).join('')}</div>
+      <div class="rd-lohi"><span>${lo}</span><span>${hi}</span></div>`;
+    dlg.innerHTML = `<form class="rd-form"><h3>Як ти сьогодні?</h3>
+      <label>Скільки спав?</label>
+      <div class="rd-sleep"><button type="button" class="btn light sq" data-s="-0.25" aria-label="Менше">−</button><b id="rdSleep">8:30</b><button type="button" class="btn light sq" data-s="0.25" aria-label="Більше">+</button></div>
+      ${scale('feel', 'Самопочуття', 'погано', 'чудово')}
+      ${scale('sore', 'Чи болять мʼязи?', 'не болять', 'дуже болять')}
+      <div class="dlg-actions"><span class="spacer"></span><button type="button" class="btn light" data-act="cancel">Скасувати</button><button type="submit" class="btn">Готово</button></div></form>`;
+    const form = dlg.querySelector('form');
+    const drawSleep = () => { const h = Math.floor(st.sleep), m = Math.round((st.sleep - h) * 60); $('#rdSleep').textContent = h + ':' + String(m).padStart(2, '0'); };
+    form.onclick = e => {
+      const s = e.target.closest('[data-s]');
+      if (s) { st.sleep = Math.max(3, Math.min(13, st.sleep + Number(s.dataset.s))); drawSleep(); return; }
+      const b = e.target.closest('[data-n]');
+      if (b) { const box = b.parentElement; st[box.dataset.key] = Number(b.dataset.n); box.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); }
+    };
+    form.querySelector('[data-act=cancel]').onclick = () => dlg.close();
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const row = { athlete_id: a.id, date: today(), sleep_h: st.sleep, feel: st.feel, sore: st.sore, score: readyScore(st.sleep, st.feel, st.sore, age) };
+      try { await q(db.from('readiness').upsert(row)); dlg.close(); try { navigator.vibrate && navigator.vibrate(15); } catch (x) {} render(); } catch (err) {}
+    };
+    dlg.showModal(); drawSleep();
+  }
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('[data-checkin]'); if (!b) return;
+    const found = await q(db.from('athletes').select('*').eq('id', b.dataset.checkin)).catch(() => []);
+    if (found[0]) checkinForm(found[0]);
+  });
+  // Тренер: готовність старшої групи сьогодні
+  async function readyCounts() {
+    const { data } = await db.from('readiness').select('score').eq('date', today());
+    const z = { g: 0, y: 0, r: 0 }; (data || []).forEach(r => { r.score >= 67 ? z.g++ : r.score >= 34 ? z.y++ : z.r++; });
+    return { ...z, n: (data || []).length };
+  }
+  async function readinessView() {
+    setActions('');
+    const t = today();
+    const [ath, rows] = await Promise.all([q(db.from('athletes').select('*').order('full_name')), q(db.from('readiness').select('*').eq('date', t))]);
+    noteSection(ath);
+    const list = ath.filter(a => isActive(a) && canReady(a));
+    const by = new Map(rows.map(r => [String(r.athlete_id), r]));
+    const done = list.filter(a => by.has(String(a.id))).sort((x, y) => by.get(String(x.id)).score - by.get(String(y.id)).score);
+    const not = list.filter(a => !by.has(String(a.id)));
+    const urlOf = state.hasPhoto ? await photoUrls(list.map(a => a.photo)).catch(() => () => '') : () => '';
+    const row = a => { const r = by.get(String(a.id)), z = r && readyZone(r.score);
+      return `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">${avatarHtml(a, urlOf(a.photo))}<div class="grow"><strong>${esc(a.full_name)}</strong>
+        <span>${a.section ? esc(a.section) + ' · ' : ''}${r ? `сон ${String(r.sleep_h).replace('.', ',')} год · самопочуття ${r.feel}/5 · мʼязи ${r.sore}/5` : 'ще не відмітився'}</span></div>
+        ${r ? `<span class="badge" style="background:${z.c}22;color:${z.c}">${r.score}%</span>` : '<span class="chev">›</span>'}</a>`; };
+    $('#view').innerHTML = `<p class="muted small" style="margin:0 2px 10px">Старша група · ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' })}. Зверху — ті, кому сьогодні важче.</p>
+      <div class="list">${done.map(row).join('') || '<div class="empty">Сьогодні ще ніхто не відмітився</div>'}</div>
+      ${not.length ? `<h3>Не відмітились (${not.length})</h3><div class="list">${not.map(row).join('')}</div>` : ''}
+      <p class="muted small" style="margin:12px 4px 0">Цифра рахується з того, що спортсмен вписав зранку: сон (45%), самопочуття (30%) і біль у мʼязах (25%). Це підказка для тренера, а не медичний показник.</p>`;
   }
 
   // ----- Сон і відновлення (довідка) -----
@@ -5773,7 +6010,7 @@ grant execute on function public.submit_application(jsonb) to anon, authenticate
 
 notify pgrst, 'reload schema';`;
   const APP_STATUS = { new: ['Нова', 'gold'], accepted: ['Прийнята', 'ok'], archived: ['В архіві', ''] };
-  function zayavaLink() { return new URL('zayava.html', location.href.split('#')[0]).href; }
+  function zayavaLink() { return new URL(ROOTP + 'zayava.html', location.href.split('#')[0]).href; }
   async function applicationsView() {
     setActions('');
     const [{ data, error }, athRes] = await Promise.all([
@@ -5843,7 +6080,7 @@ notify pgrst, 'reload schema';`;
     dlg.innerHTML = `<div class="confirm-body"><h3>${esc(a.child_name)}</h3>
       <p>${esc([d.birth && 'Народження: ' + fmtDate(d.birth, { day: 'numeric', month: 'long', year: 'numeric' }), [a.section, a.group_name].filter(Boolean).join(' · '), parentLine, d.health && 'Здоровʼя: ' + d.health].filter(Boolean).join('\n'))}</p>
       <div class="btns">
-        <a class="btn" href="zayava.html?id=${encodeURIComponent(a.id)}">Відкрити заяву</a>
+        <a class="btn" href="${ROOTP}zayava.html?id=${encodeURIComponent(a.id)}">Відкрити заяву</a>
         <a class="btn light" href="zayava.html?id=${encodeURIComponent(a.id)}&pdf=1">Завантажити PDF</a>
         ${a.athlete_id ? `<a class="btn light" href="#athlete/${encodeURIComponent(a.athlete_id)}">Картка спортсмена</a>`
           : m ? `<div class="info" style="margin:0;text-align:left">Ця дитина вже є в команді: <b>${esc(m.full_name)}</b>${[m.section, m.group_name].filter(Boolean).length ? ' (' + esc([m.section, m.group_name].filter(Boolean).join(' · ')) + ')' : ''}. Заява доповнить її картку, нова картка не створюється.</div>
@@ -6383,8 +6620,8 @@ end $$;\n` });
     progress('Файли додатку…');
     const own = ['index.html', 'zayava.html', 'sw.js', 'manifest.webmanifest', 'README.md', 'icons/karate-192.png', 'icons/karate-512.png',
       'icons/karate-apple-180.png', 'icons/karate-maskable-512.png', 'fonts/manrope.woff', 'fonts/OFL-Manrope.txt', 'supabase-schema.sql'];
-    for (const f of own) { try { const r = await fetch('./' + f, { cache: 'no-store' }); if (r.ok) files.push({ name: 'app/' + f, data: new Uint8Array(await r.arrayBuffer()) }); } catch (e) {} }
-    for (const f of ['notify', 'telegram']) { try { const r = await fetch(`./supabase/functions/${f}/index.ts`, { cache: 'no-store' }); if (r.ok) files.push({ name: `functions/${f}/index.ts`, data: new Uint8Array(await r.arrayBuffer()) }); } catch (e) {} }
+    for (const f of own) { try { const r = await fetch(ROOTP + f, { cache: 'no-store' }); if (r.ok) files.push({ name: 'app/' + f, data: new Uint8Array(await r.arrayBuffer()) }); } catch (e) {} }
+    for (const f of ['notify', 'telegram']) { try { const r = await fetch(`${ROOTP}supabase/functions/${f}/index.ts`, { cache: 'no-store' }); if (r.ok) files.push({ name: `functions/${f}/index.ts`, data: new Uint8Array(await r.arrayBuffer()) }); } catch (e) {} }
     files.unshift({ name: 'ВІДНОВЛЕННЯ.txt', data: RESTORE_TXT(stamp, files.length + 1) });
     progress('Пакую архів…');
     const blob = zipStore(files.map(f => ({ name: f.name, data: typeof f.data === 'string' ? enc.encode(f.data) : f.data })));
@@ -6614,12 +6851,12 @@ end $$;\n` });
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
-    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView,
   };
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
   function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
-  const PARENT_ROUTE = { recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  const PARENT_ROUTE = { readiness: 'home', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };

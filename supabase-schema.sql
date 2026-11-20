@@ -986,3 +986,27 @@ create policy athlete_own_delete on public.recipes for delete to authenticated
 revoke all on public.recipes from anon;
 grant select, insert, update, delete on public.recipes to authenticated;
 notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+-- Готовність (ранкова відмітка старшої групи) — пробна версія /beta/
+create table if not exists public.readiness (
+  athlete_id  uuid not null references public.athletes(id) on delete cascade,
+  date        date not null default (now() at time zone 'Europe/Kyiv')::date,
+  sleep_h     numeric(4,2) not null check (sleep_h between 0 and 16),
+  feel        integer not null check (feel between 1 and 5),
+  sore        integer not null check (sore between 1 and 5),
+  score       integer not null check (score between 0 and 100),
+  created_at  timestamptz not null default now(),
+  primary key (athlete_id, date)
+);
+alter table public.readiness enable row level security;
+drop policy if exists coach_all on public.readiness;
+drop policy if exists athlete_own on public.readiness;
+create policy coach_all on public.readiness for all to authenticated using (public.is_coach()) with check (public.is_coach());
+create policy athlete_own on public.readiness for all to authenticated
+  using (public.my_role() = 'athlete' and public.is_my_athlete(athlete_id::text))
+  with check (public.my_role() = 'athlete' and public.is_my_athlete(athlete_id::text));
+revoke all on public.readiness from anon;
+grant select, insert, update, delete on public.readiness to authenticated;
+notify pgrst, 'reload schema';
