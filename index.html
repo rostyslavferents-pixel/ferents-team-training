@@ -1691,7 +1691,7 @@ notify pgrst, 'reload schema';`;
   });
   // Перемикач «Список | Рейтинг» у розділі Спортсмени
   function athTabs(cur) {
-    return `<div class="seg2"><a href="#athletes" class="${cur === 'list' ? 'on' : ''}">Список</a><a href="#rating" class="${cur === 'rating' ? 'on' : ''}">🏆 Рейтинг</a></div>`;
+    return `<div class="seg2"><a href="#athletes" class="${cur === 'list' ? 'on' : ''}">Список</a><a href="#rating" class="${cur === 'rating' ? 'on' : ''}">${trophy()} Рейтинг</a></div>`;
   }
 
   // ===== Фото спортсменів: приватне сховище Supabase «athlete-photos» =====
@@ -2364,7 +2364,7 @@ notify pgrst, 'reload schema';`;
         ${avatarHtml(a, urlOf(a.photo), 'av av-lg')}
         <div class="grow"><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong>
           <span>${esc([a.section, a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}</span>
-          <span>✅ ${visits}${planned ? ' з ' + planned : ''} тренувань у ${MONTHS_IN[Number(ym.slice(5)) - 1]}${place ? ` · 🏆 ${place} місце в рейтингу` : ''}</span></div>
+          <span>✅ ${visits}${planned ? ' з ' + planned : ''} тренувань у ${MONTHS_IN[Number(ym.slice(5)) - 1]}${place ? ` · ${trophy()} ${place} місце в рейтингу` : ''}</span></div>
         <span class="chev">›</span></a>`;
     };
     const noKids = `<div class="info">Тренер ще не привʼязав ваш акаунт до спортсмена. Коли це буде зроблено,
@@ -2784,7 +2784,7 @@ notify pgrst, 'reload schema';`;
                 <button type="button" data-down="${i}" ${i < rated.length - 1 ? '' : 'disabled'} aria-label="Нижче">↓</button>
                 <button type="button" class="x" data-out="${i}" aria-label="Прибрати">✕</button></div></div>`
           : `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">${body}<span class="chev">›</span></a>`;
-      }).join('') || `<div class="empty">У рейтингу ще нікого немає. Натисніть «Редагувати» → «+ Додати спортсмена», або відкрийте картку спортсмена → «🏆 Додати до рейтингу».</div>`}</div>
+      }).join('') || `<div class="empty">У рейтингу ще нікого немає. Натисніть «Редагувати» → «+ Додати спортсмена», або відкрийте картку спортсмена → «${trophy()} Додати до рейтингу».</div>`}</div>
       ${!edit && rated.length ? '<p class="muted small" style="margin:12px 4px 0">Щоб змінити порядок, натисніть «Редагувати». Заслуги вписуються в анкеті спортсмена.</p>' : ''}`;
 
     const move = async (i, j) => {
@@ -2820,7 +2820,7 @@ notify pgrst, 'reload schema';`;
         <button type="submit" class="btn">Додати</button></div></form>`;
     const draw = () => {
       $('#rList').innerHTML = people.filter(a => !search || a.full_name.toLowerCase().includes(search.toLowerCase())).map(a => `<label class="row tick">
-          <span><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([a.section, a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}${a.achievements ? ' · 🏆 є заслуги' : ''}</span></span>
+          <span><strong>${beltTag(a.belt)}${esc(a.full_name)}</strong><span>${esc([a.section, a.group_name, beltShort(a.belt)].filter(Boolean).join(' · '))}${a.achievements ? ' · ' + trophy() + ' є заслуги' : ''}</span></span>
           <input type="checkbox" data-rid="${esc(a.id)}" ${chosen.includes(String(a.id)) ? 'checked' : ''}></label>`).join('') || '<div class="empty">Нікого не знайдено</div>';
     };
     const form = dlg.querySelector('form');
@@ -3072,12 +3072,12 @@ notify pgrst, 'reload schema';`;
         <div class="hero-w">⚖️ ${lastW ? `<b>${fmtKg(lastW.kg)}</b> <span class="muted small">· ${fmtDate(lastW.date)}${lastW.date.slice(0, 4) !== t.slice(0, 4) ? ' ' + lastW.date.slice(0, 4) : ''}</span>` : '<span class="muted">Вага не вказана</span>'}</div>
         ${coach && a.parent_name ? `<div class="note">Батьки: ${esc(a.parent_name)}${a.phone ? ' · ' + esc(a.phone) : ''}</div>` : ''}
         ${coach && a.notes ? `<div class="note">${esc(a.notes)}</div>` : ''}
-        ${a.achievements ? `<div class="merits-full"><b>🏆 ЗАСЛУГИ</b>${esc(a.achievements)}</div>` : ''}
-        ${!coach && a.rating_place ? `<div style="margin-top:12px"><a class="badge gold" href="#rating" style="text-decoration:none">🏆 ${a.rating_place} місце в рейтингу</a></div>` : ''}
+        ${a.achievements ? `<div class="merits-full"><b>${trophy()} ЗАСЛУГИ</b>${esc(a.achievements)}</div>` : ''}
+        ${!coach && a.rating_place ? `<div style="margin-top:12px"><a class="badge gold" href="#rating" style="text-decoration:none">${trophy()} ${a.rating_place} місце в рейтингу</a></div>` : ''}
         ${coach && state.hasMerits ? `<div style="margin-top:12px">${a.rating_place
-            ? `<a class="badge gold" href="#rating" style="text-decoration:none">🏆 ${a.rating_place} місце в рейтингу</a>
+            ? `<a class="badge gold" href="#rating" style="text-decoration:none">${trophy()} ${a.rating_place} місце в рейтингу</a>
                <button type="button" class="linkbtn" id="rateOut" style="margin-left:8px">Прибрати з рейтингу</button>`
-            : '<button type="button" class="btn light sm" id="rateIn">🏆 Додати до рейтингу</button>'}</div>` : ''}
+            : `<button type="button" class="btn light sm" id="rateIn">${trophy()} Додати до рейтингу</button>`}</div>` : ''}
         ${coach && phone ? `<a class="btn light wide" href="tel:${esc(phone)}">📞 Подзвонити${a.parent_name ? ' батькам' : ''}</a>` : ''}
       </div>
       <div class="stats">
@@ -3101,7 +3101,7 @@ notify pgrst, 'reload schema';`;
       ${evs.length ? `<h3>Найближчі події</h3><div class="list">${evs.map(e => `<a class="row" href="#event/${encodeURIComponent(e.id)}">
           <div><strong>${esc(e.title)}</strong><span>${fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'long' })}${e.place ? ' · ' + esc(e.place) : ''}</span></div>
           <span class="chev">›</span></a>`).join('')}</div>` : ''}
-      ${resEvs.length ? `<div class="sec"><h3>🏆 Результати змагань</h3><span class="muted small">${['1', '2', '3'].map(p => medalN(p) ? placeIcon(p) + '<span class="medal-n">×' + medalN(p) + '</span>' : '').filter(Boolean).join(' ')}</span></div>
+      ${resEvs.length ? `<div class="sec"><h3>${trophy()} Результати змагань</h3><span class="muted small">${['1', '2', '3'].map(p => medalN(p) ? placeIcon(p) + '<span class="medal-n">×' + medalN(p) + '</span>' : '').filter(Boolean).join(' ')}</span></div>
         <div class="stats">
           <div class="stat"><b>${resEvs.length}</b><span>змагань</span></div>
           <div class="stat"><b>${wlAll.w}</b><span>перемог</span></div>
@@ -4556,6 +4556,16 @@ notify pgrst, 'reload schema';`;
     3: ['#f6c9a0', '#c47c3e', '#7a4519', 'бронза'],
   };
   let medalSeq = 0;
+  // Кубок — золотий, у тому ж стилі, що й медалі
+  function trophy() {
+    const id = 'tg' + (++medalSeq);
+    return `<svg class="medal trophy" viewBox="0 0 24 24" role="img" aria-label="кубок"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3c4"/><stop offset=".55" stop-color="#e6b93d"/><stop offset="1" stop-color="#9c7414"/></linearGradient></defs>`
+      + `<path d="M6.4 4.6H3.6v1.6a4 4 0 0 0 4 4M17.6 4.6h2.8v1.6a4 4 0 0 1-4 4" fill="none" stroke="#b8901f" stroke-width="1.4" stroke-linecap="round"/>`
+      + `<path d="M6.2 2.6h11.6v4.6a5.8 5.8 0 0 1-11.6 0z" fill="url(#${id})" stroke="#9c7414" stroke-width=".7"/>`
+      + `<path d="M8.4 4.3v2.6a3.4 3.4 0 0 0 1.4 2.8" fill="none" stroke="#fff" stroke-width=".9" stroke-linecap="round" opacity=".6"/>`
+      + `<path d="M10.6 12.6h2.8l.5 3.6h-3.8z" fill="#c99a2a"/><rect x="7.4" y="16.2" width="9.2" height="2" rx=".5" fill="url(#${id})" stroke="#9c7414" stroke-width=".6"/>`
+      + `<rect x="6.2" y="18.2" width="11.6" height="3.4" rx=".8" fill="#2a4a85"/><rect x="9.6" y="19.3" width="4.8" height="1.2" rx=".3" fill="#e6b93d"/></svg>`;
+  }
   function medalSvg(p) {
     const c = MEDAL_COLORS[p]; if (!c) return '';
     const id = 'mg' + (++medalSeq);
