@@ -926,7 +926,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.48';
+  const APP_VERSION = 'v3.49';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
@@ -2627,7 +2627,7 @@ notify pgrst, 'reload schema';`;
     const reqBlock = reqN ? `<a class="now soon" href="#members"><i class="dot"></i>
         <div><b>${icon('hand')}Запити на доступ: ${reqN}</b><span>Чекають вашого підтвердження</span></div><i class="go">›</i></a>` : '';
     const { count: appN } = await appP;
-    const { count: recN } = await recP.catch(() => ({ count: 0 }));
+    const { count: recN } = await Promise.resolve(recP).catch(() => ({ count: 0 }));
     const recBlock = recN ? `<a class="now soon" href="#recipes"><i class="dot"></i>
         <div><b>${icon('note')}Нові рецепти від спортсменів: ${recN}</b><span>Перегляньте й схваліть — тоді їх побачить уся старша група</span></div><i class="go">›</i></a>` : '';
     const dayN = Number(t.slice(8, 10));
