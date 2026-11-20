@@ -798,6 +798,31 @@
     .rcalc .tot { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 14px; }
     .rcp .chips { flex-wrap: wrap; margin-top: 6px; }
 
+    /* ===== Глибина: контраст фону й карток, кольорові іконки розділів ===== */
+    :root { --bg: #ebe9e4; --line: #e6e3dd;
+      --sh-1: 0 1px 2px rgb(17 24 39 / .06), 0 6px 18px rgb(17 24 39 / .07);
+      --sh-2: 0 2px 4px rgb(17 24 39 / .06), 0 14px 32px rgb(17 24 39 / .12); }
+    :root[data-theme="dark"] { --bg: #0a0c10; --card: #171b22; --line: #242a33;
+      --sh-1: 0 1px 2px rgb(0 0 0 / .5), 0 8px 22px rgb(0 0 0 / .35); }
+    header { background: linear-gradient(180deg, #181c25 0%, #0e1015 100%); }
+    .now:not(.soon) { background: linear-gradient(140deg, #222833 0%, #0f1115 70%); box-shadow: 0 10px 26px rgb(15 17 21 / .22); }
+    :root[data-theme="dark"] .now:not(.soon) { background: linear-gradient(140deg, #e3be62 0%, #c99a3c 100%); }
+    h3 { color: var(--ink); font-weight: 800; }
+    .tab.on::before { background: var(--gold-soft); }
+    .tab.on svg { color: var(--gold-ink); }
+    .ic-box { background: var(--gold-soft); color: var(--gold-ink); }
+    /* Кожен розділ — свій спокійний колір */
+    .tile .ic { --ic: #64748b; background: color-mix(in srgb, var(--ic) 13%, var(--card)); color: var(--ic); }
+    :root[data-theme="dark"] .tile .ic { background: color-mix(in srgb, var(--ic) 22%, var(--card)); color: color-mix(in srgb, var(--ic) 70%, #fff); }
+    .tile[href="#training"] .ic, .tile[href="#schedule"] .ic { --ic: #2563eb; }
+    .tile[href="#events"] .ic, .tile[href="#rating"] .ic { --ic: #c88a12; }
+    .tile[href="#links"] .ic { --ic: #db2777; }
+    .tile[href="#members"] .ic { --ic: #059669; }
+    .tile[href="#stats"] .ic { --ic: #7c3aed; }
+    .tile[href="#applications"] .ic, .tile[href="#plans"] .ic { --ic: #0d9488; }
+    .tile[href="#chat"] .ic { --ic: #0284c7; }
+    .tile[href="#news"] .ic { --ic: #ea580c; }
+    .tile[href^="#nutrition"] .ic { --ic: #16a34a; }
     /* Пошук */
     .hbtns { display: flex; gap: 8px; }
     .search-btn svg { width: 20px; height: 20px; fill: none; stroke: #e5e7eb; stroke-width: 2; stroke-linecap: round; }
@@ -901,7 +926,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.47';
+  const APP_VERSION = 'v3.48';
   document.getElementById('appVersion').textContent = APP_VERSION;
 
   // ===== Особисті налаштування (зберігаються на пристрої) =====
