@@ -928,3 +928,27 @@ revoke execute on function public.submit_application(jsonb) from public;
 grant execute on function public.submit_application(jsonb) to anon, authenticated;
 
 notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+-- Харчування (БЖВ): дані для калькулятора. Бачить і змінює тренер і сам спортсмен (роль «спортсмен»).
+create table if not exists public.nutrition (
+  athlete_id   uuid primary key references public.athletes(id) on delete cascade,
+  sex          text check (sex in ('m','f')),
+  height_cm    numeric(5,1) check (height_cm between 90 and 230),
+  weight_kg    numeric(5,1) check (weight_kg between 15 and 200),
+  sessions     integer not null default 3 check (sessions between 0 and 14),
+  load         text not null default 'moderate' check (load in ('light','moderate','hard')),
+  updated_at   timestamptz not null default now()
+);
+alter table public.nutrition enable row level security;
+drop policy if exists coach_all on public.nutrition;
+drop policy if exists athlete_own on public.nutrition;
+create policy coach_all on public.nutrition for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+create policy athlete_own on public.nutrition for all to authenticated
+  using (public.my_role() = 'athlete' and public.is_my_athlete(athlete_id::text))
+  with check (public.my_role() = 'athlete' and public.is_my_athlete(athlete_id::text));
+revoke all on public.nutrition from anon;
+grant select, insert, update, delete on public.nutrition to authenticated;
+notify pgrst, 'reload schema';
