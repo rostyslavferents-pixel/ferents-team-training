@@ -1026,7 +1026,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.57';
+  const APP_VERSION = 'v3.58';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -3805,7 +3805,7 @@ notify pgrst, 'reload schema';`;
     const kc = sh => (Math.round(d.E * sh / 10) * 10).toLocaleString('uk-UA');
     const meals = 4, unit = (g, per, one, many) => { const v = Math.max(1, Math.round(g / meals / per * 2) / 2); return v === 1 ? '1 ' + one : v.toLocaleString('uk-UA') + ' ' + many; };
     const item = (ic, title, sub, body) => `<details class="row nrec"><summary><div class="grow"><strong>${icon(ic)}${title}</strong><span>${sub}</span></div><span class="chev">›</span></summary><div class="nrec-b">${body}</div></details>`;
-    return `<h3>Поради з гайду</h3><div class="list">
+    return `<h3>Корисні поради</h3><div class="list">
       ${item('clock', 'Як розподілити калорії на день', '3 основні прийоми їжі + перекуси', `
         <p><b>Сніданок</b> — через годину після пробудження: не менше <b>${kc(0.25)} ккал</b>.</p>
         <p><b>Обід</b> — найбільший прийом їжі: не менше <b>${kc(0.35)} ккал</b>.</p>
