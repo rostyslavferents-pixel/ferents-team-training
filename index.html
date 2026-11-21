@@ -1026,7 +1026,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.56';
+  const APP_VERSION = 'v3.57';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -3851,23 +3851,27 @@ notify pgrst, 'reload schema';`;
       : (male ? 15.057 * w + 692.2 : 14.818 * w + 486.6);
     const met = { light: 5, moderate: 7, hard: 10 }[n.load] || 7;
     const session = Math.round(met * w * 1.5); // тренування ≈ 1,5 год
-    // Пропорції за гайдом «Здорове харчування» (EFSA/ВООЗ): жири 25–35% енергії, вуглеводи 45–60% (спортсменам — верхній край),
-    // білок: до 18 років 1,5 г/кг (база 0,9 г/кг, «для спортсменів коригуйте за масою»), дорослим активним — 1,8 г/кг хлопцям, 1,6 г/кг дівчатам.
-    // Калорійність — НИЖНЯ межа (мінімум), тому коли пропорції не сходяться, піднімаємо калорії, а не зрізаємо їжу.
+    // Поєднання: вуглеводи — за навантаженням у г/кг (спортивні норми: легкі 5, середні 6, важкі 7,5 г/кг),
+    // з рамками гайду «Здорове харчування» (EFSA/ВООЗ): вуглеводи 45–60% енергії, жири 25–35%.
+    // Білок: до 18 років 1,5 г/кг, дорослим активним — 1,8 г/кг хлопцям, 1,6 г/кг дівчатам.
+    // Калорійність — НИЖНЯ межа: якщо після вуглеводів лишаються калорії, спершу доходять жири (до 35%), потім знову вуглеводи.
     const pk = a < 18 ? 1.5 : (male ? 1.8 : 1.6);
-    const day = (E0, fatShare) => {
+    const day = (E0, ck) => {
       const P = Math.round(pk * w);
-      let E = Math.round(E0 / 10) * 10, F = Math.round(fatShare * E / 9), C = Math.round((E - 4 * P - 9 * F) / 4);
-      if (C * 4 > 0.60 * E) { C = Math.round(0.60 * E / 4); F = Math.min(Math.round(0.35 * E / 9), Math.round((E - 4 * P - 4 * C) / 9)); }
-      if (C * 4 < 0.45 * E) C = Math.round(0.45 * E / 4);
+      let E = Math.round(E0 / 10) * 10;
+      let C = Math.round(Math.min(0.60 * E / 4, Math.max(0.45 * E / 4, ck * w)));
+      let F = Math.round((E - 4 * P - 4 * C) / 9);
+      if (F * 9 > 0.35 * E) { F = Math.round(0.35 * E / 9); C = Math.round((E - 4 * P - 9 * F) / 4); }
+      if (F * 9 < 0.25 * E) F = Math.round(0.25 * E / 9);
       E = Math.max(E, Math.round((4 * P + 9 * F + 4 * C) / 10) * 10);
       const fib = a < 18 ? Math.round(E / 1000 * 14) : 30; // клітковина: дітям і підліткам 2 г/МДж ≈ 14 г на 1000 ккал, дорослим 25–35 г
       return { E, P, F, C, fib };
     };
+    const carbK = { light: 5, moderate: 6, hard: 7.5 }[n.load] || 6;
     const base = bmr * 1.45;
     return {
-      train: { ...day(base + session, 0.28), water: Math.round((w * 35 + 750) / 50) * 50 },
-      rest: { ...day(base, 0.30), water: Math.round(w * 35 / 50) * 50 },
+      train: { ...day(base + session, carbK), water: Math.round((w * 35 + 750) / 50) * 50 },
+      rest: { ...day(base, 4.5), water: Math.round(w * 35 / 50) * 50 },
       pre: { C: Math.round(w * 1), P: 15 }, post: { C: Math.round(w * 1), P: 25 },
       week: n.sessions,
     };
