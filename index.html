@@ -1026,7 +1026,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.58';
+  const APP_VERSION = 'v3.59';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -4110,7 +4110,7 @@ notify pgrst, 'reload schema';`;
     const mBtn = (m, l) => `<button type="button" class="chip ${mSel === m ? 'on' : ''}" data-rdm="${m}">${l}</button>`;
     $('#view').innerHTML = `<p class="muted small" style="margin:0 2px 10px">Старша група · ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' })}. Зверху — ті, кому сьогодні важче.</p>
       ${warned.length ? `<h3 style="color:#ef4444">Звернути увагу (${warned.length})</h3><div class="list">${warned.map(row).join('')}</div>` : ''}
-      <div class="list">${done.map(row).join('') || '<div class="empty">Сьогодні ще ніхто не відмітився</div>'}</div>
+      <div class="list">${done.filter(a => !warn.has(String(a.id))).map(row).join('') || (warned.length ? '' : '<div class="empty">Сьогодні ще ніхто не відмітився</div>')}</div>
       ${not.length ? `<h3>Не відмітились (${not.length})</h3><div class="list">${not.map(row).join('')}</div>` : ''}
       <h3>За місяць</h3>
       <div class="chips seg">${mBtn(ym, 'Цей місяць')}${mBtn(shiftMonth(ym, -1), MONTHS[Number(shiftMonth(ym, -1).slice(5)) - 1])}</div>
