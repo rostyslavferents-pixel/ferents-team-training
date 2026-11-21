@@ -755,6 +755,8 @@
     .nres { padding: 18px; }
     .nk b { font-size: 36px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
     .nk span { margin-left: 8px; color: var(--muted); font-size: 14px; }
+    .nk .nmin { display: block; margin: 0 0 2px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #22c55e; }
+    .nk-note { margin: 6px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.4; }
     .nbar { display: flex; gap: 3px; height: 8px; margin: 12px 0 14px; border-radius: 4px; overflow: hidden; }
     .nbar i { display: block; }
     .nbar .p, .nm .p::before { background: #3b82f6; } .nbar .f, .nm .f::before { background: #f59e0b; } .nbar .c, .nm .c::before { background: #10b981; }
@@ -1007,7 +1009,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.54';
+  const APP_VERSION = 'v3.55';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -3727,6 +3729,55 @@ notify pgrst, 'reload schema';`;
   const DAY_PLANS = { train: ['oat', 'buck', 'pre', 'cott', 'fish'], rest: ['omlet', 'pasta', 'kefir', 'fish'] };
   const MEAL_NAMES = { train: ['Сніданок', 'Обід', 'Перед тренуванням', 'Після тренування', 'Вечеря'], rest: ['Сніданок', 'Обід', 'Перекус', 'Вечеря'] };
 
+  // ----- Поради за гайдом «Здорове харчування» (Dr. Tolstikova), адаптовано для спортсменів -----
+  function guideHtml(d, mode) {
+    const kc = sh => (Math.round(d.E * sh / 10) * 10).toLocaleString('uk-UA');
+    const meals = 4, unit = (g, per, one, many) => { const v = Math.max(1, Math.round(g / meals / per * 2) / 2); return v === 1 ? '1 ' + one : v.toLocaleString('uk-UA') + ' ' + many; };
+    const item = (ic, title, sub, body) => `<details class="row nrec"><summary><div class="grow"><strong>${icon(ic)}${title}</strong><span>${sub}</span></div><span class="chev">›</span></summary><div class="nrec-b">${body}</div></details>`;
+    return `<h3>Поради з гайду</h3><div class="list">
+      ${item('clock', 'Як розподілити калорії на день', '3 основні прийоми їжі + перекуси', `
+        <p><b>Сніданок</b> — через годину після пробудження: не менше <b>${kc(0.25)} ккал</b>.</p>
+        <p><b>Обід</b> — найбільший прийом їжі: не менше <b>${kc(0.35)} ккал</b>.</p>
+        <p><b>Вечеря</b> — за 2–3 години до сну: не менше <b>${kc(0.25)} ккал</b>.</p>
+        <p><b>Перекуси</b> — ${mode === 'train' ? 'перед і після тренування' : 'між обідом і вечерею'}: не менше <b>${kc(0.15)} ккал</b> разом.</p>
+        <p>Між прийомами їжі — 3–5 годин. Постійно щось «кусочничати» не треба, а пропускати сніданок чи вечерю після тренування — теж ні.</p>`)}
+      ${item('check', 'Тарілка спортсмена', 'Як скласти кожен прийом їжі', `
+        <p><b>½ тарілки</b> — овочі й фрукти (більше овочів).</p>
+        <p><b>¼ тарілки</b> — білок: курка, індичка, риба, яйця, сир, бобові.</p>
+        <p><b>¼ тарілки</b> — складні вуглеводи: гречка, рис, булгур, вівсянка, картопля, макарони з твердих сортів.</p>
+        <p><b>+ ложка корисного жиру</b> — оливкова олія, горіхи, насіння, авокадо.</p>
+        <p>У день тренування вуглеводної частини можна брати більше — це паливо для мʼязів.</p>`)}
+      ${item('kid', 'Порції «рукою» — без ваг', 'Твоя мірка на кожен прийом їжі', `
+        <p>Щоб набрати свою норму за ${meals} прийоми їжі, на кожен бери приблизно:</p>
+        <p><b>Білок</b> — ${unit(d.P, 25, 'долоня', 'долоні')} (м'ясо, риба, сир; долоня ≈ 20–30 г білка).</p>
+        <p><b>Вуглеводи</b> — ${unit(d.C, 27, 'жменя', 'жмені')} крупи в сухому вигляді або стільки ж кулаків готової (жменя ≈ 25–30 г вуглеводів).</p>
+        <p><b>Жири</b> — ${unit(d.F, 10, 'великий палець', 'великого пальця')} (олія, горіхи; палець ≈ 7–10 г жиру).</p>
+        <p><b>Овочі</b> — 1–2 кулаки.</p>
+        <p>Рука росте разом з тобою, тому ця мірка завжди «твоя». Якщо після їжі все одно голодний — додай ще.</p>`)}
+      ${item('plans', 'Конструктор страв', 'Бери по одному продукту з кожної групи', `
+        <p><b>Сніданок:</b> білок (яйця, сир 5%, грецький йогурт, кефір) + крупа (вівсянка, гречані пластівці, цільнозерновий хліб) + жир (горіхи, насіння, ложка олії) + фрукти чи ягоди. Напр.: вівсянка на йогурті з ягодами й горіхами; омлет з 2–3 яєць, тост і овочі.</p>
+        <p><b>Перекус:</b> йогурт, сир, кефір або яйце + фрукт чи хлібець + кілька горіхів. Напр.: кефір з бананом; сир з ягодами.</p>
+        <p><b>Обід:</b> м'ясо, риба або бобові + гречка, рис, булгур чи картопля + пів тарілки овочів + ложка олії. Напр.: куряче філе з гречкою й тушкованими овочами.</p>
+        <p><b>Вечеря:</b> риба, курка, яйця або сир + овочі + ложка олії. Після тренування обов'язково додай крупу або картоплю — мʼязам треба відновити запаси енергії.</p>`)}
+      ${item('copy', 'Як замінювати продукти', 'Білок на білок, крупу на крупу', `
+        <p>Замінюй не продукт, а його роль: білок — білком, вуглеводи — вуглеводами, жир — жиром.</p>
+        <p><b>Крупи:</b> гречка ↔ кіноа, пшоно, рис ↔ булгур; картопля ↔ батат.</p>
+        <p><b>Білок:</b> курка ↔ індичка, риба ↔ яйця, сир ↔ йогурт, м'ясо ↔ квасоля, нут, сочевиця.</p>
+        <p><b>Жири:</b> оливкова олія ↔ горіхи, насіння, авокадо. Лляну олію — тільки в холодні страви.</p>
+        <p>Рибу — 2–3 рази на тиждень, серед неї й жирну (лосось, скумбрія, оселедець) — у ній омега-3.</p>`)}
+      ${item('drop', 'Клітковина і вода', `Клітковини — не менше ${d.fib} г на день`, `
+        <p>Клітковина є в овочах, фруктах, ягодах, крупах, бобових і цільнозерновому хлібі. Овочі — до кожного прийому їжі.</p>
+        <p>Воду пий рівномірно протягом дня, а не всю одразу ввечері: близько ${(d.water / 1000).toLocaleString('uk-UA')} л.</p>`)}
+      ${item('hand', 'Правило 80/20', 'Без заборон і почуття провини', `
+        <p>80% їжі — проста корисна: м'ясо, риба, яйця, крупи, овочі, фрукти, молочне. 20% — можна те, що просто смачне.</p>
+        <p>Баланс рахується за тиждень, а не за один прийом їжі: з'їв щось важке — наступного разу просто їж звичайно, не голодуй.</p>`)}
+      ${item('stats', 'Як зрозуміти, що харчування працює', 'Не тільки вага', `
+        <p>Вага ще не все: на неї впливають ріст, мʼязи й вода.</p>
+        <p>Добрі ознаки: є енергія на тренуванні, добре спиш, нормальний апетит, гарний настрій, сили не падають.</p>
+        <p>Зважуйся 1 раз на тиждень зранку натщесерце, а не щодня.</p>`)}
+    </div>`;
+  }
+
   // Розрахунок: базовий обмін (Шофілд, ВООЗ) × побутова активність + витрата на тренування
   function nutriCalc(n, age) {
     const w = Number(n.weight_kg), male = n.sex !== 'f', a = age ?? 15;
@@ -3735,19 +3786,23 @@ notify pgrst, 'reload schema';`;
       : (male ? 15.057 * w + 692.2 : 14.818 * w + 486.6);
     const met = { light: 5, moderate: 7, hard: 10 }[n.load] || 7;
     const session = Math.round(met * w * 1.5); // тренування ≈ 1,5 год
-    const carbK = { light: 4, moderate: 5.5, hard: 7 }[n.load] || 5.5;
-    const day = (E, ck) => {
-      E = Math.round(E / 10) * 10;
-      const P = Math.round(1.5 * w);
-      let C = Math.round(ck * w), F = Math.round((E - 4 * P - 4 * C) / 9);
-      if (F * 9 < 0.25 * E) { F = Math.round(0.25 * E / 9); C = Math.round((E - 4 * P - 9 * F) / 4); }
-      if (F * 9 > 0.35 * E) { F = Math.round(0.35 * E / 9); C = Math.round((E - 4 * P - 9 * F) / 4); }
-      return { E, P, F, C };
+    // Пропорції за гайдом «Здорове харчування» (EFSA/ВООЗ): жири 25–35% енергії, вуглеводи 45–60% (спортсменам — верхній край),
+    // білок: до 18 років 1,5 г/кг (база 0,9 г/кг, «для спортсменів коригуйте за масою»), дорослим активним — 1,8 г/кг хлопцям, 1,6 г/кг дівчатам.
+    // Калорійність — НИЖНЯ межа (мінімум), тому коли пропорції не сходяться, піднімаємо калорії, а не зрізаємо їжу.
+    const pk = a < 18 ? 1.5 : (male ? 1.8 : 1.6);
+    const day = (E0, fatShare) => {
+      const P = Math.round(pk * w);
+      let E = Math.round(E0 / 10) * 10, F = Math.round(fatShare * E / 9), C = Math.round((E - 4 * P - 9 * F) / 4);
+      if (C * 4 > 0.60 * E) { C = Math.round(0.60 * E / 4); F = Math.min(Math.round(0.35 * E / 9), Math.round((E - 4 * P - 4 * C) / 9)); }
+      if (C * 4 < 0.45 * E) C = Math.round(0.45 * E / 4);
+      E = Math.max(E, Math.round((4 * P + 9 * F + 4 * C) / 10) * 10);
+      const fib = a < 18 ? Math.round(E / 1000 * 14) : 30; // клітковина: дітям і підліткам 2 г/МДж ≈ 14 г на 1000 ккал, дорослим 25–35 г
+      return { E, P, F, C, fib };
     };
     const base = bmr * 1.45;
     return {
-      train: { ...day(base + session, carbK), water: Math.round((w * 35 + 750) / 50) * 50 },
-      rest: { ...day(base, 4), water: Math.round(w * 35 / 50) * 50 },
+      train: { ...day(base + session, 0.28), water: Math.round((w * 35 + 750) / 50) * 50 },
+      rest: { ...day(base, 0.30), water: Math.round(w * 35 / 50) * 50 },
       pre: { C: Math.round(w * 1), P: 15 }, post: { C: Math.round(w * 1), P: 25 },
       week: n.sessions,
     };
@@ -4204,14 +4259,15 @@ notify pgrst, 'reload schema';`;
       res = `
       <div class="seg2 nmode"><a href="#" data-mode="train" class="${mode === 'train' ? 'on' : ''}">День тренування</a><a href="#" data-mode="rest" class="${mode === 'rest' ? 'on' : ''}">День відпочинку</a></div>
       <div class="hero nres">
-        <div class="nk"><b>${d.E.toLocaleString('uk-UA')}</b><span>ккал на день</span></div>
+        <div class="nk"><span class="nmin">не менше</span><b>${d.E.toLocaleString('uk-UA')}</b><span>ккал на день</span></div>
+        <p class="nk-note">Це норма, а не межа: менше їсти не можна, більше — можна, коли голодний, багато тренуєшся чи ростеш. Білки, жири й вуглеводи — як розподілити ці калорії.</p>
         <div class="nbar"><i class="p" style="flex:${d.P * 4}"></i><i class="f" style="flex:${d.F * 9}"></i><i class="c" style="flex:${d.C * 4}"></i></div>
         <div class="nm">
           <div class="p"><span>Білки</span><b>${fmtG(d.P)}</b><small>${(d.P / n.weight_kg).toFixed(1).replace('.', ',')} г/кг · ${pct(d.P * 4)}%</small></div>
           <div class="f"><span>Жири</span><b>${fmtG(d.F)}</b><small>${(d.F / n.weight_kg).toFixed(1).replace('.', ',')} г/кг · ${pct(d.F * 9)}%</small></div>
           <div class="c"><span>Вуглеводи</span><b>${fmtG(d.C)}</b><small>${(d.C / n.weight_kg).toFixed(1).replace('.', ',')} г/кг · ${pct(d.C * 4)}%</small></div>
         </div>
-        <div class="nwater">${icon('drop')}Вода: близько <b>${(d.water / 1000).toLocaleString('uk-UA')} л</b> на день${mode === 'train' ? ', з них 0,5–0,75 л під час і після тренування' : ''}</div>
+        <div class="nwater">${icon('drop')}Клітковина: не менше <b>${d.fib} г</b> на день · Вода: близько <b>${(d.water / 1000).toLocaleString('uk-UA')} л</b> на день${mode === 'train' ? ', з них 0,5–0,75 л під час і після тренування' : ''}</div>
       </div>
       ${mode === 'train' ? `<h3>Навколо тренування</h3><div class="list">
         <div class="row" style="cursor:default"><div class="grow"><strong>${icon('clock')}За 1–3 год до</strong><span>≈ ${r.pre.C} г вуглеводів і до ${r.pre.P} г білка, мало жиру. Напр.: ${esc(RECIPES.pre.t.toLowerCase())}</span></div></div>
@@ -4222,8 +4278,9 @@ notify pgrst, 'reload schema';`;
           <span>${Math.abs(k - 1) > 0.12 ? `порція ×${kTxt(k)} · ` : ''}Б ${Math.round(x.m[0] * k)} · Ж ${Math.round(x.m[1] * k)} · В ${Math.round(x.m[2] * k)} · ${Math.round(kcalOf(x.m) * k)} ккал</span></div><span class="chev">›</span></summary>
           <div class="nrec-b"><p><b>Склад${Math.abs(k - 1) > 0.12 ? ' (на 1 порцію)' : ''}:</b> ${esc(x.ing)}</p><p>${esc(x.how)}</p></div></details>`).join('')}
         ${extraTxt ? `<div class="row" style="cursor:default"><div class="grow"><strong>${icon('check')}Додати протягом дня</strong><span>${extraTxt}</span></div></div>` : ''}
-        <div class="row" style="cursor:default"><span class="muted small">Разом ≈ Б ${tot[0]} · Ж ${tot[1]} · В ${tot[2]} · ${kcalOf(tot)} ккал. Страви можна міняти місцями й замінювати на схожі.</span></div>
+        <div class="row" style="cursor:default"><span class="muted small">Разом ≈ Б ${tot[0]} · Ж ${tot[1]} · В ${tot[2]} · ${kcalOf(tot)} ккал${kcalOf(tot) < d.E ? ` — до норми ще ${(d.E - kcalOf(tot)).toLocaleString('uk-UA')} ккал, додай перекус` : ''}. Страви можна міняти місцями й замінювати на схожі.</span></div>
       </div>
+      ${guideHtml(d, mode)}
       <div class="sec"><h3>Усі рецепти</h3>${isCoach() ? '<a class="btn light sm" href="#recipes">Рецепти команди</a>' : '<button type="button" class="btn light sm" id="suggestR">+ Свій рецепт</button>'}</div>
       ${teamR.length ? `<div class="list" style="margin-bottom:10px">${teamR.map(r => recipeItem(r)).join('')}</div>` : ''}
       <div class="list">${Object.values(RECIPES).map(x => `<details class="row nrec"><summary><div class="grow"><strong>${esc(x.t)}</strong>
