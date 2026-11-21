@@ -556,6 +556,7 @@
     .wchart .pt { fill: var(--card); stroke: var(--gold-ink); stroke-width: 2; }
     .wchart .pt.on { fill: var(--gold-ink); }
     .wchart .hit { fill: transparent; cursor: pointer; }
+    .wchart .rd-band { fill: #22c55e; opacity: .12; }
     .wchart .lbl { fill: var(--ink); font-size: 12px; font-weight: 700; }
     .tile.wide { grid-column: span 2; flex-direction: row; align-items: center; min-height: 0; }
     .sec { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 24px 0 8px; }
@@ -1006,7 +1007,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.53';
+  const APP_VERSION = 'v3.54';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -1194,7 +1195,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи', sleep: 'Сон і готовність'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -3609,6 +3610,7 @@ notify pgrst, 'reload schema';`;
           : `<a class="stat" href="#rating"><b>${a.rating_place || '—'}</b><span>місце в рейтингу</span></a>`}
       </div>
       ${days.size ? `<h3>Відвідування у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</h3><div class="panel">${attCalendar(ym, new Set(att.map(x => x.date)), new Set([...days].map(Number)), t)}</div>` : ''}
+      ${canReady(a) && (coach || isAthleteM()) ? `<a class="card ncard" href="#sleep/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('moon')}</span><span><strong>Сон і готовність</strong><span>Графіки сну й готовності за весь час, середні по місяцях, перед змаганнями</span></span><span class="chev">›</span></a>` : ''}
       ${canNutri(a) ? `<a class="card ncard" href="#nutrition/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('drop')}</span><span><strong>Харчування і відновлення</strong><span>Білки, жири, вуглеводи на кожен день, рецепти, сон і поради з відновлення</span></span><span class="chev">›</span></a>` : ''}
       <h3>Відвідування за пів року</h3>
       <div class="panel">
@@ -3951,22 +3953,161 @@ notify pgrst, 'reload schema';`;
   }
   async function readinessView() {
     setActions('');
-    const t = today();
-    const [ath, rows] = await Promise.all([q(db.from('athletes').select('*').order('full_name')), q(db.from('readiness').select('*').eq('date', t))]);
+    const t = today(), ym = t.slice(0, 7), mSel = state.rdMonth || ym, from = shiftMonth(ym, -1) + '-01';
+    const [ath, hist] = await Promise.all([q(db.from('athletes').select('*').order('full_name')), qAll(() => db.from('readiness').select('athlete_id, date, sleep_h, feel, sore, score').gte('date', from).order('date').order('athlete_id'))]);
     noteSection(ath);
     const list = ath.filter(a => isActive(a) && canReady(a));
+    const rows = hist.filter(r => r.date === t);
     const by = new Map(rows.map(r => [String(r.athlete_id), r]));
     const done = list.filter(a => by.has(String(a.id))).sort((x, y) => by.get(String(x.id)).score - by.get(String(y.id)).score);
     const not = list.filter(a => !by.has(String(a.id)));
+    // Попередження: три останні дні поспіль мало сну або низька готовність
+    const last3 = [shiftDate(t, -2), shiftDate(t, -1), t];
+    const warn = new Map();
+    list.forEach(a => { const rr = last3.map(d => hist.find(r => String(r.athlete_id) === String(a.id) && r.date === d));
+      if (rr.some(r => !r)) return;
+      const lo = sleepNeed(ageOf(a))[0], w = [];
+      if (rr.every(r => Number(r.sleep_h) < lo)) w.push(`3 ночі поспіль менше ${lo} год сну`);
+      if (rr.every(r => r.score < 50)) w.push('3 дні поспіль готовність нижче 50%');
+      if (w.length) warn.set(String(a.id), w.join(' · ')); });
     const urlOf = state.hasPhoto ? await photoUrls(list.map(a => a.photo)).catch(() => () => '') : () => '';
-    const row = a => { const r = by.get(String(a.id)), z = r && readyZone(r.score);
+    const row = a => { const r = by.get(String(a.id)), z = r && readyZone(r.score), w = warn.get(String(a.id));
       return `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">${avatarHtml(a, urlOf(a.photo))}<div class="grow"><strong>${esc(a.full_name)}</strong>
-        <span>${a.section ? esc(a.section) + ' · ' : ''}${r ? `сон ${String(r.sleep_h).replace('.', ',')} год · самопочуття ${r.feel}/5 · мʼязи ${r.sore}/5` : 'ще не відмітився'}</span></div>
+        <span>${a.section ? esc(a.section) + ' · ' : ''}${r ? `сон ${String(r.sleep_h).replace('.', ',')} год · самопочуття ${r.feel}/5 · мʼязи ${r.sore}/5` : 'ще не відмітився'}</span>
+        ${w ? `<span style="color:#ef4444">⚠ ${w}</span>` : ''}</div>
         ${r ? `<span class="badge" style="background:${z.c}22;color:${z.c}">${r.score}%</span>` : '<span class="chev">›</span>'}</a>`; };
+    const warned = list.filter(a => warn.has(String(a.id)));
+    // Таблиця за місяць
+    const mRows = hist.filter(r => r.date.startsWith(mSel));
+    const mDays = mSel === ym ? Number(t.slice(8)) : new Date(Number(mSel.slice(0, 4)), Number(mSel.slice(5)), 0).getDate();
+    const table = list.map(a => { const rr = mRows.filter(r => String(r.athlete_id) === String(a.id)), lo = sleepNeed(ageOf(a))[0];
+      return { a, n: rr.length, s: avgOf(rr, 'sleep_h'), sc: avgOf(rr, 'score'), low: rr.filter(r => Number(r.sleep_h) < lo).length }; })
+      .sort((x, y) => (x.sc ?? 101) - (y.sc ?? 101));
+    const mBtn = (m, l) => `<button type="button" class="chip ${mSel === m ? 'on' : ''}" data-rdm="${m}">${l}</button>`;
     $('#view').innerHTML = `<p class="muted small" style="margin:0 2px 10px">Старша група · ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' })}. Зверху — ті, кому сьогодні важче.</p>
+      ${warned.length ? `<h3 style="color:#ef4444">Звернути увагу (${warned.length})</h3><div class="list">${warned.map(row).join('')}</div>` : ''}
       <div class="list">${done.map(row).join('') || '<div class="empty">Сьогодні ще ніхто не відмітився</div>'}</div>
       ${not.length ? `<h3>Не відмітились (${not.length})</h3><div class="list">${not.map(row).join('')}</div>` : ''}
-      <p class="muted small" style="margin:12px 4px 0">Цифра рахується з того, що спортсмен вписав зранку: сон (45%), самопочуття (30%) і біль у мʼязах (25%). Це підказка для тренера, а не медичний показник.</p>`;
+      <h3>За місяць</h3>
+      <div class="chips seg">${mBtn(ym, 'Цей місяць')}${mBtn(shiftMonth(ym, -1), MONTHS[Number(shiftMonth(ym, -1).slice(5)) - 1])}</div>
+      <div class="list">${table.map(x => { const z = x.sc != null && readyZone(Math.round(x.sc));
+        return `<a class="row" href="#sleep/${encodeURIComponent(x.a.id)}"><div class="grow"><strong>${esc(x.a.full_name)}</strong>
+          <span>${x.n ? `${x.n} з ${mDays} днів · сон ${hm(x.s)} · менше норми ${x.low}` : 'відміток немає'}</span></div>
+          ${z ? `<span class="badge" style="background:${z.c}22;color:${z.c}">${Math.round(x.sc)}%</span>` : '<span class="chev">›</span>'}</a>`; }).join('') || '<div class="empty">У старшій групі немає спортсменів</div>'}</div>
+      <p class="muted small" style="margin:12px 4px 0">Натисни на спортсмена в таблиці — відкриються графіки сну й готовності за весь час. Цифра рахується з того, що спортсмен вписав зранку: сон (45%), самопочуття (30%) і біль у мʼязах (25%). Це підказка для тренера, а не медичний показник.</p>`;
+    $('#view').onclick = e => { const b = e.target.closest('[data-rdm]'); if (b) { state.rdMonth = b.dataset.rdm; render(); } };
+  }
+
+
+  // Читаємо порціями по 1000 рядків (ліміт Supabase на один запит)
+  async function qAll(make) {
+    const out = [];
+    for (let i = 0; ; i += 1000) { const part = await q(make().range(i, i + 999)); out.push(...part); if (part.length < 1000) return out; }
+  }
+  // ----- Історія сну й готовності: тренер і сам спортсмен (батьки не бачать) -----
+  const RD_PERIODS = [['30', '30 днів'], ['90', '3 місяці'], ['season', 'Сезон'], ['all', 'Увесь час']];
+  const seasonStart = t => (Number(t.slice(5, 7)) >= 9 ? Number(t.slice(0, 4)) : Number(t.slice(0, 4)) - 1) + '-09-01';
+  const daysBetween = (a, b) => Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 864e5);
+  const hm = h => { const n = Number(h), H = Math.floor(n), M = Math.round((n - H) * 60); return H + ':' + String(M).padStart(2, '0'); };
+  const avgOf = (rows, k) => rows.length ? rows.reduce((s, r) => s + Number(r[k]), 0) / rows.length : null;
+  const n1 = v => v == null ? '—' : v.toLocaleString('uk-UA', { maximumFractionDigits: 1 });
+  // Довгі періоди згладжуємо до середніх за тиждень
+  function rdSeries(rows, from, key) {
+    if (daysBetween(from, today()) <= 92) return rows.map(r => ({ d: r.date, v: Number(r[key]), n: 1 }));
+    const wk = new Map();
+    rows.forEach(r => { const k = Math.floor(daysBetween(from, r.date) / 7); const w = wk.get(k) || { s: 0, n: 0, d: r.date }; w.s += Number(r[key]); w.n++; wk.set(k, w); });
+    return [...wk.values()].map(w => ({ d: w.d, v: w.s / w.n, n: w.n }));
+  }
+  function rdChart(id, pts, from, o) {
+    if (!pts.length) return '<div class="empty" style="padding:0">За цей період відміток немає</div>';
+    const W = 320, H = 160, L = 34, R = 12, T = 16, B = 24, span = Math.max(1, daysBetween(from, today()));
+    const x = d => L + (W - L - R) * daysBetween(from, d) / span;
+    const y = v => T + (H - T - B) * (1 - (v - o.min) / (o.max - o.min));
+    const band = o.band ? `<rect class="rd-band" x="${L}" width="${W - L - R}" y="${y(o.band[1])}" height="${y(o.band[0]) - y(o.band[1])}"/>` : '';
+    const zones = o.zones ? o.zones.map(([a, b, c]) => `<rect x="${L}" width="${W - L - R}" y="${y(b)}" height="${y(a) - y(b)}" fill="${c}" opacity=".08"/>`).join('') : '';
+    const last = pts[pts.length - 1];
+    return `<svg class="wchart" id="${id}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label)}">${zones}${band}
+        ${o.ticks.map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${o.tick(v)}</text>`).join('')}
+        <text class="axis" x="${L}" y="${H - 6}">${fmtDate(from, { day: '2-digit', month: '2-digit' })}</text>
+        <text class="axis" x="${W - R}" y="${H - 6}" text-anchor="end">${fmtDate(today(), { day: '2-digit', month: '2-digit' })}</text>
+        ${pts.length > 1 ? `<polyline class="line" points="${pts.map(p => `${x(p.d).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ')}"/>` : ''}
+        ${pts.length <= 60 ? pts.map((p, i) => `<circle class="pt" r="3.5" cx="${x(p.d).toFixed(1)}" cy="${y(p.v).toFixed(1)}" data-i="${i}" ${o.color ? `style="stroke:${o.color(p.v)}"` : ''}/>`).join('') : ''}
+        <text class="lbl" x="${x(last.d)}" y="${y(last.v) - 9}" text-anchor="end">${o.tick(last.v)}</text>
+        ${pts.map((p, i) => `<rect class="hit" x="${(x(p.d) - 8).toFixed(1)}" y="0" width="16" height="${H}" data-i="${i}"/>`).join('')}
+      </svg><div class="wcap" data-cap="${id}">Натисни на графік, щоб побачити день</div>`;
+  }
+  async function sleepView() {
+    setActions('');
+    const a = (await q(db.from('athletes').select('*').eq('id', state.param)))[0];
+    $('#backLink').href = '#athlete/' + encodeURIComponent(state.param || '');
+    if (!a || !canReady(a) || !(isCoach() || isAthleteM())) { $('#view').innerHTML = '<div class="empty">Історія сну доступна спортсменам старшої групи і тренеру</div>'; return; }
+    const [all, evs] = await Promise.all([
+      qAll(() => db.from('readiness').select('date, sleep_h, feel, sore, score').eq('athlete_id', a.id).order('date')),
+      db.from('events').select('id, title, date, participants').order('date').then(r => r.data || [], () => []),
+    ]);
+    all.sort((x, y) => x.date.localeCompare(y.date));
+    const t = today(), per = state.rdPer || '30', [lo, hi] = sleepNeed(ageOf(a));
+    let from = per === 'all' ? (all[0] ? all[0].date : t) : per === 'season' ? seasonStart(t) : shiftDate(t, -(Number(per) - 1));
+    if (per === 'all' && daysBetween(from, t) < 6) from = shiftDate(t, -6);
+    const rows = all.filter(r => r.date >= from), byDate = new Map(all.map(r => [r.date, r]));
+    const firstDay = all[0] && all[0].date > from ? all[0].date : from;
+    const possible = Math.max(1, daysBetween(firstDay, t) + 1);
+    const short = rows.filter(r => Number(r.sleep_h) < lo).length;
+    let streak = 0; for (let d = byDate.has(t) ? t : shiftDate(t, -1); byDate.has(d); d = shiftDate(d, -1)) streak++;
+    let best = 0, run = 0, prev = null; all.forEach(r => { run = prev && daysBetween(prev, r.date) === 1 ? run + 1 : 1; best = Math.max(best, run); prev = r.date; });
+    const aS = avgOf(rows, 'sleep_h'), aR = avgOf(rows, 'score');
+    const months = [...new Set(rows.map(r => r.date.slice(0, 7)))].reverse();
+    const evRows = evs.filter(e => e.date <= t && e.date >= from && Array.isArray(e.participants) && e.participants.map(String).includes(String(a.id)))
+      .map(e => ({ e, r: byDate.get(e.date) || byDate.get(shiftDate(e.date, -1)) })).filter(x => x.r).reverse();
+    const sleepPts = rdSeries(rows, from, 'sleep_h'), scorePts = rdSeries(rows, from, 'score');
+    const weekly = daysBetween(from, t) > 92;
+    const maxS = Math.max(hi + 1, ...rows.map(r => Math.ceil(Number(r.sleep_h))));
+    const minS = Math.min(5, ...rows.map(r => Math.floor(Number(r.sleep_h))));
+    $('#view').innerHTML = `
+      <p class="muted small" style="margin:0 2px 10px">${esc(a.full_name)} · норма сну ${lo}–${hi} год${isCoach() ? '' : ' · бачиш тільки ти і тренер'}</p>
+      <div class="chips seg">${RD_PERIODS.map(([v, l]) => `<button type="button" class="chip ${per === v ? 'on' : ''}" data-rdper="${v}">${l}</button>`).join('')}</div>
+      ${!all.length ? '<div class="empty">Ще немає жодної ранкової відмітки</div>' : `
+      <div class="stats">
+        <div class="stat"><b>${aS == null ? '—' : hm(aS)}</b><span>сон у середньому</span></div>
+        <div class="stat"><b style="${aR == null ? '' : 'color:' + readyZone(Math.round(aR)).c}">${aR == null ? '—' : Math.round(aR) + '%'}</b><span>готовність</span></div>
+        <div class="stat ${rows.length && short / rows.length > 0.3 ? 'warn' : ''}"><b>${short}</b><span>ночей менше ${lo} год</span></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>${rows.length}</b><span>відміток з ${Math.min(possible, daysBetween(from, t) + 1)} днів</span></div>
+        <div class="stat"><b>${streak}</b><span>днів поспіль зараз</span></div>
+        <div class="stat"><b>${best}</b><span>рекорд поспіль</span></div>
+      </div>
+      <h3>${icon('moon')}Сон${weekly ? ' · середній за тиждень' : ''}</h3>
+      <div class="panel">${rdChart('rdS', sleepPts, from, { label: 'Графік сну', min: minS, max: maxS, band: [lo, hi], tick: hm,
+        ticks: [maxS, lo, minS].filter((v, i, s) => s.indexOf(v) === i) })}
+        <p class="muted small" style="margin:6px 0 0">Зелена смуга — норма сну для його віку.</p></div>
+      <h3>Готовність${weekly ? ' · середня за тиждень' : ''}</h3>
+      <div class="panel">${rdChart('rdR', scorePts, from, { label: 'Графік готовності', min: 0, max: 100, tick: v => Math.round(v) + '%', ticks: [100, 67, 34, 0],
+        zones: [[67, 100, '#22c55e'], [34, 67, '#eab308'], [0, 34, '#ef4444']], color: v => readyZone(Math.round(v)).c })}</div>
+      <div class="stats">
+        <div class="stat"><b>${n1(avgOf(rows, 'feel'))}<small class="muted">/5</small></b><span>самопочуття</span></div>
+        <div class="stat"><b>${n1(avgOf(rows, 'sore'))}<small class="muted">/5</small></b><span>біль у мʼязах</span></div>
+        <div class="stat"><b>${rows.length ? hm(Math.min(...rows.map(r => Number(r.sleep_h)))) : '—'}</b><span>найменше спав</span></div>
+      </div>
+      ${evRows.length ? `<h3>${trophy()} Перед змаганнями</h3><div class="list">${evRows.map(({ e, r }) => { const z = readyZone(r.score);
+        return `<a class="row" href="#event/${encodeURIComponent(e.id)}"><div class="grow"><strong>${esc(e.title)}</strong>
+          <span>${fmtDate(e.date, { day: 'numeric', month: 'long', year: 'numeric' })} · сон ${hm(r.sleep_h)}${r.date !== e.date ? ' (напередодні)' : ''}</span></div>
+          <span class="badge" style="background:${z.c}22;color:${z.c}">${r.score}%</span></a>`; }).join('')}</div>` : ''}
+      ${months.length ? `<h3>По місяцях</h3><div class="list">${months.map(m => { const mr = rows.filter(r => r.date.startsWith(m)), s = avgOf(mr, 'score');
+        return `<div class="row"><div class="grow"><strong>${MONTHS[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}</strong>
+          <span>${mr.length} відміток · сон ${hm(avgOf(mr, 'sleep_h'))} · менше норми ${mr.filter(r => Number(r.sleep_h) < lo).length}</span></div>
+          <span class="badge" style="background:${readyZone(Math.round(s)).c}22;color:${readyZone(Math.round(s)).c}">${Math.round(s)}%</span></div>`; }).join('')}</div>` : ''}`}`;
+    $('#view').onclick = e => {
+      const p = e.target.closest('[data-rdper]');
+      if (p) { state.rdPer = p.dataset.rdper; render(); return; }
+      const h = e.target.closest('.wchart .hit'); if (!h) return;
+      const svg = h.closest('svg'), pts = svg.id === 'rdS' ? sleepPts : scorePts, pt = pts[Number(h.dataset.i)];
+      svg.querySelectorAll('.pt').forEach(c => c.classList.toggle('on', c.dataset.i === h.dataset.i));
+      const r = byDate.get(pt.d);
+      $(`[data-cap="${svg.id}"]`).textContent = weekly
+        ? `Тиждень від ${fmtDate(pt.d)}: ${svg.id === 'rdS' ? 'сон ' + hm(pt.v) : 'готовність ' + Math.round(pt.v) + '%'} (${pt.n} відм.)`
+        : `${fmtDate(pt.d, { weekday: 'short', day: 'numeric', month: 'long' })}: сон ${hm(r.sleep_h)} · готовність ${r.score}% · самопочуття ${r.feel}/5 · мʼязи ${r.sore}/5`;
+    };
   }
 
   // ----- Сон і відновлення (довідка) -----
@@ -6881,12 +7022,12 @@ end $$;\n` });
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
-    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView, sleep: sleepView,
   };
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
-  function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
-  const PARENT_ROUTE = { readiness: 'home', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition', 'sleep'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
+  const PARENT_ROUTE = { readiness: 'home', sleep: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
