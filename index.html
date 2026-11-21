@@ -756,6 +756,23 @@
     .nk b { font-size: 36px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
     .nk span { margin-left: 8px; color: var(--muted); font-size: 14px; }
     .nk .nmin { display: block; margin: 0 0 2px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #22c55e; }
+    .plate .chips { justify-content: center; flex-wrap: wrap; }
+    .plate-wrap { display: flex; justify-content: center; margin: 4px 0 10px; }
+    .plate-svg { width: 100%; max-width: 260px; height: auto; overflow: visible; }
+    .plate-rim { fill: var(--card); stroke: var(--line); stroke-width: 2; filter: drop-shadow(0 6px 14px rgba(0,0,0,.12)); }
+    .plate-in { fill: none; stroke: var(--line); stroke-width: 1; }
+    .plate-part { cursor: pointer; transition: transform .25s cubic-bezier(.2,.8,.2,1), opacity .2s; }
+    .plate-part path { stroke: var(--card); stroke-width: 3; transition: d .4s; }
+    .plate-part.on { transform: scale(1.06); }
+    .plate-part.dim { opacity: .35; }
+    .plate-t { fill: #fff; font-size: 17px; font-weight: 800; pointer-events: none; }
+    .plate-s { fill: rgba(255,255,255,.92); font-size: 11px; font-weight: 600; pointer-events: none; }
+    .plate-leg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .plate-leg button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: transparent; color: var(--ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+    .plate-leg button.on { border-color: var(--ink); }
+    .plate-leg i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+    .plate-leg b { margin-left: auto; font-variant-numeric: tabular-nums; }
+    .plate-info { margin: 12px 2px 0; font-size: 14px; line-height: 1.45; }
     .nk-note { margin: 6px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.4; }
     .nbar { display: flex; gap: 3px; height: 8px; margin: 12px 0 14px; border-radius: 4px; overflow: hidden; }
     .nbar i { display: block; }
@@ -1009,7 +1026,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.55';
+  const APP_VERSION = 'v3.56';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -3729,6 +3746,60 @@ notify pgrst, 'reload schema';`;
   const DAY_PLANS = { train: ['oat', 'buck', 'pre', 'cott', 'fish'], rest: ['omlet', 'pasta', 'kefir', 'fish'] };
   const MEAL_NAMES = { train: ['Сніданок', 'Обід', 'Перед тренуванням', 'Після тренування', 'Вечеря'], rest: ['Сніданок', 'Обід', 'Перекус', 'Вечеря'] };
 
+  // ----- Наочна тарілка спортсмена (модель «Тарілка здорового харчування», адаптована під тренування) -----
+  const PLATES = {
+    base:  { l: 'Звичайний прийом', v: 50, p: 25, c: 25, tip: 'Базова тарілка з гайду: половина — овочі, чверть — білок, чверть — крупа, плюс ложка корисного жиру.' },
+    train: { l: 'Після тренування', v: 35, p: 25, c: 40, tip: 'Після тренування мʼязам треба відновити запаси енергії, тому крупи чи картоплі — більше, а овочів трохи менше.' },
+    light: { l: 'Пізня вечеря', v: 55, p: 30, c: 15, tip: 'Вечеря без тренування перед нею: більше білка й овочів, крупи — пів порції.' },
+  };
+  const PLATE_PARTS = {
+    v: { t: 'Овочі й фрукти', c: '#22c55e', ex: 'броколі, огірки, помідори, морква, капуста, перець, шпинат, зелень; фрукти й ягоди — до сніданку чи перекусу' },
+    p: { t: 'Білок', c: '#3b82f6', ex: 'куряче філе, індичка, риба, яйця, сир 5%, грецький йогурт, квасоля, нут, сочевиця' },
+    c: { t: 'Крупи й картопля', c: '#d4a24c', ex: 'гречка, рис, булгур, вівсянка, пшоно, картопля, батат, макарони з твердих сортів, цільнозерновий хліб' },
+  };
+  function plateSvg(pl, on) {
+    const R = 86, cx = 120, cy = 120, pt = (deg, r) => [cx + r * Math.cos(deg * Math.PI / 180), cy + r * Math.sin(deg * Math.PI / 180)];
+    let a0 = 90; // овочі — ліва половина, далі за годинниковою стрілкою білок і крупи
+    return `<svg class="plate-svg" viewBox="0 0 240 240" role="img" aria-label="Тарілка: овочі ${pl.v}%, білок ${pl.p}%, крупи ${pl.c}%">
+      <circle cx="${cx}" cy="${cy}" r="112" class="plate-rim"/><circle cx="${cx}" cy="${cy}" r="98" class="plate-in"/>
+      ${['v', 'p', 'c'].map(k => { const sw = pl[k] * 3.6, a1 = a0 + sw, [x0, y0] = pt(a0, R), [x1, y1] = pt(a1, R), [tx, ty] = pt(a0 + sw / 2, R * 0.58);
+        const path = `<g class="plate-part ${on === k ? 'on' : ''} ${on && on !== k ? 'dim' : ''}" data-part="${k}" style="transform-origin:${cx}px ${cy}px">
+          <path d="M${cx},${cy} L${x0.toFixed(1)},${y0.toFixed(1)} A${R},${R} 0 ${sw > 180 ? 1 : 0} 1 ${x1.toFixed(1)},${y1.toFixed(1)} Z" fill="${PLATE_PARTS[k].c}"/>
+          <text x="${tx.toFixed(1)}" y="${(ty - 3).toFixed(1)}" text-anchor="middle" class="plate-t">${pl[k]}%</text>
+          <text x="${tx.toFixed(1)}" y="${(ty + 12).toFixed(1)}" text-anchor="middle" class="plate-s">${k === 'v' ? 'овочі' : k === 'p' ? 'білок' : 'крупи'}</text></g>`;
+        a0 = a1; return path; }).join('')}
+      <g class="plate-part ${on === 'f' ? 'on' : ''} ${on && on !== 'f' ? 'dim' : ''}" data-part="f" style="transform-origin:212px 30px">
+        <circle cx="212" cy="30" r="20" fill="#f59e0b"/><text x="212" y="34" text-anchor="middle" class="plate-s" style="fill:#fff">жир</text></g>
+    </svg>`;
+  }
+  function plateHtml(d, mode) {
+    const key = state.plate || (mode === 'train' ? 'train' : 'base'), pl = PLATES[key], on = state.platePart || null;
+    const P = Math.round(d.P / 4 * pl.p / 25), C = Math.round(d.C / 4 * pl.c / 25); // частка тарілки відносно базової чверті
+    const info = {
+      v: `<b>${pl.v}% тарілки</b> — 1–2 кулаки. ${PLATE_PARTS.v.ex}.`,
+      p: `<b>${pl.p}% тарілки</b> — на кожен прийом їжі близько <b>${P} г білка</b>: це ≈ ${Math.round(P / 0.27 / 10) * 10} г курячого філе, або ${Math.round(P / 0.17 / 10) * 10} г риби чи сиру 5%, або ${Math.max(2, Math.round(P / 6.5))} яйця. Ще: ${PLATE_PARTS.p.ex}.`,
+      c: `<b>${pl.c}% тарілки</b> — на кожен прийом їжі близько <b>${C} г вуглеводів</b>: ≈ ${Math.round(C / 0.65 / 10) * 10} г сухої крупи (≈ ${Math.round(C / 0.65 * 2.7 / 10) * 10} г готової) або ${Math.round(C / 0.17 / 10) * 10} г картоплі. Ще: ${PLATE_PARTS.c.ex}.`,
+      f: `<b>1 ложка корисного жиру</b> на тарілку (≈ 10 г): оливкова олія в салат чи гарнір, жменька горіхів або насіння, пів авокадо. Лляна олія — тільки в холодні страви.`,
+    };
+    return `<h3>${icon('check')}Тарілка спортсмена</h3>
+      <div class="panel plate" id="plate">
+        <div class="chips seg">${Object.entries(PLATES).map(([k, x]) => `<button type="button" class="chip ${k === key ? 'on' : ''}" data-plate="${k}">${x.l}</button>`).join('')}</div>
+        <div class="plate-wrap">${plateSvg(pl, on)}</div>
+        <div class="plate-leg">${['v', 'p', 'c', 'f'].map(k => `<button type="button" class="${on === k ? 'on' : ''}" data-part="${k}"><i style="background:${k === 'f' ? '#f59e0b' : PLATE_PARTS[k].c}"></i>${k === 'f' ? 'Жир' : PLATE_PARTS[k].t}<b>${k === 'f' ? '1 ложка' : pl[k] + '%'}</b></button>`).join('')}</div>
+        <p class="plate-info">${on ? info[on] : pl.tip + ' Натисни на частину тарілки — покажу, скільки це для тебе.'}</p>
+      </div>`;
+  }
+  function wirePlate() {
+    const box = $('#plate'); if (!box) return;
+    box.onclick = e => {
+      const b = e.target.closest('[data-plate]'), p = e.target.closest('[data-part]');
+      if (b) { state.plate = b.dataset.plate; state.platePart = null; }
+      else if (p) state.platePart = state.platePart === p.dataset.part ? null : p.dataset.part;
+      else return;
+      const y = window.scrollY; box.outerHTML = plateHtml(state._plateD, state._plateMode).replace(/^[\s\S]*?<div class="panel plate"/, '<div class="panel plate"'); window.scrollTo(0, y); wirePlate();
+    };
+  }
+
   // ----- Поради за гайдом «Здорове харчування» (Dr. Tolstikova), адаптовано для спортсменів -----
   function guideHtml(d, mode) {
     const kc = sh => (Math.round(d.E * sh / 10) * 10).toLocaleString('uk-UA');
@@ -3741,12 +3812,6 @@ notify pgrst, 'reload schema';`;
         <p><b>Вечеря</b> — за 2–3 години до сну: не менше <b>${kc(0.25)} ккал</b>.</p>
         <p><b>Перекуси</b> — ${mode === 'train' ? 'перед і після тренування' : 'між обідом і вечерею'}: не менше <b>${kc(0.15)} ккал</b> разом.</p>
         <p>Між прийомами їжі — 3–5 годин. Постійно щось «кусочничати» не треба, а пропускати сніданок чи вечерю після тренування — теж ні.</p>`)}
-      ${item('check', 'Тарілка спортсмена', 'Як скласти кожен прийом їжі', `
-        <p><b>½ тарілки</b> — овочі й фрукти (більше овочів).</p>
-        <p><b>¼ тарілки</b> — білок: курка, індичка, риба, яйця, сир, бобові.</p>
-        <p><b>¼ тарілки</b> — складні вуглеводи: гречка, рис, булгур, вівсянка, картопля, макарони з твердих сортів.</p>
-        <p><b>+ ложка корисного жиру</b> — оливкова олія, горіхи, насіння, авокадо.</p>
-        <p>У день тренування вуглеводної частини можна брати більше — це паливо для мʼязів.</p>`)}
       ${item('kid', 'Порції «рукою» — без ваг', 'Твоя мірка на кожен прийом їжі', `
         <p>Щоб набрати свою норму за ${meals} прийоми їжі, на кожен бери приблизно:</p>
         <p><b>Білок</b> — ${unit(d.P, 25, 'долоня', 'долоні')} (м'ясо, риба, сир; долоня ≈ 20–30 г білка).</p>
@@ -4280,6 +4345,7 @@ notify pgrst, 'reload schema';`;
         ${extraTxt ? `<div class="row" style="cursor:default"><div class="grow"><strong>${icon('check')}Додати протягом дня</strong><span>${extraTxt}</span></div></div>` : ''}
         <div class="row" style="cursor:default"><span class="muted small">Разом ≈ Б ${tot[0]} · Ж ${tot[1]} · В ${tot[2]} · ${kcalOf(tot)} ккал${kcalOf(tot) < d.E ? ` — до норми ще ${(d.E - kcalOf(tot)).toLocaleString('uk-UA')} ккал, додай перекус` : ''}. Страви можна міняти місцями й замінювати на схожі.</span></div>
       </div>
+      ${plateHtml(d, mode)}
       ${guideHtml(d, mode)}
       <div class="sec"><h3>Усі рецепти</h3>${isCoach() ? '<a class="btn light sm" href="#recipes">Рецепти команди</a>' : '<button type="button" class="btn light sm" id="suggestR">+ Свій рецепт</button>'}</div>
       ${teamR.length ? `<div class="list" style="margin-bottom:10px">${teamR.map(r => recipeItem(r)).join('')}</div>` : ''}
@@ -4296,6 +4362,7 @@ notify pgrst, 'reload schema';`;
     $('#view').innerHTML = (ready ? res + recoveryHtml(age) + `<h3>Дані для розрахунку</h3>` + formHtml : formHtml + res + recoveryHtml(age));
     const sl = $('#view').querySelector('.sl'); if (sl && age != null) sl.dataset.age = age;
     wireRecovery();
+    if (ready) { state._plateD = nutriCalc(n, age)[mode]; state._plateMode = mode; wirePlate(); }
 
     const form = $('#nForm');
     form.onclick = e => {
@@ -4318,7 +4385,7 @@ notify pgrst, 'reload schema';`;
     };
     const sug = $('#suggestR'); if (sug) sug.onclick = () => recipeForm(a.full_name);
     const modes = $('#view').querySelector('.nmode');
-    if (modes) modes.onclick = e => { const m = e.target.closest('[data-mode]'); if (!m) return; e.preventDefault(); state.nutriMode = m.dataset.mode; render(); };
+    if (modes) modes.onclick = e => { const m = e.target.closest('[data-mode]'); if (!m) return; e.preventDefault(); state.nutriMode = m.dataset.mode; state.plate = null; state.platePart = null; render(); };
   }
 
   // ----- Доступ до застосунку: хто привʼязаний + посилання-запрошення -----
