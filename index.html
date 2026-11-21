@@ -1026,7 +1026,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.59';
+  const APP_VERSION = 'v3.60';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -3800,17 +3800,25 @@ notify pgrst, 'reload schema';`;
     };
   }
 
+  // Калорії бачить лише тренер: спортсменам (вид спорту з ваговими категоріями) цифру ккал не показуємо, щоб не підштовхувати рахувати й урізати їжу
+  const kcalT = v => isCoach() ? ` · ${v} ккал` : '';
+
   // ----- Поради за гайдом «Здорове харчування» (Dr. Tolstikova), адаптовано для спортсменів -----
   function guideHtml(d, mode) {
     const kc = sh => (Math.round(d.E * sh / 10) * 10).toLocaleString('uk-UA');
     const meals = 4, unit = (g, per, one, many) => { const v = Math.max(1, Math.round(g / meals / per * 2) / 2); return v === 1 ? '1 ' + one : v.toLocaleString('uk-UA') + ' ' + many; };
     const item = (ic, title, sub, body) => `<details class="row nrec"><summary><div class="grow"><strong>${icon(ic)}${title}</strong><span>${sub}</span></div><span class="chev">›</span></summary><div class="nrec-b">${body}</div></details>`;
     return `<h3>Корисні поради</h3><div class="list">
-      ${item('clock', 'Як розподілити калорії на день', '3 основні прийоми їжі + перекуси', `
+      ${item('clock', isCoach() ? 'Як розподілити калорії на день' : 'Як розподілити їжу на день', '3 основні прийоми їжі + перекуси', isCoach() ? `
         <p><b>Сніданок</b> — через годину після пробудження: не менше <b>${kc(0.25)} ккал</b>.</p>
         <p><b>Обід</b> — найбільший прийом їжі: не менше <b>${kc(0.35)} ккал</b>.</p>
         <p><b>Вечеря</b> — за 2–3 години до сну: не менше <b>${kc(0.25)} ккал</b>.</p>
         <p><b>Перекуси</b> — ${mode === 'train' ? 'перед і після тренування' : 'між обідом і вечерею'}: не менше <b>${kc(0.15)} ккал</b> разом.</p>
+        <p>Між прийомами їжі — 3–5 годин.</p>` : `
+        <p><b>Сніданок</b> — через годину після пробудження, повноцінний, а не «чай з печивом».</p>
+        <p><b>Обід</b> — найбільший прийом їжі за день.</p>
+        <p><b>Вечеря</b> — за 2–3 години до сну${mode === 'train' ? '; після тренування обов\'язково з крупою чи картоплею' : ''}.</p>
+        <p><b>Перекуси</b> — ${mode === 'train' ? 'перед і після тренування' : 'між обідом і вечерею'}: йогурт, сир, фрукт, бутерброд.</p>
         <p>Між прийомами їжі — 3–5 годин. Постійно щось «кусочничати» не треба, а пропускати сніданок чи вечерю після тренування — теж ні.</p>`)}
       ${item('kid', 'Порції «рукою» — без ваг', 'Твоя мірка на кожен прийом їжі', `
         <p>Щоб набрати свою норму за ${meals} прийоми їжі, на кожен бери приблизно:</p>
@@ -3949,7 +3957,7 @@ notify pgrst, 'reload schema';`;
       $('#rCalc').innerHTML = items.length ? `${items.map(x => x.ok
           ? `<div class="ok">${icon('check')}${esc(x.line)} <span>≈ ${x.g} г · Б ${Math.round(x.p)} · Ж ${Math.round(x.f)} · В ${Math.round(x.c)}</span></div>`
           : `<div class="no">${icon('alert')}${esc(x.line)} <span>${x.need ? 'додай вагу, напр. «150 г»' : 'не впізнав продукт — напиши простіше або пропусти'}</span></div>`).join('')}
-        <div class="tot">Разом на порцію: <b>Б ${tot[0]} · Ж ${tot[1]} · В ${tot[2]} · ${kcalOf(tot)} ккал</b></div>` : '';
+        <div class="tot">Разом на порцію: <b>Б ${tot[0]} · Ж ${tot[1]} · В ${tot[2]}${kcalT(kcalOf(tot))}</b></div>` : '';
     };
     $('#rI').oninput = draw;
     $('#rTag').onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; tag = b.dataset.t; $('#rTag').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); };
@@ -3973,7 +3981,7 @@ notify pgrst, 'reload schema';`;
   function recipeItem(r, tools = '') {
     const m = [Number(r.p), Number(r.f), Number(r.c)];
     return `<details class="row nrec"><summary><div class="grow"><strong>${esc(r.title)}${r.status === 'pending' ? ' <span class="badge gold">на перевірці</span>' : ''}</strong>
-        <span>${esc(r.tag)} · Б ${Math.round(m[0])} · Ж ${Math.round(m[1])} · В ${Math.round(m[2])} · ${kcalOf(m)} ккал${r.author_name ? ` · від ${esc(r.author_name)}` : ''}</span></div><span class="chev">›</span></summary>
+        <span>${esc(r.tag)} · Б ${Math.round(m[0])} · Ж ${Math.round(m[1])} · В ${Math.round(m[2])}${kcalT(kcalOf(m))}${r.author_name ? ` · від ${esc(r.author_name)}` : ''}</span></div><span class="chev">›</span></summary>
         <div class="nrec-b"><p><b>Склад:</b><br>${esc(r.ingredients).replace(/\n/g, '<br>')}</p>${r.how ? `<p>${esc(r.how)}</p>` : ''}${tools}</div></details>`;
   }
   // Тренер: перевірка запропонованих рецептів
@@ -4279,6 +4287,7 @@ notify pgrst, 'reload schema';`;
   }
 
   async function nutritionView() {
+    const coach = isCoach();
     setActions('');
     const found = await q(db.from('athletes').select('*').eq('id', state.param));
     const a = found[0];
@@ -4328,13 +4337,14 @@ notify pgrst, 'reload schema';`;
       res = `
       <div class="seg2 nmode"><a href="#" data-mode="train" class="${mode === 'train' ? 'on' : ''}">День тренування</a><a href="#" data-mode="rest" class="${mode === 'rest' ? 'on' : ''}">День відпочинку</a></div>
       <div class="hero nres">
-        <div class="nk"><span class="nmin">не менше</span><b>${d.E.toLocaleString('uk-UA')}</b><span>ккал на день</span></div>
-        <p class="nk-note">Це норма, а не межа: менше їсти не можна, більше — можна, коли голодний, багато тренуєшся чи ростеш. Білки, жири й вуглеводи — як розподілити ці калорії.</p>
+        ${coach ? `<div class="nk"><span class="nmin">не менше</span><b>${d.E.toLocaleString('uk-UA')}</b><span>ккал на день</span></div>
+        <p class="nk-note">Калорії бачить лише тренер. Спортсмен бачить білки, жири й вуглеводи та пораду їсти не менше.</p>` : `<div class="nk"><span class="nmin">твоя норма на день</span></div>
+        <p class="nk-note">Це орієнтир, а не межа: їж не менше. Голодний — додай перекус. Багато тренуєшся чи ростеш — можна більше.</p>`}
         <div class="nbar"><i class="p" style="flex:${d.P * 4}"></i><i class="f" style="flex:${d.F * 9}"></i><i class="c" style="flex:${d.C * 4}"></i></div>
         <div class="nm">
-          <div class="p"><span>Білки</span><b>${fmtG(d.P)}</b><small>${(d.P / n.weight_kg).toFixed(1).replace('.', ',')} г/кг · ${pct(d.P * 4)}%</small></div>
-          <div class="f"><span>Жири</span><b>${fmtG(d.F)}</b><small>${(d.F / n.weight_kg).toFixed(1).replace('.', ',')} г/кг · ${pct(d.F * 9)}%</small></div>
-          <div class="c"><span>Вуглеводи</span><b>${fmtG(d.C)}</b><small>${(d.C / n.weight_kg).toFixed(1).replace('.', ',')} г/кг · ${pct(d.C * 4)}%</small></div>
+          <div class="p"><span>Білки</span><b>${fmtG(d.P)}</b><small>${(d.P / n.weight_kg).toFixed(1).replace('.', ',')} г/кг${coach ? ` · ${pct(d.P * 4)}%` : ''}</small></div>
+          <div class="f"><span>Жири</span><b>${fmtG(d.F)}</b><small>${(d.F / n.weight_kg).toFixed(1).replace('.', ',')} г/кг${coach ? ` · ${pct(d.F * 9)}%` : ''}</small></div>
+          <div class="c"><span>Вуглеводи</span><b>${fmtG(d.C)}</b><small>${(d.C / n.weight_kg).toFixed(1).replace('.', ',')} г/кг${coach ? ` · ${pct(d.C * 4)}%` : ''}</small></div>
         </div>
         <div class="nwater">${icon('drop')}Клітковина: не менше <b>${d.fib} г</b> на день · Вода: близько <b>${(d.water / 1000).toLocaleString('uk-UA')} л</b> на день${mode === 'train' ? ', з них 0,5–0,75 л під час і після тренування' : ''}</div>
       </div>
@@ -4344,21 +4354,21 @@ notify pgrst, 'reload schema';`;
       </div>` : ''}
       <h3>Приклад дня</h3>
       <div class="list">${plan.map((x, i) => `<details class="row nrec"><summary><div class="grow"><strong>${MEAL_NAMES[mode][i]}: ${esc(x.t)}</strong>
-          <span>${Math.abs(k - 1) > 0.12 ? `порція ×${kTxt(k)} · ` : ''}Б ${Math.round(x.m[0] * k)} · Ж ${Math.round(x.m[1] * k)} · В ${Math.round(x.m[2] * k)} · ${Math.round(kcalOf(x.m) * k)} ккал</span></div><span class="chev">›</span></summary>
+          <span>${Math.abs(k - 1) > 0.12 ? `порція ×${kTxt(k)} · ` : ''}Б ${Math.round(x.m[0] * k)} · Ж ${Math.round(x.m[1] * k)} · В ${Math.round(x.m[2] * k)}${kcalT(Math.round(kcalOf(x.m) * k))}</span></div><span class="chev">›</span></summary>
           <div class="nrec-b"><p><b>Склад${Math.abs(k - 1) > 0.12 ? ' (на 1 порцію)' : ''}:</b> ${esc(x.ing)}</p><p>${esc(x.how)}</p></div></details>`).join('')}
         ${extraTxt ? `<div class="row" style="cursor:default"><div class="grow"><strong>${icon('check')}Додати протягом дня</strong><span>${extraTxt}</span></div></div>` : ''}
-        <div class="row" style="cursor:default"><span class="muted small">Разом ≈ Б ${tot[0]} · Ж ${tot[1]} · В ${tot[2]} · ${kcalOf(tot)} ккал${kcalOf(tot) < d.E ? ` — до норми ще ${(d.E - kcalOf(tot)).toLocaleString('uk-UA')} ккал, додай перекус` : ''}. Страви можна міняти місцями й замінювати на схожі.</span></div>
+        <div class="row" style="cursor:default"><span class="muted small">Разом ≈ Б ${tot[0]} · Ж ${tot[1]} · В ${tot[2]}${kcalT(kcalOf(tot))}${kcalOf(tot) < d.E ? (coach ? ` — до норми ще ${(d.E - kcalOf(tot)).toLocaleString('uk-UA')} ккал, додай перекус` : ' — додай ще перекус') : ''}. Страви можна міняти місцями й замінювати на схожі.</span></div>
       </div>
       ${plateHtml(d, mode)}
       ${guideHtml(d, mode)}
       <div class="sec"><h3>Усі рецепти</h3>${isCoach() ? '<a class="btn light sm" href="#recipes">Рецепти команди</a>' : '<button type="button" class="btn light sm" id="suggestR">+ Свій рецепт</button>'}</div>
       ${teamR.length ? `<div class="list" style="margin-bottom:10px">${teamR.map(r => recipeItem(r)).join('')}</div>` : ''}
       <div class="list">${Object.values(RECIPES).map(x => `<details class="row nrec"><summary><div class="grow"><strong>${esc(x.t)}</strong>
-          <span>${esc(x.tag)} · Б ${x.m[0]} · Ж ${x.m[1]} · В ${x.m[2]} · ${kcalOf(x.m)} ккал</span></div><span class="chev">›</span></summary>
+          <span>${esc(x.tag)} · Б ${x.m[0]} · Ж ${x.m[1]} · В ${x.m[2]}${kcalT(kcalOf(x.m))}</span></div><span class="chev">›</span></summary>
           <div class="nrec-b"><p><b>Склад:</b> ${esc(x.ing)}</p><p>${esc(x.how)}</p></div></details>`).join('')}</div>
       <h3>Скільки чого в продуктах</h3>
-      <div class="st-wrap"><table class="stbl nfood"><thead><tr><th class="nm">Продукт</th><th>Б</th><th>Ж</th><th>В</th><th>ккал</th></tr></thead>
-        <tbody>${FOODS.map(([t, p, f, c]) => `<tr><th scope="row">${esc(t)}</th><td>${p}</td><td>${f}</td><td>${c}</td><td>${kcalOf([p, f, c])}</td></tr>`).join('')}</tbody></table></div>
+      <div class="st-wrap"><table class="stbl nfood"><thead><tr><th class="nm">Продукт</th><th>Б</th><th>Ж</th><th>В</th>${coach ? '<th>ккал</th>' : ''}</tr></thead>
+        <tbody>${FOODS.map(([t, p, f, c]) => `<tr><th scope="row">${esc(t)}</th><td>${p}</td><td>${f}</td><td>${c}</td>${coach ? `<td>${kcalOf([p, f, c])}</td>` : ''}</tr>`).join('')}</tbody></table></div>
       <p class="muted small nnote">Це орієнтир для здорового хлопця чи дівчини, які ростуть і тренуються, а не медичне призначення. Цифри приблизні: кожному їсти по апетиту, не голодувати й не «зганяти вагу». Якщо є проблеми зі здоровʼям, алергія чи спеціальна дієта — порадьтеся з лікарем або спортивним дієтологом.</p>`;
     } else {
       res = `<div class="info">Заповни стать, зріст і вагу — і калькулятор покаже, скільки білків, жирів і вуглеводів тобі треба в день тренування і в день відпочинку, з прикладами страв.</div>`;
