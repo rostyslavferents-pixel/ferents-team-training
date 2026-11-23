@@ -1113,7 +1113,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.68';
+  const APP_VERSION = 'v3.71';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -7324,19 +7324,20 @@ end $$;\n` });
       o.connect(g).connect(tmAC.destination); o.start(); o.stop(tmAC.currentTime + 0.02);
     } catch (e) {}
   }
-  function tmTone(f, dur, at, vol) {
+  function tmTone(f, dur, at, vol, type) {
     const ac = tmAC; if (!ac) return;
     const t = ac.currentTime + (at || 0), o = ac.createOscillator(), g = ac.createGain();
-    o.type = 'sine'; o.frequency.value = f;
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.type = type || 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.05);
   }
-  function tmBell(f, dur, at, vol) { tmTone(f, dur, at, vol); tmTone(f * 2, dur * .6, at, vol * .22); tmTone(f * 3, dur * .3, at, vol * .08); }
+  // Мʼякі дерев'яні нотки, як у ксилофона
+  function tmMarimba(f, at, vol, dur = .45) { tmTone(f, dur, at, vol, 'triangle'); tmTone(f * 4, dur * .25, at, vol * .25); }
   const TM_SFX = {
-    tick: () => tmBell(880, .18, 0, .35),
-    go: () => { tmBell(1047, .5, 0, .5); tmBell(1568, .8, .1, .42); },
-    rest: () => { tmBell(784, .5, 0, .45); tmBell(523, .8, .14, .4); },
-    finish: () => [784, 988, 1175, 1568].forEach((f, i) => tmBell(f, i === 3 ? 1.3 : .4, i * .15, .45)),
+    tick: () => tmMarimba(660, 0, .35, .25),
+    go: () => { tmMarimba(784, 0, .45); tmMarimba(1175, .12, .45, .7); },
+    rest: () => { tmMarimba(880, 0, .4); tmMarimba(587, .14, .4, .7); },
+    finish: () => [523, 659, 784, 1047].forEach((f, i) => tmMarimba(f, i * .14, .45, i === 3 ? 1.1 : .4)),
   };
   const TM_VIB = { tick: 40, go: [250], rest: [120, 80, 120], finish: [300, 120, 300, 120, 600] };
   function tmFx(kind) {
