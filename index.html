@@ -991,17 +991,13 @@
     .tm-hint { font-size: 13px; color: var(--muted); margin: 10px 6px 0; line-height: 1.5; }
 
     /* Повноекранний режим */
-    .tm-run { --pc: #f59e0b; position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; color: #f3f4f6;
+    .tm-run { --pc: #d9ae55; position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; color: #f3f4f6;
       background: #0b0d12; padding: calc(env(safe-area-inset-top) + 10px) 18px calc(env(safe-area-inset-bottom) + 18px); overflow: hidden;
       animation: tmIn .25s ease-out; }
     .tm-run::before { content: ''; position: absolute; inset: 0; pointer-events: none; transition: background .5s;
-      background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 24%, transparent) 0%, transparent 62%); }
+      background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 14%, transparent) 0%, transparent 60%); }
     .tm-run > * { position: relative; }
     @keyframes tmIn { from { opacity: 0; transform: scale(1.02); } }
-    .tm-run[data-k="work"] { --pc: #22c55e; } .tm-run[data-k="rest"] { --pc: #3b82f6; }
-    .tm-run[data-k="setrest"] { --pc: #8b5cf6; } .tm-run[data-k="prep"] { --pc: #f59e0b; }
-    .tm-run[data-k="done"] { --pc: #d1a84b; } .tm-run[data-k="sw"] { --pc: #e5e7eb; }
-    .tm-run[data-k="work"].hot { --pc: #ef4444; }
     .tm-top { display: flex; align-items: center; justify-content: space-between; height: 44px; }
     .tm-top span { font-size: 15px; font-weight: 700; color: #9ca3af; letter-spacing: .02em; }
     .tm-ib { width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgb(255 255 255 / .08); color: #e5e7eb; display: grid; place-items: center; cursor: pointer; }
@@ -1027,7 +1023,7 @@
     .tm-dots i.d { background: var(--pc); opacity: .55; } .tm-dots i.c { background: var(--pc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc) 30%, transparent); }
     .tm-laps { width: 100%; max-width: 380px; max-height: 26vh; overflow: auto; font-variant-numeric: tabular-nums; }
     .tm-laps div { display: flex; justify-content: space-between; padding: 8px 4px; border-top: 1px solid rgb(255 255 255 / .08); font-size: 15px; color: #d1d5db; }
-    .tm-laps div span { color: #9ca3af; } .tm-laps div.best b { color: #4ade80; } .tm-laps div.worst b { color: #f87171; }
+    .tm-laps div span { color: #9ca3af; } .tm-laps div.best b { color: var(--pc); } .tm-laps div.worst b { color: #6b7280; }
     .tm-ctl { display: flex; align-items: center; justify-content: center; gap: 28px; padding-top: 8px; }
     .tm-cb { width: 64px; height: 64px; border: 0; border-radius: 50%; background: rgb(255 255 255 / .1); color: #f3f4f6; display: grid; place-items: center; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; transition: transform .1s, opacity .2s; }
     .tm-cb:active { transform: scale(.92); }
@@ -1117,7 +1113,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.66';
+  const APP_VERSION = 'v3.67';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -7366,7 +7362,7 @@ end $$;\n` });
   function tmDraw() {
     const m = tmS.mode, c = tmS[m], dot = { w: 'var(--tm-w)', r: 'var(--tm-r)', s: 'var(--tm-s)' };
     const rows = (TM_FIELDS[m] || []).map(([f, l, t, , , col]) => `<div class="tm-row" data-row="${f}"${f === 'setRest' && c.sets < 2 ? ' hidden' : ''}>
-        <span>${col ? `<i style="--c:${dot[col]}"></i>` : ''}${l}</span>
+        <span>${l}</span>
         <div class="tm-step"><button type="button" data-st="${f}" data-d="-1" aria-label="Менше">−</button><b data-v="${f}">${t === 't' ? tmFmt(c[f]) : c[f]}</b><button type="button" data-st="${f}" data-d="1" aria-label="Більше">+</button></div></div>`).join('');
     const quick = m === 'countdown' ? `<div class="tm-quick">${[1, 2, 3, 5, 10, 15, 20].map(n => `<button type="button" class="chip" data-quick="${n * 60}">${n} хв</button>`).join('')}</div>`
       : m === 'tabata' ? `<div class="tm-quick"><button type="button" class="chip" data-tabata="1">Класика 20/10 × 8</button></div>` : '';
@@ -7383,7 +7379,7 @@ end $$;\n` });
       <button type="button" class="btn wide tm-go" id="tmGo">${icon('play')}Старт</button>
       ${saved}
       <div class="card tm-set">
-        ${m === 'stopwatch' ? '' : `<div class="tm-row"><span><i style="--c:var(--tm-p)"></i>Підготовка</span><div class="tm-step"><button type="button" data-st="prep" data-d="-1" aria-label="Менше">−</button><b data-v="prep">${tmS.prep ? tmS.prep + ' с' : 'без'}</b><button type="button" data-st="prep" data-d="1" aria-label="Більше">+</button></div></div>`}
+        ${m === 'stopwatch' ? '' : `<div class="tm-row"><span>Підготовка</span><div class="tm-step"><button type="button" data-st="prep" data-d="-1" aria-label="Менше">−</button><b data-v="prep">${tmS.prep ? tmS.prep + ' с' : 'без'}</b><button type="button" data-st="prep" data-d="1" aria-label="Більше">+</button></div></div>`}
         <div class="tm-row"><span>Звуковий сигнал</span><button type="button" class="tm-tg ${tmS.sound ? 'on' : ''}" data-tg="sound" aria-label="Звук"></button></div>
         ${'vibrate' in navigator ? `<div class="tm-row"><span>Вібрація</span><button type="button" class="tm-tg ${tmS.vibro ? 'on' : ''}" data-tg="vibro" aria-label="Вібрація"></button></div>` : ''}
       </div>
