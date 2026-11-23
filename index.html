@@ -1113,7 +1113,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.67';
+  const APP_VERSION = 'v3.68';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -2890,7 +2890,6 @@ notify pgrst, 'reload schema';`;
         ${tile('members', 'members', 'Учасники', 'Доступ для батьків', '', reqN || 0)}
         ${tile('stats', 'stats', 'Статистика', 'Таблиці відміток і оплат')}
         ${tile('applications', 'form', 'Заяви', 'Анкети вступу з підписом', '', appN || 0)}
-        ${tile('timer', 'timer', 'Таймер', 'Табата, EMOM, секундомір')}
       </div>`;
 
     // Перед переходом готуємо фільтри: сьогоднішня дата, поточний місяць, потрібна група
@@ -5198,7 +5197,8 @@ notify pgrst, 'reload schema';`;
     $('#view').innerHTML =
       card('schedule', icon('clock') + 'Розклад тренувань', 'Дні, час і зал для кожної групи') +
       card('plans', icon('note') + 'Завдання на тренування', 'План і завдання перед кожним тренуванням') +
-      card('tests', icon('chart') + 'Тестування', 'Контрольні нормативи спортсменів');
+      card('tests', icon('chart') + 'Тестування', 'Контрольні нормативи спортсменів') +
+      card('timer', icon('timer') + 'Таймер', 'Інтервали, табата, EMOM, секундомір, відлік');
   }
 
   // ----- Завдання на тренування -----
@@ -7595,7 +7595,7 @@ end $$;\n` });
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
   function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition', 'sleep', 'timer'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
-  const PARENT_ROUTE = { timer: 'home', readiness: 'home', sleep: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  const PARENT_ROUTE = { timer: 'training', readiness: 'home', sleep: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
