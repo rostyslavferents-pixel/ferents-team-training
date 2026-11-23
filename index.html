@@ -991,6 +991,19 @@
     .wk-tinfo { color:var(--muted); font-size:14px; margin-bottom:28px; }
     .wk-tbtns { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
     .wk-tbtns .btn { min-width:110px; }
+    .wk-tname { font-size:14px; font-weight:600; color:var(--muted); margin-bottom:4px; }
+    .wk-timer[data-phase="setrest"] { background:color-mix(in srgb, var(--gold) 18%, var(--bg)); }
+    .wk-tbar { height:6px; border-radius:3px; background:var(--line); overflow:hidden; margin:0 auto 14px; max-width:320px; }
+    .wk-tbar i { display:block; height:100%; background:var(--ink); transition:width .25s linear; }
+    .tm-row .btn { display:inline-flex; align-items:center; gap:4px; flex:none; }
+    .tm-row .btn .ic-svg { width:15px; height:15px; }
+    .tm-opts { display:flex; flex-direction:column; gap:8px; margin:10px 0 14px; max-height:55vh; overflow:auto; }
+    .tm-opt { text-align:left; border:0; border-radius:12px; padding:10px 12px; background:var(--bg); color:var(--ink); box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; font:inherit; }
+    .tm-opt b { display:block; font-size:15px; } .tm-opt span { display:block; font-size:13px; color:var(--muted); margin-top:2px; }
+    #pageActions { display:flex; gap:8px; align-items:center; }
+    #pageActions .btn .ic-svg { width:15px; height:15px; }
+    .wk-icb { padding-left:12px !important; padding-right:12px !important; display:inline-flex !important; align-items:center; }
+    .wk-icb .ic-svg { width:18px !important; height:18px !important; margin:0 !important; }
   </style>
 </head>
 
@@ -1062,7 +1075,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.62';
+  const APP_VERSION = 'v3.63';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -1250,7 +1263,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', workouts: 'Мої тренування', workout: 'Тренування', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи', sleep: 'Сон і готовність'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', workouts: 'Мої тренування', workout: 'Тренування', timers: 'Інтервальний таймер', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи', sleep: 'Сон і готовність'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -5137,6 +5150,7 @@ notify pgrst, 'reload schema';`;
     $('#view').innerHTML =
       card('schedule', icon('clock') + 'Розклад тренувань', 'Дні, час і зал для кожної групи') +
       card('workouts', icon('lock') + 'Мої тренування', 'Твої записи тренувань стрічкою — бачиш тільки ти') +
+      card('timers', icon('clock') + 'Інтервальний таймер', 'Твої протоколи: робота, відпочинок, раунди, сети') +
       card('plans', icon('note') + 'Завдання на тренування', 'План і завдання перед кожним тренуванням') +
       card('tests', icon('chart') + 'Тестування', 'Контрольні нормативи спортсменів');
   }
@@ -5260,7 +5274,7 @@ notify pgrst, 'reload schema';`;
 
   async function workoutsView() {
     if (!isCoach()) { location.hash = '#home'; return; }
-    setActions('<button class="btn" id="addBtn">+ Тренування</button>');
+    setActions(`<a class="btn light wk-icb" href="#timers" aria-label="Інтервальний таймер">${icon('clock')}</a><button class="btn" id="addBtn">+ Тренування</button>`);
     $('#addBtn').onclick = () => workoutForm();
     let all;
     try { all = await q(db.from('coach_workouts').select('*').order('date', { ascending: false }).order('id', { ascending: false })); }
@@ -5279,7 +5293,8 @@ notify pgrst, 'reload schema';`;
     if (!isCoach()) { location.hash = '#home'; return; }
     const w = (await q(db.from('coach_workouts').select('*').eq('id', state.param)))[0];
     if (!w) { $('#view').innerHTML = '<div class="empty">Тренування не знайдено</div>'; return; }
-    setActions(`<button class="btn light" id="edBtn">${icon('pen')}Змінити</button>`);
+    setActions(`<button class="btn light wk-icb" id="tmBtn" aria-label="Таймер">${icon('clock')}</button><button class="btn light" id="edBtn">${icon('pen')}Змінити</button>`);
+    $('#tmBtn').onclick = () => wkPickTimer(null);
     $('#edBtn').onclick = () => workoutForm(w);
     $('#pageTitle').textContent = w.title;
     const blocks = wkParse(w.body);
@@ -5308,7 +5323,7 @@ notify pgrst, 'reload schema';`;
       <p class="muted small" style="margin:14px 4px 0">Торкніться назви блоку або крапки, щоб позначити, на якому етапі ви зараз.</p>`;
     $('#view').onclick = e => {
       const tb = e.target.closest('[data-t]');
-      if (tb) { wkTimer(timers[tb.dataset.t]); return; }
+      if (tb) { wkPickTimer(timers[tb.dataset.t]); return; }
       const c = e.target.closest('[data-cur]');
       if (!c) return;
       const i = Number(c.dataset.cur);
@@ -5339,59 +5354,172 @@ notify pgrst, 'reload schema';`;
     });
   }
 
-  // Таймер раундів зі звуком
-  function wkTimer({ rounds, work, rest }) {
+  // ===== Інтервальний таймер і протоколи (бачить тільки тренер) =====
+  const tmFmt = s => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+  // «90», «1:30», «1.5 хв», «30 с» → секунди
+  function tmParse(v) {
+    const s = String(v ?? '').trim().toLowerCase().replace(',', '.');
+    if (!s) return 0;
+    let m = s.match(/^(\d+):(\d{1,2})$/); if (m) return +m[1] * 60 + +m[2];
+    m = s.match(/^(\d+(?:\.\d+)?)\s*(хв|хвилин\S*|m|min)$/); if (m) return Math.round(+m[1] * 60);
+    m = s.match(/^(\d+(?:\.\d+)?)\s*(с|сек\S*|секунд\S*|s)?$/); if (m) return Math.round(+m[1]);
+    return NaN;
+  }
+  const tmTotal = p => {
+    const sets = Math.max(1, p.sets || 1);
+    return (p.prep || 0) + sets * (p.rounds * p.work + (p.rounds - 1) * (p.rest || 0)) + (sets - 1) * (p.set_rest || 0);
+  };
+  const tmSummary = p => `${p.rounds}×${tmFmt(p.work)}${p.rest ? ' / ' + tmFmt(p.rest) + ' відп.' : ''}${(p.sets || 1) > 1 ? ` · ${p.sets} сети, між ними ${tmFmt(p.set_rest)}` : ''}`;
+
+  async function timersView() {
+    if (!isCoach()) { location.hash = '#home'; return; }
+    setActions('<button class="btn" id="addBtn">+ Протокол</button>');
+    $('#addBtn').onclick = () => timerForm();
+    let all;
+    try { all = await q(db.from('coach_timers').select('*').order('sort').order('id')); }
+    catch (e) { $('#view').innerHTML = '<div class="empty">Протоколи ще не підключені до бази.</div>'; return; }
+    $('#view').innerHTML = `<p class="muted small" style="margin:0 4px 10px">Налаштуй протоколи заздалегідь і запускай одним дотиком. Торкнись назви, щоб змінити.</p>
+      <div class="list">${all.map(p => `<div class="row tm-row" data-id="${p.id}">
+        <div style="min-width:0;flex:1" data-edit="${p.id}" role="button" tabindex="0"><strong>${esc(p.name)}</strong>
+          <span>${tmSummary(p)} · разом ${tmFmt(tmTotal(p))}</span></div>
+        <button type="button" class="btn sm" data-go="${p.id}">${icon('clock')}Старт</button></div>`).join('')
+        || '<div class="empty">Протоколів поки немає. Натисніть «+ Протокол».</div>'}</div>`;
+    $('#view').onclick = e => {
+      const go = e.target.closest('[data-go]');
+      if (go) return wkTimer(all.find(p => String(p.id) === go.dataset.go));
+      const ed = e.target.closest('[data-edit]');
+      if (ed) timerForm(all.find(p => String(p.id) === ed.dataset.edit));
+    };
+  }
+
+  function timerForm(p) {
+    const v = p ? { ...p, prep: tmFmt(p.prep), work: tmFmt(p.work), rest: tmFmt(p.rest), set_rest: tmFmt(p.set_rest) }
+      : { name: '', prep: '0:10', work: '1:00', rest: '0:30', rounds: 5, sets: 1, set_rest: '1:00' };
+    const t = 'inputmode="numeric" placeholder="хв:сек, напр. 1:30 або 45"';
+    openForm({
+      title: p ? 'Змінити протокол' : 'Новий протокол',
+      values: v,
+      top: '<p class="muted small" style="margin:0 0 8px">Час вводь як хв:сек (1:30) або просто секунди (45).</p>',
+      fields: [
+        { name: 'name', label: 'Назва', required: true, attrs: 'placeholder="напр. Куміте 3×2 хв"' },
+        { name: 'work', label: 'Робота', required: true, attrs: t },
+        { name: 'rest', label: 'Відпочинок між раундами', attrs: t },
+        { name: 'rounds', label: 'Раундів', type: 'number', required: true, attrs: 'min="1" max="99" inputmode="numeric"' },
+        { name: 'sets', label: 'Сетів (повторів усього блоку)', type: 'number', attrs: 'min="1" max="20" inputmode="numeric"' },
+        { name: 'set_rest', label: 'Відпочинок між сетами', attrs: t },
+        { name: 'prep', label: 'Підготовка перед стартом', attrs: t },
+      ],
+      onSave: async o => {
+        const row = { name: o.name, rounds: Math.max(1, Math.round(o.rounds || 1)), sets: Math.max(1, Math.round(o.sets || 1)) };
+        for (const k of ['work', 'rest', 'set_rest', 'prep']) {
+          const s = tmParse(o[k]);
+          if (!Number.isFinite(s) || s < 0) { toast('Не зрозумів час у полі — введи як 1:30 або 45', true); throw new Error('bad time'); }
+          row[k] = s;
+        }
+        if (!row.work) { toast('Час роботи має бути більше нуля', true); throw new Error('bad work'); }
+        if (p) return q(db.from('coach_timers').update(row).eq('id', p.id));
+        return q(db.from('coach_timers').insert(row));
+      },
+      onDelete: p ? () => q(db.from('coach_timers').delete().eq('id', p.id)) : null,
+      deleteText: 'Протокол буде видалено.',
+    });
+  }
+
+  // Вибір протоколу з рядка тренування: «як у тексті» або збережений
+  async function wkPickTimer(fromText) {
+    let list = [];
+    try { list = (await db.from('coach_timers').select('*').order('sort').order('id')).data || []; } catch (e) {}
+    const d = $('#confirm');
+    const opt = (i, name, p) => `<button type="button" class="tm-opt" data-i="${i}"><b>${esc(name)}</b><span>${tmSummary(p)} · ${tmFmt(tmTotal(p))}</span></button>`;
+    const items = [...(fromText ? [{ name: 'Як у тексті', ...fromText }] : []), ...list];
+    d.innerHTML = `<div class="confirm-body"><h3>Який таймер запустити?</h3>
+      <div class="tm-opts">${items.map((p, i) => opt(i, p.name, p)).join('')}</div>
+      <div class="btns"><a class="btn light" href="#timers" data-no>Налаштувати протоколи</a><button type="button" class="btn light" data-no>Скасувати</button></div></div>`;
+    d.onclick = e => {
+      const o = e.target.closest('[data-i]');
+      if (o) { d.close(); wkTimer(items[+o.dataset.i]); return; }
+      if (e.target.closest('[data-no]')) d.close();
+    };
+    d.showModal();
+  }
+
+  // Повноекранний таймер: підготовка → (робота → відпочинок)×раунди → відпочинок між сетами → …
+  function wkTimer(p) {
+    const P = { name: '', prep: 10, rest: 0, sets: 1, set_rest: 0, ...p };
+    P.sets = Math.max(1, P.sets || 1); P.rounds = Math.max(1, P.rounds || 1);
+    // Будуємо список фаз заздалегідь — так легко показати «далі» і час до кінця
+    const ph = [];
+    if (P.prep > 0) ph.push({ k: 'prep', d: P.prep, set: 1, round: 1 });
+    for (let s = 1; s <= P.sets; s++) {
+      for (let r = 1; r <= P.rounds; r++) {
+        ph.push({ k: 'work', d: P.work, set: s, round: r });
+        if (r < P.rounds && P.rest > 0) ph.push({ k: 'rest', d: P.rest, set: s, round: r });
+      }
+      if (s < P.sets && P.set_rest > 0) ph.push({ k: 'setrest', d: P.set_rest, set: s, round: P.rounds });
+    }
+    const LABEL = { prep: 'Приготуйтесь', work: 'Робота', rest: 'Відпочинок', setrest: 'Відпочинок між сетами', end: 'Готово' };
     const el = document.createElement('div');
     el.className = 'wk-timer';
     document.body.appendChild(el);
-    let round = 1, phase = 'prep', left = 5, running = true, tick = null, ac = null, lock = null;
+    let i = 0, left = ph[0].d, running = true, ac = null, lock = null;
     const beep = (f = 880, d = 0.15) => {
       try {
         ac = ac || new (window.AudioContext || window.webkitAudioContext)();
         const o = ac.createOscillator(), g = ac.createGain();
         o.frequency.value = f; o.connect(g); g.connect(ac.destination);
-        g.gain.setValueAtTime(0.3, ac.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + d);
+        g.gain.setValueAtTime(0.35, ac.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + d);
         o.start(); o.stop(ac.currentTime + d);
       } catch (e) {}
       try { navigator.vibrate && navigator.vibrate(d > 0.3 ? 400 : 80); } catch (e) {}
     };
-    try { navigator.wakeLock && navigator.wakeLock.request('screen').then(l => { lock = l; }).catch(() => {}); } catch (e) {}
-    const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    const getLock = () => { try { navigator.wakeLock && navigator.wakeLock.request('screen').then(l => { lock = l; }).catch(() => {}); } catch (e) {} };
+    getLock();
+    const onVis = () => { if (document.visibilityState === 'visible') getLock(); };
+    document.addEventListener('visibilitychange', onVis);
+    const sound = k => k === 'work' ? beep(1100, 0.5) : k === 'end' ? (beep(1100, 0.3), setTimeout(() => beep(1300, 0.8), 350)) : beep(600, 0.5);
+    const remaining = () => left + ph.slice(i + 1).reduce((s, x) => s + x.d, 0);
+    const go = j => { i = j; if (i >= ph.length) { sound('end'); } else { left = ph[i].d; sound(ph[i].k); } draw(); };
     const draw = () => {
-      const label = phase === 'prep' ? 'Приготуйтесь' : phase === 'work' ? 'Робота' : phase === 'rest' ? 'Відпочинок' : 'Готово';
-      el.dataset.phase = phase;
+      const end = i >= ph.length, c = end ? null : ph[i], nx = end ? null : ph[i + 1];
+      el.dataset.phase = end ? 'end' : c.k;
+      const prog = end ? 100 : Math.round((1 - left / c.d) * 100);
       el.innerHTML = `<div class="wk-tin">
-        <div class="wk-tr">${phase === 'end' ? `${rounds} з ${rounds} раундів` : `Раунд ${round} з ${rounds}`}</div>
-        <div class="wk-tp">${label}</div>
-        <div class="wk-tc">${phase === 'end' ? '✓' : fmt(left)}</div>
-        <div class="wk-tinfo">${fmt(work)} робота${rest ? ' · ' + fmt(rest) + ' відпочинок' : ''}</div>
+        ${P.name ? `<div class="wk-tname">${esc(P.name)}</div>` : ''}
+        <div class="wk-tr">${end ? 'Протокол завершено' : `${P.sets > 1 ? `Сет ${c.set} з ${P.sets} · ` : ''}Раунд ${c.round} з ${P.rounds}`}</div>
+        <div class="wk-tp">${LABEL[end ? 'end' : c.k]}</div>
+        <div class="wk-tc">${end ? '✓' : tmFmt(left)}</div>
+        <div class="wk-tbar"><i style="width:${prog}%"></i></div>
+        <div class="wk-tinfo">${end ? `Разом ${tmFmt(tmTotal(P))}` : `${nx ? 'Далі: ' + LABEL[nx.k].toLowerCase() + ' ' + tmFmt(nx.d) + ' · ' : ''}до кінця ${tmFmt(remaining())}`}</div>
         <div class="wk-tbtns">
-          ${phase === 'end' ? '' : `<button type="button" class="btn light" data-a="toggle">${running ? 'Пауза' : 'Продовжити'}</button>
+          ${end ? `<button type="button" class="btn light" data-a="again">Ще раз</button>` : `<button type="button" class="btn light" data-a="back">Назад</button>
+          <button type="button" class="btn light" data-a="toggle">${running ? 'Пауза' : 'Продовжити'}</button>
           <button type="button" class="btn light" data-a="skip">Далі</button>`}
-          <button type="button" class="btn" data-a="close">${phase === 'end' ? 'Закрити' : 'Зупинити'}</button>
+          <button type="button" class="btn" data-a="close">${end ? 'Закрити' : 'Зупинити'}</button>
         </div></div>`;
     };
-    const next = () => {
-      if (phase === 'prep') { phase = 'work'; left = work; beep(1100, 0.5); }
-      else if (phase === 'work') {
-        if (round >= rounds) { phase = 'end'; beep(1100, 0.8); clearInterval(tick); }
-        else if (rest) { phase = 'rest'; left = rest; beep(600, 0.5); }
-        else { round++; left = work; beep(1100, 0.5); }
-      } else if (phase === 'rest') { round++; phase = 'work'; left = work; beep(1100, 0.5); }
-    };
-    tick = setInterval(() => {
-      if (!running || phase === 'end') return;
-      left--;
-      if (left > 0 && left <= 3) beep(700, 0.1);
-      if (left <= 0) next();
-      draw();
-    }, 1000);
-    const close = () => { clearInterval(tick); try { lock && lock.release(); } catch (e) {} try { ac && ac.close(); } catch (e) {} el.remove(); };
+    // Рахуємо від реального часу, щоб таймер не «відставав» на телефоні
+    let last = Date.now(), acc = 0;
+    const tick = setInterval(() => {
+      const now = Date.now(), dt = now - last; last = now;
+      if (!running || i >= ph.length) return;
+      acc += dt;
+      let changed = false;
+      while (acc >= 1000 && i < ph.length) {
+        acc -= 1000; left--; changed = true;
+        if (left > 0 && left <= 3) beep(700, 0.1);
+        if (left <= 0) { go(i + 1); changed = false; }
+      }
+      if (changed) draw();
+    }, 200);
+    const close = () => { clearInterval(tick); document.removeEventListener('visibilitychange', onVis); try { lock && lock.release(); } catch (e) {} try { ac && ac.close(); } catch (e) {} el.remove(); };
     el.onclick = e => {
       const a = e.target.closest('[data-a]')?.dataset.a;
-      if (a === 'toggle') running = !running;
-      else if (a === 'skip') next();
-      else if (a === 'close') return close();
+      if (!a) return;
+      if (a === 'close') return close();
+      if (a === 'toggle') { running = !running; last = Date.now(); acc = 0; }
+      else if (a === 'skip') return go(i + 1);
+      else if (a === 'back') { acc = 0; return go(left < ph[i].d - 2 || i === 0 ? i : i - 1); }
+      else if (a === 'again') { running = true; acc = 0; last = Date.now(); return go(0); }
       draw();
     };
     beep(700, 0.05);
@@ -7392,14 +7520,14 @@ end $$;\n` });
   // =====================================================================
   const VIEWS = {
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
-    training: trainingView, plans: plansView, workouts: workoutsView, workout: workoutView, tests: testsView,
+    training: trainingView, plans: plansView, workouts: workoutsView, workout: workoutView, timers: timersView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
     links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView, sleep: sleepView,
   };
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
   function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition', 'sleep'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
-  const PARENT_ROUTE = { readiness: 'home', sleep: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', workouts: 'training', workout: 'workouts', tests: 'training', materials: 'home' };
+  const PARENT_ROUTE = { readiness: 'home', sleep: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', workouts: 'training', workout: 'workouts', timers: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };

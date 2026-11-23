@@ -1037,3 +1037,19 @@ create policy coach_all on public.coach_workouts for all to authenticated
   using (public.is_coach()) with check (public.is_coach());
 revoke all on public.coach_workouts from anon;
 notify pgrst, 'reload schema';
+
+
+-- Протоколи інтервального таймера (бачить тільки тренер)
+create table if not exists public.coach_timers (
+  id bigint generated always as identity primary key,
+  name text not null,
+  prep int not null default 10, work int not null default 60, rest int not null default 30,
+  rounds int not null default 5, sets int not null default 1, set_rest int not null default 60,
+  sort int not null default 0, created_at timestamptz not null default now()
+);
+alter table public.coach_timers enable row level security;
+drop policy if exists coach_all on public.coach_timers;
+create policy coach_all on public.coach_timers for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+revoke all on public.coach_timers from anon;
+notify pgrst, 'reload schema';
