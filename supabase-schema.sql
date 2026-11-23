@@ -1053,3 +1053,6 @@ create policy coach_all on public.coach_timers for all to authenticated
   using (public.is_coach()) with check (public.is_coach());
 revoke all on public.coach_timers from anon;
 notify pgrst, 'reload schema';
+
+alter table public.coach_timers add column if not exists kind text not null default 'custom'; -- tabata | emom | custom
+notify pgrst, 'reload schema';

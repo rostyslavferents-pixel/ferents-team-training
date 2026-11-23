@@ -999,6 +999,7 @@
     .tm-row .btn .ic-svg { width:15px; height:15px; }
     .tm-opts { display:flex; flex-direction:column; gap:8px; margin:10px 0 14px; max-height:55vh; overflow:auto; }
     .tm-opt { text-align:left; border:0; border-radius:12px; padding:10px 12px; background:var(--bg); color:var(--ink); box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; font:inherit; }
+    .tm-kind { font-style:normal; font-size:11px; font-weight:600; color:var(--muted); background:var(--bg); padding:2px 7px; border-radius:999px; margin-left:4px; vertical-align:2px; box-shadow:inset 0 0 0 1px var(--line); }
     .tm-opt b { display:block; font-size:15px; } .tm-opt span { display:block; font-size:13px; color:var(--muted); margin-top:2px; }
     #pageActions { display:flex; gap:8px; align-items:center; }
     #pageActions .btn .ic-svg { width:15px; height:15px; }
@@ -1075,7 +1076,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.63';
+  const APP_VERSION = 'v3.64';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -5150,7 +5151,7 @@ notify pgrst, 'reload schema';`;
     $('#view').innerHTML =
       card('schedule', icon('clock') + 'Розклад тренувань', 'Дні, час і зал для кожної групи') +
       card('workouts', icon('lock') + 'Мої тренування', 'Твої записи тренувань стрічкою — бачиш тільки ти') +
-      card('timers', icon('clock') + 'Інтервальний таймер', 'Твої протоколи: робота, відпочинок, раунди, сети') +
+      card('timers', icon('clock') + 'Інтервальний таймер', 'Табата, EMOM і свої інтервали') +
       card('plans', icon('note') + 'Завдання на тренування', 'План і завдання перед кожним тренуванням') +
       card('tests', icon('chart') + 'Тестування', 'Контрольні нормативи спортсменів');
   }
@@ -5369,18 +5370,19 @@ notify pgrst, 'reload schema';`;
     const sets = Math.max(1, p.sets || 1);
     return (p.prep || 0) + sets * (p.rounds * p.work + (p.rounds - 1) * (p.rest || 0)) + (sets - 1) * (p.set_rest || 0);
   };
-  const tmSummary = p => `${p.rounds}×${tmFmt(p.work)}${p.rest ? ' / ' + tmFmt(p.rest) + ' відп.' : ''}${(p.sets || 1) > 1 ? ` · ${p.sets} сети, між ними ${tmFmt(p.set_rest)}` : ''}`;
+  const TM_KINDS = { tabata: 'Табата', emom: 'EMOM', custom: 'Свій інтервал' };
+  const tmSummary = p => p.kind === 'emom' ? `${p.rounds} × ${tmFmt(p.work)}, кожен інтервал з початку` : `${p.rounds}×${tmFmt(p.work)}${p.rest ? ' / ' + tmFmt(p.rest) + ' відп.' : ''}${(p.sets || 1) > 1 ? ` · ${p.sets} сети, між ними ${tmFmt(p.set_rest)}` : ''}`;
 
   async function timersView() {
     if (!isCoach()) { location.hash = '#home'; return; }
     setActions('<button class="btn" id="addBtn">+ Протокол</button>');
-    $('#addBtn').onclick = () => timerForm();
+    $('#addBtn').onclick = () => timerKindPick();
     let all;
     try { all = await q(db.from('coach_timers').select('*').order('sort').order('id')); }
     catch (e) { $('#view').innerHTML = '<div class="empty">Протоколи ще не підключені до бази.</div>'; return; }
-    $('#view').innerHTML = `<p class="muted small" style="margin:0 4px 10px">Налаштуй протоколи заздалегідь і запускай одним дотиком. Торкнись назви, щоб змінити.</p>
+    $('#view').innerHTML = `<p class="muted small" style="margin:0 4px 10px">Табата, EMOM або свій інтервал — налаштуй заздалегідь і запускай одним дотиком. Торкнись назви, щоб змінити.</p>
       <div class="list">${all.map(p => `<div class="row tm-row" data-id="${p.id}">
-        <div style="min-width:0;flex:1" data-edit="${p.id}" role="button" tabindex="0"><strong>${esc(p.name)}</strong>
+        <div style="min-width:0;flex:1" data-edit="${p.id}" role="button" tabindex="0"><strong>${esc(p.name)} <em class="tm-kind">${TM_KINDS[p.kind] || TM_KINDS.custom}</em></strong>
           <span>${tmSummary(p)} · разом ${tmFmt(tmTotal(p))}</span></div>
         <button type="button" class="btn sm" data-go="${p.id}">${icon('clock')}Старт</button></div>`).join('')
         || '<div class="empty">Протоколів поки немає. Натисніть «+ Протокол».</div>'}</div>`;
@@ -5392,29 +5394,58 @@ notify pgrst, 'reload schema';`;
     };
   }
 
-  function timerForm(p) {
-    const v = p ? { ...p, prep: tmFmt(p.prep), work: tmFmt(p.work), rest: tmFmt(p.rest), set_rest: tmFmt(p.set_rest) }
-      : { name: '', prep: '0:10', work: '1:00', rest: '0:30', rounds: 5, sets: 1, set_rest: '1:00' };
+  // Спершу вибір типу: Табата, EMOM або свій інтервал
+  function timerKindPick() {
+    const d = $('#confirm');
+    const opts = [
+      ['tabata', 'Табата', 'Робота / відпочинок, раунди. Класика: 20 с / 10 с × 8'],
+      ['emom', 'EMOM', 'Кожну хвилину з початку: виконав завдання — відпочиваєш до нової хвилини'],
+      ['custom', 'Свій інтервал', 'Будь-яка робота, відпочинок, раунди й сети'],
+    ];
+    d.innerHTML = `<div class="confirm-body"><h3>Новий протокол</h3>
+      <div class="tm-opts">${opts.map(([k, n, t]) => `<button type="button" class="tm-opt" data-k="${k}"><b>${n}</b><span>${t}</span></button>`).join('')}</div>
+      <div class="btns"><button type="button" class="btn light" data-no>Скасувати</button></div></div>`;
+    d.onclick = e => {
+      const o = e.target.closest('[data-k]');
+      if (o) { d.close(); timerForm(null, o.dataset.k); return; }
+      if (e.target.closest('[data-no]')) d.close();
+    };
+    d.showModal();
+  }
+
+  function timerForm(p, kind) {
+    kind = p ? (p.kind || 'custom') : kind || 'custom';
+    const DEF = {
+      tabata: { name: 'Табата 20/10', prep: 10, work: 20, rest: 10, rounds: 8, sets: 1, set_rest: 60 },
+      emom: { name: 'EMOM 10 хв', prep: 10, work: 60, rest: 0, rounds: 10, sets: 1, set_rest: 0 },
+      custom: { name: '', prep: 10, work: 60, rest: 30, rounds: 5, sets: 1, set_rest: 60 },
+    };
+    const b = p || DEF[kind];
+    const v = { ...b, prep: tmFmt(b.prep), work: tmFmt(b.work), rest: tmFmt(b.rest), set_rest: tmFmt(b.set_rest) };
     const t = 'inputmode="numeric" placeholder="хв:сек, напр. 1:30 або 45"';
+    const F = {
+      name: { name: 'name', label: 'Назва', required: true },
+      work: { name: 'work', label: kind === 'emom' ? 'Довжина інтервалу' : 'Робота', required: true, attrs: t },
+      rest: { name: 'rest', label: 'Відпочинок між раундами', attrs: t },
+      rounds: { name: 'rounds', label: kind === 'emom' ? 'Скільки інтервалів' : 'Раундів', type: 'number', required: true, attrs: 'min="1" max="99" inputmode="numeric"' },
+      sets: { name: 'sets', label: 'Сетів (повторів усього блоку)', type: 'number', attrs: 'min="1" max="20" inputmode="numeric"' },
+      set_rest: { name: 'set_rest', label: 'Відпочинок між сетами', attrs: t },
+      prep: { name: 'prep', label: 'Підготовка перед стартом', attrs: t },
+    };
+    const keys = kind === 'emom' ? ['name', 'work', 'rounds', 'prep']
+      : ['name', 'work', 'rest', 'rounds', 'sets', 'set_rest', 'prep'];
     openForm({
-      title: p ? 'Змінити протокол' : 'Новий протокол',
+      title: (p ? 'Змінити · ' : 'Новий · ') + TM_KINDS[kind],
       values: v,
-      top: '<p class="muted small" style="margin:0 0 8px">Час вводь як хв:сек (1:30) або просто секунди (45).</p>',
-      fields: [
-        { name: 'name', label: 'Назва', required: true, attrs: 'placeholder="напр. Куміте 3×2 хв"' },
-        { name: 'work', label: 'Робота', required: true, attrs: t },
-        { name: 'rest', label: 'Відпочинок між раундами', attrs: t },
-        { name: 'rounds', label: 'Раундів', type: 'number', required: true, attrs: 'min="1" max="99" inputmode="numeric"' },
-        { name: 'sets', label: 'Сетів (повторів усього блоку)', type: 'number', attrs: 'min="1" max="20" inputmode="numeric"' },
-        { name: 'set_rest', label: 'Відпочинок між сетами', attrs: t },
-        { name: 'prep', label: 'Підготовка перед стартом', attrs: t },
-      ],
+      top: `<p class="muted small" style="margin:0 0 8px">${kind === 'emom' ? 'Таймер сигналить на початку кожного інтервалу. ' : ''}Час вводь як хв:сек (1:30) або просто секунди (45).</p>`,
+      fields: keys.map(k => F[k]),
       onSave: async o => {
-        const row = { name: o.name, rounds: Math.max(1, Math.round(o.rounds || 1)), sets: Math.max(1, Math.round(o.sets || 1)) };
+        const row = { name: o.name, kind, rounds: Math.max(1, Math.round(o.rounds || 1)), sets: kind === 'emom' ? 1 : Math.max(1, Math.round(o.sets || 1)) };
         for (const k of ['work', 'rest', 'set_rest', 'prep']) {
-          const s = tmParse(o[k]);
-          if (!Number.isFinite(s) || s < 0) { toast('Не зрозумів час у полі — введи як 1:30 або 45', true); throw new Error('bad time'); }
-          row[k] = s;
+          if (kind === 'emom' && (k === 'rest' || k === 'set_rest')) { row[k] = 0; continue; }
+          const sec = tmParse(o[k]);
+          if (!Number.isFinite(sec) || sec < 0) { toast('Не зрозумів час — введи як 1:30 або 45', true); throw new Error('bad time'); }
+          row[k] = sec;
         }
         if (!row.work) { toast('Час роботи має бути більше нуля', true); throw new Error('bad work'); }
         if (p) return q(db.from('coach_timers').update(row).eq('id', p.id));
@@ -5431,7 +5462,7 @@ notify pgrst, 'reload schema';`;
     try { list = (await db.from('coach_timers').select('*').order('sort').order('id')).data || []; } catch (e) {}
     const d = $('#confirm');
     const opt = (i, name, p) => `<button type="button" class="tm-opt" data-i="${i}"><b>${esc(name)}</b><span>${tmSummary(p)} · ${tmFmt(tmTotal(p))}</span></button>`;
-    const items = [...(fromText ? [{ name: 'Як у тексті', ...fromText }] : []), ...list];
+    const items = [...(fromText ? [{ name: 'Як у тексті', kind: 'custom', ...fromText }] : []), ...list];
     d.innerHTML = `<div class="confirm-body"><h3>Який таймер запустити?</h3>
       <div class="tm-opts">${items.map((p, i) => opt(i, p.name, p)).join('')}</div>
       <div class="btns"><a class="btn light" href="#timers" data-no>Налаштувати протоколи</a><button type="button" class="btn light" data-no>Скасувати</button></div></div>`;
@@ -5457,7 +5488,8 @@ notify pgrst, 'reload schema';`;
       }
       if (s < P.sets && P.set_rest > 0) ph.push({ k: 'setrest', d: P.set_rest, set: s, round: P.rounds });
     }
-    const LABEL = { prep: 'Приготуйтесь', work: 'Робота', rest: 'Відпочинок', setrest: 'Відпочинок між сетами', end: 'Готово' };
+    const emom = P.kind === 'emom';
+    const LABEL = { prep: 'Приготуйтесь', work: emom ? 'Нова хвилина — старт' : 'Робота', rest: 'Відпочинок', setrest: 'Відпочинок між сетами', end: 'Готово' };
     const el = document.createElement('div');
     el.className = 'wk-timer';
     document.body.appendChild(el);
@@ -5485,11 +5517,11 @@ notify pgrst, 'reload schema';`;
       const prog = end ? 100 : Math.round((1 - left / c.d) * 100);
       el.innerHTML = `<div class="wk-tin">
         ${P.name ? `<div class="wk-tname">${esc(P.name)}</div>` : ''}
-        <div class="wk-tr">${end ? 'Протокол завершено' : `${P.sets > 1 ? `Сет ${c.set} з ${P.sets} · ` : ''}Раунд ${c.round} з ${P.rounds}`}</div>
+        <div class="wk-tr">${end ? 'Протокол завершено' : `${P.sets > 1 ? `Сет ${c.set} з ${P.sets} · ` : ''}${emom ? 'Інтервал' : 'Раунд'} ${c.round} з ${P.rounds}`}</div>
         <div class="wk-tp">${LABEL[end ? 'end' : c.k]}</div>
         <div class="wk-tc">${end ? '✓' : tmFmt(left)}</div>
         <div class="wk-tbar"><i style="width:${prog}%"></i></div>
-        <div class="wk-tinfo">${end ? `Разом ${tmFmt(tmTotal(P))}` : `${nx ? 'Далі: ' + LABEL[nx.k].toLowerCase() + ' ' + tmFmt(nx.d) + ' · ' : ''}до кінця ${tmFmt(remaining())}`}</div>
+        <div class="wk-tinfo">${end ? `Разом ${tmFmt(tmTotal(P))}` : `${nx ? 'Далі: ' + (emom && nx.k === 'work' ? 'інтервал ' + nx.round : LABEL[nx.k].toLowerCase()) + ' ' + tmFmt(nx.d) + ' · ' : ''}до кінця ${tmFmt(remaining())}`}</div>
         <div class="wk-tbtns">
           ${end ? `<button type="button" class="btn light" data-a="again">Ще раз</button>` : `<button type="button" class="btn light" data-a="back">Назад</button>
           <button type="button" class="btn light" data-a="toggle">${running ? 'Пауза' : 'Продовжити'}</button>
