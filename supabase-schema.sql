@@ -1020,3 +1020,20 @@ notify pgrst, 'reload schema';
 --     headers := jsonb_build_object('Content-Type','application/json','x-cron-key',(select v from public.private_keys where k='cron')),
 --     body := '{}'::jsonb, timeout_milliseconds := 30000); $c$);
 -- Налаштування: team_settings key 'reminders' (вмикає тренер у застосунку).
+
+
+-- Мої тренування (особисті записи тренера, бачить тільки тренер)
+create table if not exists public.coach_workouts (
+  id          bigint generated always as identity primary key,
+  date        date not null default current_date,
+  title       text not null,
+  body        text not null default '',
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+alter table public.coach_workouts enable row level security;
+drop policy if exists coach_all on public.coach_workouts;
+create policy coach_all on public.coach_workouts for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+revoke all on public.coach_workouts from anon;
+notify pgrst, 'reload schema';
