@@ -955,6 +955,97 @@
     #view.enter > :nth-child(4) { animation-delay: .09s; } #view.enter > :nth-child(n+5) { animation-delay: .12s; }
     @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
     @media (prefers-reduced-motion: reduce) { #view.enter > *, .tab.on::before, .ring-fg, .splash img, .splash-bar::after { animation: none !important; } .card, .tile, a.stat, .now, .btn, .chip { transition: none !important; } }
+    /* ===== Таймер ===== */
+    .tile[href="#timer"] .ic { --ic: #e11d48; }
+    .tm-wrap { --tm-w: #22c55e; --tm-r: #3b82f6; --tm-p: #f59e0b; --tm-s: #8b5cf6; }
+    .tm-modes { margin: 0 -2px 12px; padding: 2px; }
+    .tm-cfg { padding: 0; overflow: hidden; }
+    .tm-hero { padding: 18px 16px 14px; text-align: center; }
+    .tm-hero small { display: block; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+    .tm-hero b { display: block; font-size: 44px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.15; margin-top: 4px; }
+    .tm-hero span { display: block; font-size: 14px; color: var(--muted); margin-top: 2px; }
+    .tm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px 10px 16px; border-top: 1px solid var(--line); }
+    .tm-set .tm-row:first-child { border-top: 0; }
+    .tm-row > span { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; }
+    .tm-row > span i { width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--muted)); flex: none; }
+    .tm-step { display: flex; align-items: center; gap: 4px; flex: none; }
+    .tm-step button { width: 40px; height: 40px; border: 0; border-radius: 12px; background: var(--bg); color: var(--ink); font: inherit; font-size: 22px; font-weight: 600; line-height: 1; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; transition: transform .08s, background .15s; }
+    .tm-step button:active { transform: scale(.92); background: var(--line); }
+    .tm-step b { min-width: 64px; text-align: center; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .tm-quick { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 14px; justify-content: center; }
+    .tm-quick .chip { padding: 7px 12px; font-size: 13px; font-weight: 600; background: var(--bg); box-shadow: none; }
+    .tm-go { margin-top: 14px; padding: 16px; font-size: 17px; border-radius: 16px; }
+    .tm-go .ic-svg { fill: currentColor; }
+    .tm-saved { margin-top: 16px; }
+    .tm-saved h3 { margin: 0 4px 8px; font-size: 15px; }
+    .tm-pre { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tm-pre .chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .tm-pre .chip em { font-style: normal; color: var(--muted); font-size: 16px; line-height: 1; padding: 0 0 1px 6px; margin-left: 2px; border-left: 1px solid var(--line); }
+    .tm-pre .chip.add { background: transparent; box-shadow: none; border: 1.5px dashed var(--border); color: var(--muted); }
+    .tm-set { margin-top: 12px; padding: 4px 0; }
+    .tm-set .tm-row { padding-top: 8px; padding-bottom: 8px; }
+    .tm-tg { position: relative; width: 50px; height: 30px; border: 0; border-radius: 999px; background: var(--border); cursor: pointer; transition: background .2s; flex: none; }
+    .tm-tg::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / .25); transition: transform .2s; }
+    .tm-tg.on { background: var(--ok); }
+    .tm-tg.on::after { transform: translateX(20px); }
+    .tm-hint { font-size: 13px; color: var(--muted); margin: 10px 6px 0; line-height: 1.5; }
+
+    /* Повноекранний режим */
+    .tm-run { --pc: #f59e0b; position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; color: #f3f4f6;
+      background: #0b0d12; padding: calc(env(safe-area-inset-top) + 10px) 18px calc(env(safe-area-inset-bottom) + 18px); overflow: hidden;
+      animation: tmIn .25s ease-out; }
+    .tm-run::before { content: ''; position: absolute; inset: 0; pointer-events: none; transition: background .5s;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 24%, transparent) 0%, transparent 62%); }
+    .tm-run > * { position: relative; }
+    @keyframes tmIn { from { opacity: 0; transform: scale(1.02); } }
+    .tm-run[data-k="work"] { --pc: #22c55e; } .tm-run[data-k="rest"] { --pc: #3b82f6; }
+    .tm-run[data-k="setrest"] { --pc: #8b5cf6; } .tm-run[data-k="prep"] { --pc: #f59e0b; }
+    .tm-run[data-k="done"] { --pc: #d1a84b; } .tm-run[data-k="sw"] { --pc: #e5e7eb; }
+    .tm-run[data-k="work"].hot { --pc: #ef4444; }
+    .tm-top { display: flex; align-items: center; justify-content: space-between; height: 44px; }
+    .tm-top span { font-size: 15px; font-weight: 700; color: #9ca3af; letter-spacing: .02em; }
+    .tm-ib { width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgb(255 255 255 / .08); color: #e5e7eb; display: grid; place-items: center; cursor: pointer; }
+    .tm-ib .ic-svg { width: 22px; height: 22px; margin: 0; }
+    .tm-mid { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 14px; }
+    .tm-ph { font-size: clamp(22px, 6.5vw, 34px); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--pc); transition: color .3s; text-align: center; }
+    .tm-ring { position: relative; width: min(84vw, 52vh, 460px); aspect-ratio: 1; }
+    .tm-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .tm-ring circle { fill: none; stroke-width: 9; }
+    .tm-trk { stroke: rgb(255 255 255 / .08); }
+    .tm-prg { stroke: var(--pc); stroke-linecap: round; transition: stroke .3s; }
+    .tm-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .tm-tm { font-size: min(23vw, 14vh, 128px); font-weight: 800; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .tm-tm small { font-size: .42em; font-weight: 700; color: #9ca3af; letter-spacing: 0; }
+    .tm-run.pop .tm-tm { animation: tmPop .35s ease-out; }
+    @keyframes tmPop { 40% { transform: scale(1.07); } }
+    .tm-sub { margin-top: 10px; font-size: clamp(15px, 4.4vw, 20px); font-weight: 700; color: #d1d5db; font-variant-numeric: tabular-nums; }
+    .tm-sub i { font-style: normal; color: #6b7280; margin: 0 6px; }
+    .tm-next { min-height: 22px; font-size: 16px; color: #9ca3af; font-variant-numeric: tabular-nums; text-align: center; }
+    .tm-next b { color: #e5e7eb; font-weight: 700; }
+    .tm-dots { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; max-width: 320px; }
+    .tm-dots i { width: 8px; height: 8px; border-radius: 50%; background: rgb(255 255 255 / .14); transition: background .3s; }
+    .tm-dots i.d { background: var(--pc); opacity: .55; } .tm-dots i.c { background: var(--pc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc) 30%, transparent); }
+    .tm-laps { width: 100%; max-width: 380px; max-height: 26vh; overflow: auto; font-variant-numeric: tabular-nums; }
+    .tm-laps div { display: flex; justify-content: space-between; padding: 8px 4px; border-top: 1px solid rgb(255 255 255 / .08); font-size: 15px; color: #d1d5db; }
+    .tm-laps div span { color: #9ca3af; } .tm-laps div.best b { color: #4ade80; } .tm-laps div.worst b { color: #f87171; }
+    .tm-ctl { display: flex; align-items: center; justify-content: center; gap: 28px; padding-top: 8px; }
+    .tm-cb { width: 64px; height: 64px; border: 0; border-radius: 50%; background: rgb(255 255 255 / .1); color: #f3f4f6; display: grid; place-items: center; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; transition: transform .1s, opacity .2s; }
+    .tm-cb:active { transform: scale(.92); }
+    .tm-cb:disabled { opacity: .3; }
+    .tm-cb .ic-svg { width: 26px; height: 26px; margin: 0; }
+    .tm-cb.big { width: 88px; height: 88px; background: var(--pc); color: #0b0d12; transition: background .3s, transform .1s; }
+    .tm-cb.big .ic-svg { width: 36px; height: 36px; stroke-width: 2.2; }
+    .tm-cb.big[data-i="play"] .ic-svg, .tm-cb.big[data-i="pause"] .ic-svg { fill: currentColor; stroke-width: 1.5; }
+    .tm-left { text-align: center; font-size: 13px; color: #6b7280; margin-top: 14px; min-height: 18px; font-variant-numeric: tabular-nums; }
+    .tm-run.paused .tm-tm { animation: tmBlink 1.4s ease-in-out infinite; }
+    @keyframes tmBlink { 50% { opacity: .35; } }
+    @media (prefers-reduced-motion: reduce) { .tm-run, .tm-run.pop .tm-tm, .tm-run.paused .tm-tm { animation: none !important; } }
+    @media (orientation: landscape) and (max-height: 500px) {
+      .tm-mid { flex-direction: row; flex-wrap: wrap; gap: 6px 24px; }
+      .tm-ring { width: min(62vh, 44vw); }
+      .tm-ph { width: 100%; font-size: 20px; }
+      .tm-ctl { position: absolute; right: 18px; bottom: 18px; flex-direction: column; gap: 12px; }
+    }
   </style>
 </head>
 
@@ -1026,7 +1117,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.61';
+  const APP_VERSION = 'v3.66';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -1207,6 +1298,14 @@
     mapflag: '<path d="M4 22V4a1 1 0 0 1 1-1h12l-2 4 2 4H5"/>',
     chatb: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/>',
     note: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
+    timer: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 10v3.5l2.2 1.4M9.5 2.5h5M12 2.5V6M18.5 6.5 20 5"/>',
+    play: '<path d="M7.5 4.8v14.4a.8.8 0 0 0 1.2.7l11.3-7.2a.8.8 0 0 0 0-1.4L8.7 4.1a.8.8 0 0 0-1.2.7z"/>',
+    pause: '<rect x="6" y="4.5" width="4" height="15" rx="1.2"/><rect x="14" y="4.5" width="4" height="15" rx="1.2"/>',
+    skip: '<path d="M5 5.5v13l9.5-6.5z"/><path d="M19 5v14"/>',
+    restart: '<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/>',
+    vol: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9.5 9.5 0 0 1 0 13"/>',
+    mute: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
+    close: '<path d="M18 6 6 18M6 6l12 12"/>',
     hi: '<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11V4a1.5 1.5 0 0 1 3 0v7M14 10.5V6a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-7 7h-.5a6 6 0 0 1-4.6-2.2L3 15.5a1.5 1.5 0 0 1 2.3-1.9L8 16"/>',
   };
   function icon(name) { return `<svg class="ic-svg" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; }
@@ -1214,7 +1313,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи', sleep: 'Сон і готовність'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи', sleep: 'Сон і готовність', timer: 'Таймер'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -2795,6 +2894,7 @@ notify pgrst, 'reload schema';`;
         ${tile('members', 'members', 'Учасники', 'Доступ для батьків', '', reqN || 0)}
         ${tile('stats', 'stats', 'Статистика', 'Таблиці відміток і оплат')}
         ${tile('applications', 'form', 'Заяви', 'Анкети вступу з підписом', '', appN || 0)}
+        ${tile('timer', 'timer', 'Таймер', 'Табата, EMOM, секундомір')}
       </div>`;
 
     // Перед переходом готуємо фільтри: сьогоднішня дата, поточний місяць, потрібна група
@@ -2947,6 +3047,7 @@ notify pgrst, 'reload schema';`;
         ${canSee('plans') && !isAthleteM() ? tile('plans', 'plans', 'Завдання', 'На тренування') : ''}
         ${canSee('chat') && !isAthleteM() ? tile('chat', 'chat', 'Чат', 'Чат команди') : ''}
         ${canSee('rating') ? tile('rating', 'events', 'Рейтинг', 'Місця та заслуги') : ''}
+        ${isAthleteM() ? tile('timer', 'timer', 'Таймер', 'Табата, EMOM, секундомір') : ''}
         ${canSee('news') ? tile('news', 'news', 'Оголошення', 'Усі новини') : ''}
         ${kids.filter(canNutri).slice(0, 1).map(a => tile('nutrition/' + encodeURIComponent(a.id), 'drop', 'Харчування і сон', 'БЖВ, рецепти, відновлення')).join('')}
       </div>`;
@@ -7153,18 +7254,352 @@ end $$;\n` });
   })();
 
   // =====================================================================
+  //  ТАЙМЕР: інтервали, табата, EMOM, секундомір, зворотний відлік
+  //  Бачать тренер і спортсмени. Налаштування зберігаються на телефоні.
+  // =====================================================================
+  const TM_KEY = 'ft-timer-v1';
+  const TM_MODES = [['interval', 'Інтервали'], ['tabata', 'Табата'], ['emom', 'EMOM'], ['stopwatch', 'Секундомір'], ['countdown', 'Відлік']];
+  const TM_DEF = {
+    mode: 'interval', sound: true, vibro: true, prep: 10,
+    interval: { work: 40, rest: 20, rounds: 8, sets: 1, setRest: 60 },
+    tabata: { work: 20, rest: 10, rounds: 8, sets: 1, setRest: 60 },
+    emom: { every: 60, rounds: 10 },
+    countdown: { time: 180 },
+    presets: [],
+  };
+  // [поле, підпис, тип (t — час, n — кількість), мінімум, максимум, колір крапки]
+  const TM_FIELDS = {
+    interval: [['work', 'Робота', 't', 5, 3600, 'w'], ['rest', 'Відпочинок', 't', 0, 3600, 'r'], ['rounds', 'Раунди', 'n', 1, 99], ['sets', 'Сети', 'n', 1, 20], ['setRest', 'Відпочинок між сетами', 't', 0, 1800, 's']],
+    tabata: [['work', 'Робота', 't', 5, 600, 'w'], ['rest', 'Відпочинок', 't', 0, 600, 'r'], ['rounds', 'Раунди', 'n', 1, 99], ['sets', 'Кількість табат', 'n', 1, 20], ['setRest', 'Пауза між табатами', 't', 0, 1800, 's']],
+    emom: [['every', 'Кожні', 't', 10, 600, 'w'], ['rounds', 'Раундів', 'n', 1, 99]],
+    countdown: [['time', 'Час', 't', 5, 5999, 'w']],
+  };
+  const TM_PH = { prep: 'Приготуйся', work: 'Робота', rest: 'Відпочинок', setrest: 'Відпочинок між сетами', done: 'Готово' };
+  let tmS = (() => {
+    const d = JSON.parse(JSON.stringify(TM_DEF));
+    try { const s = JSON.parse(localStorage.getItem(TM_KEY) || 'null');
+      if (s) for (const k in d) if (k in s) d[k] = (d[k] && typeof d[k] === 'object' && !Array.isArray(d[k])) ? { ...d[k], ...s[k] } : s[k];
+    } catch (e) {}
+    if (!TM_MODES.some(([k]) => k === d.mode)) d.mode = 'interval';
+    return d;
+  })();
+  function tmSave() { try { localStorage.setItem(TM_KEY, JSON.stringify(tmS)); } catch (e) {} }
+  // 0:45, 2:00, 1:05:30
+  function tmFmt(sec) {
+    sec = Math.max(0, Math.round(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0');
+  }
+  function tmStepOf(v, up) { const x = up ? v : v - 1; return x < 60 ? 5 : x < 600 ? 15 : 60; }
+  function tmPhases(mode, c, prep) {
+    const P = [];
+    if (prep) P.push({ k: 'prep', d: prep });
+    if (mode === 'interval' || mode === 'tabata') {
+      for (let s = 1; s <= c.sets; s++) for (let r = 1; r <= c.rounds; r++) {
+        P.push({ k: 'work', d: c.work, r, s });
+        if (r < c.rounds) { if (c.rest) P.push({ k: 'rest', d: c.rest, r, s }); }
+        else if (s < c.sets) { if (c.setRest) P.push({ k: 'setrest', d: c.setRest, r, s }); else if (c.rest) P.push({ k: 'rest', d: c.rest, r, s }); }
+      }
+    } else if (mode === 'emom') { for (let r = 1; r <= c.rounds; r++) P.push({ k: 'work', d: c.every, r }); }
+    else if (mode === 'countdown') P.push({ k: 'work', d: c.time });
+    return P;
+  }
+  function tmTotal(mode) { return tmPhases(mode, tmS[mode], 0).reduce((a, p) => a + p.d, 0); }
+  function tmSummary(mode) {
+    const c = tmS[mode];
+    if (mode === 'emom') return `${c.rounds} × кожні ${tmFmt(c.every)}`;
+    if (mode === 'countdown') return 'Зворотний відлік';
+    return `${c.rounds} × (${tmFmt(c.work)} + ${tmFmt(c.rest)})${c.sets > 1 ? ` × ${c.sets} ${mode === 'tabata' ? 'табати' : 'сети'}` : ''}`;
+  }
+  function tmPresetName(mode, c) {
+    if (mode === 'emom') return `EMOM ${tmFmt(c.every)} × ${c.rounds}`;
+    if (mode === 'countdown') return tmFmt(c.time);
+    return `${tmFmt(c.work)}/${tmFmt(c.rest)} × ${c.rounds}${c.sets > 1 ? ' × ' + c.sets : ''}`;
+  }
+
+  // ----- Звук: м'які «дзвіночки» через Web Audio -----
+  let tmAC = null;
+  function tmAudio() {
+    try {
+      tmAC = tmAC || new (window.AudioContext || window.webkitAudioContext)();
+      if (tmAC.state === 'suspended') tmAC.resume();
+      // Тихий звук відкриває аудіо на iPhone
+      const o = tmAC.createOscillator(), g = tmAC.createGain(); g.gain.value = 0.0001;
+      o.connect(g).connect(tmAC.destination); o.start(); o.stop(tmAC.currentTime + 0.02);
+    } catch (e) {}
+  }
+  function tmTone(f, dur, at, vol) {
+    const ac = tmAC; if (!ac) return;
+    const t = ac.currentTime + (at || 0), o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function tmBell(f, dur, at, vol) { tmTone(f, dur, at, vol); tmTone(f * 2, dur * .6, at, vol * .22); tmTone(f * 3, dur * .3, at, vol * .08); }
+  const TM_SFX = {
+    tick: () => tmBell(880, .18, 0, .35),
+    go: () => { tmBell(1047, .5, 0, .5); tmBell(1568, .8, .1, .42); },
+    rest: () => { tmBell(784, .5, 0, .45); tmBell(523, .8, .14, .4); },
+    finish: () => [784, 988, 1175, 1568].forEach((f, i) => tmBell(f, i === 3 ? 1.3 : .4, i * .15, .45)),
+  };
+  const TM_VIB = { tick: 40, go: [250], rest: [120, 80, 120], finish: [300, 120, 300, 120, 600] };
+  function tmFx(kind) {
+    if (tmS.sound) { tmAudio(); TM_SFX[kind](); }
+    if (tmS.vibro && navigator.vibrate) try { navigator.vibrate(TM_VIB[kind]); } catch (e) {}
+  }
+  // Екран не гасне, поки йде таймер
+  let tmWL = null;
+  async function tmWake(on) {
+    try {
+      if (on && !tmWL && 'wakeLock' in navigator) { tmWL = await navigator.wakeLock.request('screen'); tmWL.addEventListener('release', () => { tmWL = null; }); }
+      if (!on && tmWL) { const w = tmWL; tmWL = null; await w.release(); }
+    } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && tmRun && tmRun.running) tmWake(true); });
+
+  // ----- Екран налаштувань -----
+  function timerView() {
+    setActions('');
+    if (!(isCoach() || isAthleteM())) { $('#view').innerHTML = '<div class="empty">Таймер доступний спортсменам і тренеру</div>'; return; }
+    tmDraw();
+  }
+  function tmDraw() {
+    const m = tmS.mode, c = tmS[m], dot = { w: 'var(--tm-w)', r: 'var(--tm-r)', s: 'var(--tm-s)' };
+    const rows = (TM_FIELDS[m] || []).map(([f, l, t, , , col]) => `<div class="tm-row" data-row="${f}"${f === 'setRest' && c.sets < 2 ? ' hidden' : ''}>
+        <span>${col ? `<i style="--c:${dot[col]}"></i>` : ''}${l}</span>
+        <div class="tm-step"><button type="button" data-st="${f}" data-d="-1" aria-label="Менше">−</button><b data-v="${f}">${t === 't' ? tmFmt(c[f]) : c[f]}</b><button type="button" data-st="${f}" data-d="1" aria-label="Більше">+</button></div></div>`).join('');
+    const quick = m === 'countdown' ? `<div class="tm-quick">${[1, 2, 3, 5, 10, 15, 20].map(n => `<button type="button" class="chip" data-quick="${n * 60}">${n} хв</button>`).join('')}</div>`
+      : m === 'tabata' ? `<div class="tm-quick"><button type="button" class="chip" data-tabata="1">Класика 20/10 × 8</button></div>` : '';
+    const cfg = m === 'stopwatch'
+      ? `<div class="card tm-cfg"><div class="tm-hero"><small>Секундомір</small><b>0:00.0</b><span>Старт, пауза і кола — час кожного кола окремо</span></div></div>`
+      : `<div class="card tm-cfg"><div class="tm-hero"><small>${m === 'countdown' ? 'Час' : 'Загалом'}</small><b id="tmTot">${tmFmt(tmTotal(m))}</b><span id="tmSum">${m === 'countdown' ? 'Зворотний відлік' : esc(tmSummary(m))}</span></div>${quick}${rows}</div>`;
+    const pre = tmS.presets.filter(p => p.mode === m);
+    const saved = m === 'stopwatch' ? '' : `<div class="tm-saved"><h3>Мої налаштування</h3><div class="tm-pre">
+        ${pre.map(p => `<button type="button" class="chip" data-pre="${p.id}">${esc(tmPresetName(m, p.cfg))}<em data-del="${p.id}" aria-label="Видалити">×</em></button>`).join('')}
+        <button type="button" class="chip add" data-save>+ Зберегти поточне</button></div></div>`;
+    $('#view').innerHTML = `<div class="tm-wrap">
+      <div class="chips seg tm-modes">${TM_MODES.map(([k, l]) => `<button type="button" class="chip ${k === m ? 'on' : ''}" data-mode="${k}">${l}</button>`).join('')}</div>
+      ${cfg}
+      <button type="button" class="btn wide tm-go" id="tmGo">${icon('play')}Старт</button>
+      ${saved}
+      <div class="card tm-set">
+        ${m === 'stopwatch' ? '' : `<div class="tm-row"><span><i style="--c:var(--tm-p)"></i>Підготовка</span><div class="tm-step"><button type="button" data-st="prep" data-d="-1" aria-label="Менше">−</button><b data-v="prep">${tmS.prep ? tmS.prep + ' с' : 'без'}</b><button type="button" data-st="prep" data-d="1" aria-label="Більше">+</button></div></div>`}
+        <div class="tm-row"><span>Звуковий сигнал</span><button type="button" class="tm-tg ${tmS.sound ? 'on' : ''}" data-tg="sound" aria-label="Звук"></button></div>
+        ${'vibrate' in navigator ? `<div class="tm-row"><span>Вібрація</span><button type="button" class="tm-tg ${tmS.vibro ? 'on' : ''}" data-tg="vibro" aria-label="Вібрація"></button></div>` : ''}
+      </div>
+      <p class="tm-hint">Екран не гасне, поки йде таймер. На iPhone вимкніть беззвучний режим, щоб чути сигнал.</p>
+    </div>`;
+    const w = $('#view .tm-wrap');
+    // Кнопки −/+: натиснути й тримати — значення змінюється швидко
+    let rep = null;
+    const stop = () => { clearTimeout(rep); rep = null; };
+    w.addEventListener('pointerdown', e => {
+      const b = e.target.closest('[data-st]'); if (!b) return;
+      e.preventDefault(); stop();
+      const go = (delay) => { tmBump(b.dataset.st, Number(b.dataset.d)); rep = setTimeout(() => go(Math.max(45, delay * .8)), delay); };
+      go(420);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => w.addEventListener(ev, stop));
+    w.addEventListener('contextmenu', e => { if (e.target.closest('[data-st]')) e.preventDefault(); });
+    w.addEventListener('click', e => {
+      const t = e.target;
+      const md = t.closest('[data-mode]'); if (md) { tmS.mode = md.dataset.mode; tmSave(); tmDraw(); return; }
+      const tg = t.closest('[data-tg]'); if (tg) { tmS[tg.dataset.tg] = !tmS[tg.dataset.tg]; tg.classList.toggle('on', tmS[tg.dataset.tg]); tmSave(); if (tg.dataset.tg === 'sound' && tmS.sound) { tmAudio(); TM_SFX.go(); } return; }
+      const qk = t.closest('[data-quick]'); if (qk) { tmS.countdown.time = Number(qk.dataset.quick); tmSave(); tmRefresh(); return; }
+      if (t.closest('[data-tabata]')) { Object.assign(tmS.tabata, { work: 20, rest: 10, rounds: 8, sets: 1 }); tmSave(); tmDraw(); return; }
+      const del = t.closest('[data-del]'); if (del) { tmS.presets = tmS.presets.filter(p => p.id !== del.dataset.del); tmSave(); tmDraw(); return; }
+      const pr = t.closest('[data-pre]'); if (pr) { const p = tmS.presets.find(x => x.id === pr.dataset.pre); if (p) { tmS[m] = { ...tmS[m], ...p.cfg }; tmSave(); tmDraw(); toast('Налаштування застосовано'); } return; }
+      if (t.closest('[data-save]')) {
+        const cfg = { ...tmS[m] }, key = JSON.stringify(cfg);
+        if (tmS.presets.some(p => p.mode === m && JSON.stringify(p.cfg) === key)) { toast('Таке налаштування вже збережене'); return; }
+        tmS.presets.push({ id: Date.now().toString(36), mode: m, cfg }); tmSave(); tmDraw(); toast('Збережено'); return;
+      }
+      if (t.closest('#tmGo')) { tmAudio(); tmOpen(m); }
+    });
+  }
+  function tmBump(f, dir) {
+    const m = tmS.mode;
+    if (f === 'prep') { tmS.prep = Math.min(30, Math.max(0, tmS.prep + dir * 5)); }
+    else {
+      const def = TM_FIELDS[m].find(x => x[0] === f); if (!def) return;
+      const [, , t, lo, hi] = def, c = tmS[m];
+      const st = t === 't' ? tmStepOf(c[f], dir > 0) : 1;
+      let v = c[f] + dir * st;
+      if (t === 't') v = Math.round(v / st) * st;
+      c[f] = Math.min(hi, Math.max(lo, v));
+    }
+    tmSave(); tmRefresh();
+  }
+  function tmRefresh() {
+    const m = tmS.mode, c = tmS[m], w = $('#view .tm-wrap'); if (!w) return;
+    (TM_FIELDS[m] || []).forEach(([f, , t]) => { const el = w.querySelector(`[data-v="${f}"]`); if (el) el.textContent = t === 't' ? tmFmt(c[f]) : c[f]; });
+    const pv = w.querySelector('[data-v="prep"]'); if (pv) pv.textContent = tmS.prep ? tmS.prep + ' с' : 'без';
+    const sr = w.querySelector('[data-row="setRest"]'); if (sr) sr.hidden = c.sets < 2;
+    const tot = $('#tmTot'); if (tot) tot.textContent = tmFmt(tmTotal(m));
+    const sum = $('#tmSum'); if (sum && m !== 'countdown') sum.textContent = tmSummary(m);
+  }
+
+  // ----- Повноекранний таймер -----
+  let tmRun = null;
+  const TM_C = 2 * Math.PI * 92;
+  function tmOpen(mode) {
+    tmClose(true);
+    const sw = mode === 'stopwatch';
+    const ph = sw ? [] : tmPhases(mode, tmS[mode], tmS.prep);
+    let acc = 0; ph.forEach(p => { p.a = acc; acc += p.d * 1000; p.b = acc; });
+    const R = tmRun = { mode, sw, ph, total: acc, base: 0, t0: 0, running: false, laps: [], last: { i: -1, s: null }, done: false };
+    const el = document.createElement('div');
+    el.className = 'tm-run';
+    el.innerHTML = `<div class="tm-top"><button type="button" class="tm-ib" data-a="close" aria-label="Закрити">${icon('close')}</button>
+        <span>${TM_MODES.find(([k]) => k === mode)[1]}</span>
+        <button type="button" class="tm-ib" data-a="snd" aria-label="Звук">${icon(tmS.sound ? 'vol' : 'mute')}</button></div>
+      <div class="tm-mid">
+        <div class="tm-ph"></div>
+        <div class="tm-ring"><svg viewBox="0 0 200 200"><circle class="tm-trk" cx="100" cy="100" r="92"/><circle class="tm-prg" cx="100" cy="100" r="92" stroke-dasharray="${TM_C}" stroke-dashoffset="0"/></svg>
+          <div class="tm-in"><div class="tm-tm"></div><div class="tm-sub"></div></div></div>
+        ${sw ? '<div class="tm-laps"></div>' : `<div class="tm-next"></div>${mode !== 'countdown' && ph.filter(p => p.k === 'work').length <= 40 ? `<div class="tm-dots">${ph.filter(p => p.k === 'work').map(() => '<i></i>').join('')}</div>` : ''}`}
+      </div>
+      <div class="tm-ctl">
+        <button type="button" class="tm-cb" data-a="${sw ? 'reset' : 'back'}" aria-label="${sw ? 'Скинути' : 'Назад'}">${icon('restart')}</button>
+        <button type="button" class="tm-cb big" data-a="play" aria-label="Старт або пауза">${icon('play')}</button>
+        <button type="button" class="tm-cb" data-a="${sw ? 'lap' : 'skip'}" aria-label="${sw ? 'Коло' : 'Далі'}">${icon(sw ? 'mapflag' : 'skip')}</button>
+      </div>
+      <div class="tm-left"></div>`;
+    document.body.appendChild(el);
+    R.el = el;
+    el.addEventListener('click', e => {
+      const b = e.target.closest('[data-a]'); if (!b) return;
+      const a = b.dataset.a;
+      if (a === 'close') { if (R.running && !R.done && !R.sw && tmElapsed() > 3000 && !confirmClose()) return; tmClose(); return; }
+      if (a === 'snd') { tmS.sound = !tmS.sound; tmSave(); b.innerHTML = icon(tmS.sound ? 'vol' : 'mute'); if (tmS.sound) tmAudio(); return; }
+      if (a === 'play') { tmAudio(); if (R.done) { R.done = false; R.base = 0; R.running = false; R.last = { i: -1, s: null }; } tmToggle(); return; }
+      if (a === 'reset') { R.base = 0; R.t0 = performance.now(); R.laps = []; if (!R.running) R.base = 0; tmPaint(true); return; }
+      if (a === 'lap') { if (!R.running) return; const t = tmElapsed(), prev = R.laps.length ? R.laps[R.laps.length - 1].t : 0; R.laps.push({ t, d: t - prev }); tmFx('tick'); tmPaint(true); return; }
+      if (a === 'skip' || a === 'back') tmJump(a === 'skip' ? 1 : -1);
+    });
+    // Кнопка «Назад» телефона закриває таймер, а не сторінку
+    history.pushState({ tm: 1 }, '');
+    R.pop = () => tmClose(true);
+    addEventListener('popstate', R.pop);
+    R.iv = setInterval(() => tmTick(), 200);
+    const loop = () => { if (tmRun !== R) return; tmTick(); R.raf = requestAnimationFrame(loop); };
+    R.raf = requestAnimationFrame(loop);
+    tmPaint(true);
+    tmToggle();
+  }
+  function confirmClose() { return window.confirm('Зупинити таймер?'); }
+  function tmClose(fromPop) {
+    const R = tmRun; if (!R) return;
+    tmRun = null;
+    cancelAnimationFrame(R.raf); clearInterval(R.iv);
+    removeEventListener('popstate', R.pop);
+    R.el.remove();
+    tmWake(false);
+    if (!fromPop && history.state && history.state.tm) history.back();
+  }
+  function tmElapsed() { const R = tmRun; return R ? R.base + (R.running ? performance.now() - R.t0 : 0) : 0; }
+  function tmToggle() {
+    const R = tmRun; if (!R) return;
+    if (R.running) { R.base = tmElapsed(); R.running = false; tmWake(false); }
+    else { R.t0 = performance.now(); R.running = true; tmWake(true); }
+    tmPaint(true);
+  }
+  function tmJump(dir) {
+    const R = tmRun; if (!R || R.sw || R.done) return;
+    const t = tmElapsed(), i = R.ph.findIndex(p => t < p.b);
+    if (i < 0) return;
+    let to;
+    if (dir > 0) to = R.ph[i].b;
+    else to = (t - R.ph[i].a > 2000 || i === 0) ? R.ph[i].a : R.ph[i - 1].a;
+    R.base = to; R.t0 = performance.now();
+    R.last = { i: dir > 0 ? i : -1, s: null };
+    tmTick();
+  }
+  function tmTick() { tmPaint(false); }
+  function tmPaint(force) {
+    const R = tmRun; if (!R) return;
+    const el = R.el, t = tmElapsed();
+    el.classList.toggle('paused', !R.running && (R.sw ? t > 0 : !R.done && t > 0));
+    const pi = R.done ? 'restart' : R.running ? 'pause' : 'play';
+    if (R.icon !== pi) { R.icon = pi; const pb = el.querySelector('[data-a="play"]'); pb.dataset.i = pi; pb.innerHTML = icon(pi); }
+    const ring = el.querySelector('.tm-prg'), tm = el.querySelector('.tm-tm'), sub = el.querySelector('.tm-sub'), phEl = el.querySelector('.tm-ph');
+    if (R.sw) {
+      el.dataset.k = 'sw';
+      const cs = Math.floor(t / 100) % 10;
+      tm.innerHTML = `${tmFmt(Math.floor(t / 1000))}<small>.${cs}</small>`;
+      phEl.textContent = R.running ? 'Секундомір' : t ? 'Пауза' : 'Секундомір';
+      sub.textContent = R.laps.length ? `Коло ${R.laps.length + 1}` : '';
+      ring.style.strokeDashoffset = TM_C * (1 - (t % 60000) / 60000);
+      el.querySelector('[data-a="reset"]').disabled = R.running || !t;
+      el.querySelector('[data-a="lap"]').disabled = !R.running;
+      if (force) {
+        const ds = R.laps.map(l => l.d), best = Math.min(...ds), worst = Math.max(...ds);
+        el.querySelector('.tm-laps').innerHTML = R.laps.map((l, i) => ({ l, i })).reverse().map(({ l, i }) =>
+          `<div class="${R.laps.length > 2 && l.d === best ? 'best' : R.laps.length > 2 && l.d === worst ? 'worst' : ''}"><span>Коло ${i + 1}</span><b>${tmFmt(Math.floor(l.d / 1000))}.${Math.floor(l.d / 100) % 10}</b><span>${tmFmt(Math.floor(l.t / 1000))}</span></div>`).join('');
+      }
+      return;
+    }
+    if (t >= R.total) {
+      if (!R.done) {
+        R.done = true; R.running = false; R.base = R.total; tmWake(false);
+        if (R.last.i !== -2) tmFx('finish');
+        R.last.i = -2;
+        el.dataset.k = 'done'; el.classList.remove('hot', 'paused');
+        phEl.textContent = TM_PH.done;
+        tm.innerHTML = tmFmt(tmTotal(R.mode));
+        sub.textContent = R.mode === 'countdown' ? 'Час вийшов' : 'Чудова робота!';
+        ring.style.strokeDashoffset = 0;
+        el.querySelector('.tm-next').innerHTML = '';
+        el.querySelector('.tm-left').textContent = '';
+        el.querySelectorAll('.tm-dots i').forEach(d => { d.className = 'd'; });
+        R.icon = 'restart'; const pb = el.querySelector('[data-a="play"]'); pb.dataset.i = 'restart'; pb.innerHTML = icon('restart');
+        el.querySelector('[data-a="skip"]').disabled = true;
+      }
+      return;
+    }
+    R.done = false;
+    el.querySelector('[data-a="skip"]').disabled = false;
+    const i = R.ph.findIndex(p => t < p.b), p = R.ph[i];
+    const left = (p.b - t) / 1000, sec = Math.ceil(left - 1e-6);
+    // Сигнали: новий етап і 3-2-1 перед його кінцем
+    if (R.running) {
+      if (i !== R.last.i) { if (R.last.i !== -1 || i > 0 || p.k !== 'prep') { if (p.k === 'work') tmFx('go'); else if (p.k !== 'prep') tmFx('rest'); }
+        el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+      else if (sec !== R.last.s && sec <= 3 && sec >= 1 && p.d >= 5) tmFx('tick');
+    }
+    if (i !== R.last.i || sec !== R.last.s || force) {
+      el.dataset.k = p.k;
+      el.classList.toggle('hot', R.mode === 'countdown' && sec <= 10 && p.k === 'work');
+      phEl.textContent = R.mode === 'countdown' && p.k === 'work' ? 'Відлік' : R.mode === 'emom' && p.k === 'work' ? 'Хвилина ' + p.r : TM_PH[p.k];
+      tm.textContent = tmFmt(sec);
+      const works = R.ph.filter(x => x.k === 'work'), rounds = (tmS[R.mode] || {}).rounds;
+      const cur = p.r ? p : R.ph.find(x => x.k === 'work');
+      if (R.mode === 'countdown') sub.textContent = '';
+      else if (cur) sub.innerHTML = `Раунд ${cur.r}/${rounds}${cur.s && tmS[R.mode].sets > 1 ? `<i>·</i>${R.mode === 'tabata' ? 'Табата' : 'Сет'} ${cur.s}/${tmS[R.mode].sets}` : ''}`;
+      const nx = R.ph[i + 1];
+      el.querySelector('.tm-next').innerHTML = nx ? `Далі: <b>${nx.k === 'work' && R.mode === 'emom' ? 'Хвилина ' + nx.r : TM_PH[nx.k]}</b> ${tmFmt(nx.d)}` : R.mode === 'countdown' ? '' : 'Останній етап';
+      el.querySelector('.tm-left').textContent = R.mode === 'countdown' ? '' : 'Залишилось ' + tmFmt(Math.ceil((R.total - t) / 1000));
+      const wi = works.indexOf(p.k === 'work' ? p : null);
+      const doneW = works.filter(x => x.b <= t).length;
+      el.querySelectorAll('.tm-dots i').forEach((d, k) => { d.className = k === wi ? 'c' : k < doneW ? 'd' : ''; });
+    }
+    R.last = { i, s: sec };
+    ring.style.strokeDashoffset = TM_C * (1 - left / p.d);
+  }
+
+  // =====================================================================
   //  НАВІГАЦІЯ ТА ВХІД
   // =====================================================================
   const VIEWS = {
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
-    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView, sleep: sleepView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView, sleep: sleepView, timer: timerView,
   };
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
-  function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition', 'sleep'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
-  const PARENT_ROUTE = { readiness: 'home', sleep: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition', 'sleep', 'timer'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
+  const PARENT_ROUTE = { timer: 'home', readiness: 'home', sleep: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
