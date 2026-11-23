@@ -955,6 +955,31 @@
     #view.enter > :nth-child(4) { animation-delay: .09s; } #view.enter > :nth-child(n+5) { animation-delay: .12s; }
     @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
     @media (prefers-reduced-motion: reduce) { #view.enter > *, .tab.on::before, .ring-fg, .splash img, .splash-bar::after { animation: none !important; } .card, .tile, a.stat, .now, .btn, .chip { transition: none !important; } }
+    /* Пам'ятка до виїзду */
+    .tr-hero small { display: block; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-ink); }
+    .tr-hero h2 { margin: 4px 0 6px; }
+    .tr-you { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 16px; padding: 12px 14px; margin-bottom: 12px; box-shadow: inset 0 0 0 2px var(--gold); }
+    .tr-you > span { flex: 1; font-weight: 700; }
+    .tr-you b { text-align: center; font-size: 24px; font-weight: 800; line-height: 1.1; min-width: 70px; }
+    .tr-you b small { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
+    .tr-list { padding: 4px 16px; }
+    .tr-b { display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+    .tr-b:first-child { border-top: 0; }
+    .tr-ic { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--gold-soft); color: var(--ink); }
+    .tr-ic .ic-svg { margin: 0; width: 19px; height: 19px; stroke-width: 2; }
+    .tr-b small { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+    .tr-b b { display: block; font-size: 15px; line-height: 1.4; }
+    .tr-b span { display: block; font-size: 14px; color: var(--muted); margin-top: 2px; }
+    .tr-plan { padding: 4px 16px; }
+    .tr-plan div { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 15px; }
+    .tr-plan div:first-child { border-top: 0; }
+    .tr-plan b { flex: none; min-width: 96px; font-variant-numeric: tabular-nums; }
+    .tr-bag { padding: 4px 16px; }
+    .tr-bag label { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 15px; cursor: pointer; color: var(--ink); font-weight: 500; }
+    .tr-bag label:first-child { border-top: 0; }
+    .tr-bag input { width: 22px; height: 22px; flex: none; accent-color: var(--gold); margin: 0; }
+    .tr-bag input:checked + span { color: var(--muted); text-decoration: line-through; }
+    .tr-tag { display: inline-block; font-size: 12px; font-weight: 600; color: var(--gold-ink); background: var(--gold-soft); padding: 1px 7px; border-radius: 6px; margin-left: 4px; }
     /* ===== Таймер ===== */
     .tile[href="#timer"] .ic { --ic: #e11d48; }
     .tm-wrap { --tm-w: #22c55e; --tm-r: #3b82f6; --tm-p: #f59e0b; --tm-s: #8b5cf6; }
@@ -1113,7 +1138,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.71';
+  const APP_VERSION = 'v3.72';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -1309,7 +1334,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи', sleep: 'Сон і готовність', timer: 'Таймер'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи', sleep: 'Сон і готовність', timer: 'Таймер', trip: 'Памʼятка до виїзду'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -2978,9 +3003,9 @@ notify pgrst, 'reload schema';`;
       const whenEv = dd === 0 ? 'сьогодні' : dd === 1 ? 'завтра' : `через ${dd} дн.`;
       const who = kids.length > 1 || !isAthleteM()
         ? going(myEv).map(id => kids.find(a => String(a.id) === id)?.full_name).filter(Boolean).map(firstNameOf).join(', ') : '';
-      myEvBlock = `<a class="now${dd <= 7 ? '' : ' soon'}" href="#events"><i class="dot"></i>
+      myEvBlock = `<a class="now${dd <= 7 ? '' : ' soon'}" href="${tripOn(myEv) ? '#trip/' + encodeURIComponent(myEv.id) : '#events'}"><i class="dot"></i>
         <div><b>${icon('belt')}${isAthleteM() && kids.length === 1 ? 'Твоя наступна подія' : 'Наступна подія'}: ${whenEv}</b>
-          <span>${esc(myEv.title)} · ${fmtDate(myEv.date, { weekday: 'short', day: 'numeric', month: 'long' })}${myEv.place ? ' · ' + esc(myEv.place) : ''}${who ? '<br>Бере участь: ' + esc(who) : ''}</span></div><i class="go">›</i></a>`;
+          <span>${esc(myEv.title)} · ${fmtDate(myEv.date, { weekday: 'short', day: 'numeric', month: 'long' })}${myEv.place ? ' · ' + esc(myEv.place) : ''}${who ? '<br>Бере участь: ' + esc(who) : ''}${tripOn(myEv) ? '<br>' + icon('note') + 'Памʼятка до виїзду' : ''}</span></div><i class="go">›</i></a>`;
     }
     const evHtml = ev.length && canSee('events') ? `<h3>Найближчі події</h3><div class="list">${ev.slice(0, 3).map(e => {
         const g = going(e).map(id => kids.find(a => String(a.id) === id)?.full_name).filter(Boolean).map(firstNameOf);
@@ -5806,7 +5831,8 @@ notify pgrst, 'reload schema';`;
         ${isCoach() && n ? `<span>${icon('users')}${n} ${n % 10 === 1 && n % 100 !== 11 ? 'учасник' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'учасники' : 'учасників'}</span>` : ''}
         ${!isCoach() && e.description ? `<span class="tasks" style="margin-top:2px">${linkify(e.description)}</span>` : ''}
         ${eventStreams(e).length ? (isCoach() ? `<span>${icon('tv')}${eventStreams(e).map(streamName).join(', ')}</span>` : `<span>${streamLinks(e)}</span>`) : ''}
-        ${!isCoach() && kidsIn(e).length ? `<span style="color:var(--ok)">${icon('belt')}бере участь: ${esc(kidsIn(e).join(', '))}</span>` : ''}</div>${badge}`;
+        ${!isCoach() && kidsIn(e).length ? `<span style="color:var(--ok)">${icon('belt')}бере участь: ${esc(kidsIn(e).join(', '))}</span>` : ''}
+        ${!isCoach() && kidsIn(e).length && tripOn(e) && e.date >= t ? `<a class="btn sm" href="#trip/${encodeURIComponent(e.id)}" style="margin-top:8px;align-self:flex-start">${icon('note')}Памʼятка до виїзду</a>` : ''}</div>${badge}`;
       return isCoach()
         ? `<a class="row" href="#event/${encodeURIComponent(e.id)}">${body}</a>`
         : `<div class="row" style="cursor:default">${body}</div>`;
@@ -5857,11 +5883,17 @@ notify pgrst, 'reload schema';`;
         <div class="sec"><h3>Учасники · ${people.length}</h3><button type="button" class="btn sm" id="pickBtn">${people.length ? 'Змінити список' : '+ Вибрати'}</button></div>
         <div class="list">${people.map(a => {
             const rs = resultsOf(ev, a.id);
+            const tr = tripOf(ev), rm = (tr.rooms || {})[String(a.id)], st = (tr.seats || {})[String(a.id)];
             return `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">
-            <div><strong>${beltTag(a.belt)}${esc(a.full_name)}${rs.length ? ' ' + rs.map(x => placeIcon(x.p)).join('') : ''}</strong><span>${esc(rs.length ? rs.map(placeText).join('; ') : line(a).split(' — ').slice(1).join(' · '))}</span></div>
+            <div><strong>${beltTag(a.belt)}${esc(a.full_name)}${rs.length ? ' ' + rs.map(x => placeIcon(x.p)).join('') : ''}${rm ? `<span class="tr-tag">к. ${esc(rm)}</span>` : ''}${st ? `<span class="tr-tag">місце ${esc(st)}</span>` : ''}</strong><span>${esc(rs.length ? rs.map(placeText).join('; ') : line(a).split(' — ').slice(1).join(' · '))}</span></div>
             <span class="chev">›</span></a>`; }).join('') || '<div class="empty">Учасників ще не вибрано</div>'}</div>
         ${people.length ? `<button type="button" class="btn wide" id="resBtn" style="margin-bottom:8px">${icon('medal')} ${people.some(a => resultsOf(ev, a.id).length) ? 'Змінити результати' : 'Внести результати'}</button>
-          <button type="button" class="btn light wide" id="copyBtn">${icon('copy')}Скопіювати список для заявки</button>` : ''}`
+          <button type="button" class="btn light wide" id="copyBtn">${icon('copy')}Скопіювати список для заявки</button>` : ''}
+        <div class="sec"><h3>Виїзд</h3>${tripOn(ev) ? `<a class="btn sm light" href="#trip/${encodeURIComponent(ev.id)}">Як бачать учасники</a>` : ''}</div>
+        <div class="list">
+          <button type="button" class="row" id="trBtn" style="width:100%;text-align:left;border:0;font:inherit;color:inherit"><div><strong>${icon('note')}Памʼятка до виїзду</strong><span>${tripOn(ev) ? 'Учасники бачать' : 'Виїзд, проживання, розклад, що взяти'}</span></div><span class="chev">›</span></button>
+          ${people.length ? `<button type="button" class="row" id="rmBtn" style="width:100%;text-align:left;border:0;font:inherit;color:inherit"><div><strong>${icon('users')}Розселення й автобус</strong><span>${Object.keys(tripOf(ev).rooms || {}).length || Object.keys(tripOf(ev).seats || {}).length ? 'Розподілено: ' + people.filter(a => (tripOf(ev).rooms || {})[String(a.id)] || (tripOf(ev).seats || {})[String(a.id)]).length + ' з ' + people.length : 'Кімнати й місця для учасників'}</span></div><span class="chev">›</span></button>` : ''}
+        </div>`
       : `<div class="info"><b>Учасники подій</b><br>Щоб додавати учасників, один раз виконайте в Supabase → SQL Editor:
           <code style="display:block;margin:8px 0;padding:8px;background:var(--card);border-radius:8px;font-size:12px;word-break:break-all">${esc(sql)}</code>
           <button type="button" class="btn sm light" id="sqlBtn">Скопіювати</button></div>`}`;
@@ -5875,12 +5907,120 @@ notify pgrst, 'reload schema';`;
       if (!('results' in ev)) { copyText(RESULTS_SQL, 'Спершу виконайте цей SQL у Supabase → SQL Editor (скопійовано)'); return; }
       resultsDialog(ev, people);
     };
+    const trb = $('#trBtn'); if (trb) trb.onclick = () => tripForm(ev);
+    const rmb = $('#rmBtn'); if (rmb) rmb.onclick = () => tripRoomsDialog(ev, people);
     const cb = $('#copyBtn');
     if (cb) cb.onclick = async () => {
       const text = `${ev.title}, ${fmtDate(ev.date, { day: 'numeric', month: 'long', year: 'numeric' })}${ev.place ? ', ' + ev.place : ''}\n` +
         people.map((a, i) => `${i + 1}. ${line(a)}`).join('\n');
       copyText(text, 'Список скопійовано');
     };
+  }
+
+  // ----- Виїзд на змагання: пам'ятка, розселення й автобус (events.trip) -----
+  const TRIP_BAG = ['Кімоно', 'Пояс свій + червоний і синій', 'Накладки на руки (червоні й сині)', 'Захист гомілки і стопи', 'Капа', 'Захист корпусу / шолом (для дітей)',
+    'Захист паху (хлопці) / грудей (дівчата)', 'Паспорт або свідоцтво про народження', 'Спортивна книжка / ліцензія', 'Страховка', 'Медична довідка',
+    'Шльопанці', 'Рушник і засоби гігієни', 'Вода і перекус', 'Зарядка для телефону', 'Гроші / картка'];
+  const tripOf = ev => (ev && ev.trip && typeof ev.trip === 'object') ? ev.trip : {};
+  const tripOn = ev => !!tripOf(ev).on;
+  const mapUrl = s => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(s);
+  function tripForm(ev) {
+    const t = tripOf(ev);
+    openForm({
+      title: 'Памʼятка до виїзду',
+      top: '<p class="muted small" style="margin:0 0 8px">Учасники побачать памʼятку в календарі подій і на головній. Порожні поля не показуються.</p>',
+      values: { ...t, on: t.on !== false, bag: (Array.isArray(t.bag) ? t.bag : TRIP_BAG).join('\n') },
+      fields: [
+        { name: 'on', label: 'Показувати памʼятку учасникам', type: 'checkbox' },
+        { name: 'depart', label: 'Виїзд (дата і час)', attrs: 'placeholder="5 грудня, 22:00"' },
+        { name: 'meet', label: 'Місце збору', attrs: 'placeholder="Парковка біля ТЦ…"' },
+        { name: 'back', label: 'Повернення', attrs: 'placeholder="7 грудня, орієнтовно 08:00"' },
+        { name: 'hotel', label: 'Проживання (назва й адреса)', type: 'textarea', rows: 2 },
+        { name: 'bus', label: 'Автобус (перевізник, номер, водій)', type: 'textarea', rows: 2 },
+        { name: 'price', label: 'Вартість', attrs: 'placeholder="Внесок 40 €, дорога 75 €"' },
+        { name: 'plan', label: 'Розклад (кожен пункт з нового рядка)', type: 'textarea', rows: 6, attrs: 'placeholder="5.12 22:00 — збір\n6.12 08:00 — зважування\n6.12 10:00 — старт"' },
+        { name: 'bag', label: 'Що взяти (кожна річ з нового рядка)', type: 'textarea', rows: 8 },
+        { name: 'phone', label: 'Телефон тренера', type: 'tel' },
+        { name: 'note', label: 'Важливо знати', type: 'textarea', rows: 3 },
+      ],
+      onSave: obj => {
+        const trip = { ...t, ...obj, bag: String(obj.bag || '').split('\n').map(s => s.trim()).filter(Boolean) };
+        for (const k of Object.keys(trip)) if (trip[k] === null) delete trip[k];
+        return q(db.from('events').update({ trip }).eq('id', ev.id));
+      },
+    });
+  }
+  function tripRoomsDialog(ev, people) {
+    const dlg = $('#dlg'), t = tripOf(ev), rooms = { ...(t.rooms || {}) }, seats = { ...(t.seats || {}) };
+    dlg.innerHTML = `<form><h3>${icon('users')} Розселення й автобус</h3>
+      <p class="muted small" style="margin:4px 0 10px">Номер кімнати й місце в автобусі. Кожен учасник бачить лише своє.</p>
+      <div class="list">${people.map(a => { const id = String(a.id); return `<div class="row" style="cursor:default;gap:8px">
+        <div style="min-width:0;flex:1"><strong>${esc(a.full_name)}</strong></div>
+        <input data-k="rooms" data-id="${esc(id)}" value="${esc(rooms[id] || '')}" placeholder="№" maxlength="8" aria-label="Кімната" style="width:64px;flex:none;text-align:center">
+        <input data-k="seats" data-id="${esc(id)}" value="${esc(seats[id] || '')}" placeholder="місце" maxlength="6" inputmode="numeric" aria-label="Місце в автобусі" style="width:72px;flex:none;text-align:center"></div>`; }).join('')}</div>
+      <div class="dlg-actions"><span class="spacer"></span>
+        <button type="button" class="btn light" data-act="cancel">Скасувати</button><button type="submit" class="btn">Зберегти</button></div></form>`;
+    const form = dlg.querySelector('form');
+    form.querySelector('[data-act=cancel]').onclick = () => dlg.close();
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const btn = form.querySelector('[type=submit]'); btn.disabled = true;
+      const r = {}, s = {};
+      form.querySelectorAll('[data-k]').forEach(i => { const v = i.value.trim(); if (v) (i.dataset.k === 'rooms' ? r : s)[i.dataset.id] = v; });
+      try { await q(db.from('events').update({ trip: { ...t, rooms: r, seats: s } }).eq('id', ev.id)); dlg.close(); toast('Збережено'); render(); }
+      catch (err) { btn.disabled = false; }
+    };
+    dlg.showModal();
+  }
+  async function tripView() {
+    setActions('');
+    const [found, kids] = await Promise.all([
+      q(db.from('events').select('*').eq('id', state.param)),
+      isCoach() ? [] : q(db.from('athletes').select('id, full_name')),
+    ]);
+    const ev = found[0], t = tripOf(ev);
+    $('#backLink').href = isCoach() ? '#event/' + encodeURIComponent(state.param || '') : '#events';
+    if (!ev || (!isCoach() && !t.on)) { $('#view').innerHTML = '<div class="empty">Памʼятки до цієї події поки немає</div>'; return; }
+    const ids = (Array.isArray(ev.participants) ? ev.participants : []).map(String);
+    const mine = isCoach() ? [] : kids.filter(a => ids.includes(String(a.id)));
+    const days = Math.round((new Date(ev.date + 'T12:00') - new Date(today() + 'T12:00')) / 864e5);
+    const blk = (ic, label, body) => body ? `<div class="tr-b"><span class="tr-ic">${icon(ic)}</span><div><small>${label}</small>${body}</div></div>` : '';
+    const txt = s => s ? `<b>${esc(s).replace(/\n/g, '<br>')}</b>` : '';
+    const map = s => s ? ` <a class="link" href="${mapUrl(s.split('\n').join(', '))}" target="_blank" rel="noopener">на карті ↗</a>` : '';
+    const ckKey = 'ft-trip-bag-' + ev.id;
+    let ck = {}; try { ck = JSON.parse(localStorage.getItem(ckKey) || '{}'); } catch (e) {}
+    const bag = Array.isArray(t.bag) ? t.bag : TRIP_BAG;
+    const plan = String(t.plan || '').split('\n').map(s => s.trim()).filter(Boolean);
+    const you = mine.map(a => {
+      const r = (t.rooms || {})[String(a.id)], s = (t.seats || {})[String(a.id)];
+      return (r || s) ? `<div class="tr-you"><span>${esc(mine.length > 1 || !isAthleteM() ? firstNameOf(a.full_name) : 'Ти')}</span>${r ? `<b><small>Кімната</small>${esc(r)}</b>` : ''}${s ? `<b><small>Місце в автобусі</small>${esc(s)}</b>` : ''}</div>` : '';
+    }).join('');
+    $('#view').innerHTML = `
+      ${isCoach() && !t.on ? '<div class="info">Памʼятку вимкнено — учасники її не бачать.</div>' : ''}
+      <div class="hero tr-hero"><small>${days > 0 ? `До виїзду ${days} ${days === 1 ? 'день' : days < 5 ? 'дні' : 'днів'}` : days === 0 ? 'Сьогодні' : 'Минула подія'}</small>
+        <h2>${esc(ev.title)}</h2>
+        <div class="note">${icon('calendar')}${fmtDate(ev.date, { weekday: 'long', day: 'numeric', month: 'long' })}</div></div>
+      ${you}
+      <div class="panel tr-list">
+        ${blk('send', 'Виїзд', txt(t.depart) + (t.meet ? `<span>${esc(t.meet)}</span><span>${map(t.meet).trim()}</span>` : ''))}
+        ${blk('home', 'Проживання', t.hotel ? txt(t.hotel.split('\n')[0]) + (t.hotel.includes('\n') ? `<span>${esc(t.hotel.split('\n').slice(1).join(', '))}</span>` : '') + `<span>${map(t.hotel).trim()}</span>` : '')}
+        ${blk('events', 'Змагання', ev.place ? txt(ev.place) + `<span>${map(ev.place).trim()}</span>` : '')}
+        ${blk('box', 'Автобус', txt(t.bus))}
+        ${blk('mapflag', 'Повернення', txt(t.back))}
+        ${blk('cash', 'Вартість', txt(t.price))}
+      </div>
+      ${plan.length ? `<h3>Розклад</h3><div class="panel tr-plan">${plan.map(l => { const m = l.match(/^(.{0,22}?\d{1,2}[:.]\d{2})\s*[—–-]\s*(.+)$/);
+          return m ? `<div><b>${esc(m[1])}</b><span>${esc(m[2])}</span></div>` : `<div><span>${esc(l)}</span></div>`; }).join('')}</div>` : ''}
+      ${t.note ? `<h3>Важливо знати</h3><div class="panel tasks" style="margin-top:0">${linkify(t.note)}</div>` : ''}
+      ${bag.length ? `<div class="sec" style="margin-top:20px"><h3 style="margin:0">Що взяти</h3><span class="muted small" id="bagN"></span></div>
+        <div class="panel tr-bag">${bag.map((b, i) => `<label><input type="checkbox" data-b="${i}" ${ck[i] ? 'checked' : ''}><span>${esc(b)}</span></label>`).join('')}</div>` : ''}
+      ${t.phone ? `<a class="btn wide" href="tel:${esc(String(t.phone).replace(/[^\d+]/g, ''))}" style="margin-top:14px">${icon('call')}Тренер: ${esc(t.phone)}</a>` : ''}
+      ${isCoach() ? `<button type="button" class="btn light wide" id="trEd">${icon('pen')}Змінити памʼятку</button>` : ''}`;
+    const cnt = () => { const n = $('#bagN'); if (n) n.textContent = `зібрано ${bag.filter((_, i) => ck[i]).length} з ${bag.length}`; };
+    cnt();
+    const bx = $('#view .tr-bag');
+    if (bx) bx.onchange = e => { const c = e.target.closest('[data-b]'); if (!c) return; ck[c.dataset.b] = c.checked; try { localStorage.setItem(ckKey, JSON.stringify(ck)); } catch (er) {} cnt(); };
+    const ed = $('#trEd'); if (ed) ed.onclick = () => tripForm(ev);
   }
 
   // ----- Результати змагань: events.results = { athlete_id: [{ p: '1', n: 'куміте −40 кг' }] } -----
@@ -7591,12 +7731,12 @@ end $$;\n` });
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
-    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView, sleep: sleepView, timer: timerView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView, sleep: sleepView, timer: timerView, trip: tripView,
   };
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
-  function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition', 'sleep', 'timer'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee)]; }
-  const PARENT_ROUTE = { timer: 'training', readiness: 'home', sleep: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition', 'sleep', 'timer'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee), ...(canSee('events') ? ['trip'] : [])]; }
+  const PARENT_ROUTE = { trip: 'events', timer: 'training', readiness: 'home', sleep: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
@@ -7610,7 +7750,7 @@ end $$;\n` });
       .filter(([r]) => canSee(r)).slice(0, 3);
     return [['home', 'Головна', 'home'], [kid, isAthleteM() ? 'Я' : ids.length > 1 ? 'Діти' : 'Дитина', 'kid'], ...extra];
   }
-  const MEMBER_TAB_OF = { rating: 'home', schedule: 'home', links: 'home', join: 'home', settings: 'home', plans: 'home', chat: 'home', events: 'home', news: 'home' };
+  const MEMBER_TAB_OF = { trip: 'home', rating: 'home', schedule: 'home', links: 'home', join: 'home', settings: 'home', plans: 'home', chat: 'home', events: 'home', news: 'home' };
   function tabsNow() { return isCoach() ? TABS.map(([r, l]) => [r, l, r]) : state.role === 'member' ? memberTabs() : null; }
   function drawTabbar(route) {
     const bar = $('#tabbar'), tabs = tabsNow(), on = !!tabs;
