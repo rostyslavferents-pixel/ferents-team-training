@@ -988,10 +988,6 @@
     .tm-tg::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / .25); transition: transform .2s; }
     .tm-tg.on { background: var(--ok); }
     .tm-tg.on::after { transform: translateX(20px); }
-    .tm-snds { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 16px 12px; }
-    .tm-snds .chip { font-weight: 600; background: var(--bg); box-shadow: none; }
-    .tm-snds .chip.on { background: var(--gold); color: #111827; }
-    .tm-snds p { width: 100%; margin: 2px 0 0; font-size: 12px; color: var(--muted); }
     .tm-hint { font-size: 13px; color: var(--muted); margin: 10px 6px 0; line-height: 1.5; }
 
     /* Повноекранний режим */
@@ -1117,7 +1113,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.69';
+  const APP_VERSION = 'v3.68';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -7260,7 +7256,7 @@ end $$;\n` });
   const TM_KEY = 'ft-timer-v1';
   const TM_MODES = [['interval', 'Інтервали'], ['tabata', 'Табата'], ['emom', 'EMOM'], ['stopwatch', 'Секундомір'], ['countdown', 'Відлік']];
   const TM_DEF = {
-    mode: 'interval', sound: true, snd: 'bell', vibro: true, prep: 10,
+    mode: 'interval', sound: true, vibro: true, prep: 10,
     interval: { work: 40, rest: 20, rounds: 8, sets: 1, setRest: 60 },
     tabata: { work: 20, rest: 10, rounds: 8, sets: 1, setRest: 60 },
     emom: { every: 60, rounds: 10 },
@@ -7328,47 +7324,20 @@ end $$;\n` });
       o.connect(g).connect(tmAC.destination); o.start(); o.stop(tmAC.currentTime + 0.02);
     } catch (e) {}
   }
-  function tmTone(f, dur, at, vol, type, vib) {
+  function tmTone(f, dur, at, vol) {
     const ac = tmAC; if (!ac) return;
     const t = ac.currentTime + (at || 0), o = ac.createOscillator(), g = ac.createGain();
-    o.type = type || 'sine'; o.frequency.value = f;
-    if (vib) { const l = ac.createOscillator(), lg = ac.createGain(); l.frequency.value = vib; lg.gain.value = f * .035; l.connect(lg).connect(o.frequency); l.start(t); l.stop(t + dur + .05); }
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.05);
   }
   function tmBell(f, dur, at, vol) { tmTone(f, dur, at, vol); tmTone(f * 2, dur * .6, at, vol * .22); tmTone(f * 3, dur * .3, at, vol * .08); }
-  // Боксерський гонг: «металеві» негармонічні обертони і довгий хвіст
-  function tmGong(f, at, vol, dur = 1.8) { [[1, 1], [2.76, .5], [5.4, .25], [8.9, .12]].forEach(([k, v]) => tmTone(f * k, dur / Math.sqrt(k), at, vol * v)); }
-  function tmWhistle(dur, at, vol) { tmTone(2700, dur, at, vol, 'sine', 38); tmTone(5400, dur, at, vol * .12, 'sine', 38); }
-  function tmMarimba(f, at, vol, dur = .45) { tmTone(f, dur, at, vol, 'triangle'); tmTone(f * 4, dur * .25, at, vol * .25); }
-  const TM_SOUNDS = {
-    bell: { name: 'Дзвіночок',
-      tick: () => tmBell(880, .18, 0, .35),
-      go: () => { tmBell(1047, .5, 0, .5); tmBell(1568, .8, .1, .42); },
-      rest: () => { tmBell(784, .5, 0, .45); tmBell(523, .8, .14, .4); },
-      finish: () => [784, 988, 1175, 1568].forEach((f, i) => tmBell(f, i === 3 ? 1.3 : .4, i * .15, .45)) },
-    gong: { name: 'Гонг',
-      tick: () => tmTone(1200, .06, 0, .4, 'triangle'),
-      go: () => tmGong(620, 0, .5),
-      rest: () => { tmGong(620, 0, .4, 1); tmGong(620, .28, .4, 1.4); },
-      finish: () => [0, .3, .6].forEach(at => tmGong(620, at, .45, 1.6)) },
-    beep: { name: 'Електронний',
-      tick: () => tmTone(1000, .12, 0, .18, 'square'),
-      go: () => tmTone(1000, .75, 0, .2, 'square'),
-      rest: () => { tmTone(700, .18, 0, .2, 'square'); tmTone(700, .3, .26, .2, 'square'); },
-      finish: () => [0, .3, .6].forEach((at, i) => tmTone(1000, i === 2 ? .9 : .2, at, .2, 'square')) },
-    whistle: { name: 'Свисток',
-      tick: () => tmTone(2200, .08, 0, .25),
-      go: () => tmWhistle(.7, 0, .4),
-      rest: () => { tmWhistle(.2, 0, .4); tmWhistle(.3, .3, .4); },
-      finish: () => { tmWhistle(.25, 0, .4); tmWhistle(.25, .35, .4); tmWhistle(1.1, .7, .4); } },
-    soft: { name: 'Мʼякий',
-      tick: () => tmMarimba(660, 0, .35, .25),
-      go: () => { tmMarimba(784, 0, .45); tmMarimba(1175, .12, .45, .7); },
-      rest: () => { tmMarimba(880, 0, .4); tmMarimba(587, .14, .4, .7); },
-      finish: () => [523, 659, 784, 1047].forEach((f, i) => tmMarimba(f, i * .14, .45, i === 3 ? 1.1 : .4)) },
+  const TM_SFX = {
+    tick: () => tmBell(880, .18, 0, .35),
+    go: () => { tmBell(1047, .5, 0, .5); tmBell(1568, .8, .1, .42); },
+    rest: () => { tmBell(784, .5, 0, .45); tmBell(523, .8, .14, .4); },
+    finish: () => [784, 988, 1175, 1568].forEach((f, i) => tmBell(f, i === 3 ? 1.3 : .4, i * .15, .45)),
   };
-  const TM_SFX = new Proxy({}, { get: (_, k) => (TM_SOUNDS[tmS.snd] || TM_SOUNDS.bell)[k] });
   const TM_VIB = { tick: 40, go: [250], rest: [120, 80, 120], finish: [300, 120, 300, 120, 600] };
   function tmFx(kind) {
     if (tmS.sound) { tmAudio(); TM_SFX[kind](); }
@@ -7412,8 +7381,6 @@ end $$;\n` });
       <div class="card tm-set">
         ${m === 'stopwatch' ? '' : `<div class="tm-row"><span>Підготовка</span><div class="tm-step"><button type="button" data-st="prep" data-d="-1" aria-label="Менше">−</button><b data-v="prep">${tmS.prep ? tmS.prep + ' с' : 'без'}</b><button type="button" data-st="prep" data-d="1" aria-label="Більше">+</button></div></div>`}
         <div class="tm-row"><span>Звуковий сигнал</span><button type="button" class="tm-tg ${tmS.sound ? 'on' : ''}" data-tg="sound" aria-label="Звук"></button></div>
-        <div class="tm-snds"${tmS.sound ? '' : ' hidden'}>${Object.entries(TM_SOUNDS).map(([k, v]) => `<button type="button" class="chip ${k === tmS.snd ? 'on' : ''}" data-snd="${k}">${v.name}</button>`).join('')}
-          <p>Натисніть, щоб послухати: старт роботи, відпочинок і фініш.</p></div>
         ${'vibrate' in navigator ? `<div class="tm-row"><span>Вібрація</span><button type="button" class="tm-tg ${tmS.vibro ? 'on' : ''}" data-tg="vibro" aria-label="Вібрація"></button></div>` : ''}
       </div>
       <p class="tm-hint">Екран не гасне, поки йде таймер. На iPhone вимкніть беззвучний режим, щоб чути сигнал.</p>
@@ -7433,8 +7400,7 @@ end $$;\n` });
     w.addEventListener('click', e => {
       const t = e.target;
       const md = t.closest('[data-mode]'); if (md) { tmS.mode = md.dataset.mode; tmSave(); tmDraw(); return; }
-      const tg = t.closest('[data-tg]'); if (tg) { tmS[tg.dataset.tg] = !tmS[tg.dataset.tg]; tg.classList.toggle('on', tmS[tg.dataset.tg]); tmSave(); if (tg.dataset.tg === 'sound') { w.querySelector('.tm-snds').hidden = !tmS.sound; if (tmS.sound) { tmAudio(); TM_SFX.go(); } } return; }
-      const sn = t.closest('[data-snd]'); if (sn) { tmS.snd = sn.dataset.snd; tmSave(); w.querySelectorAll('[data-snd]').forEach(x => x.classList.toggle('on', x === sn)); tmAudio(); const S = TM_SOUNDS[tmS.snd]; S.go(); setTimeout(S.rest, 1300); setTimeout(S.finish, 2700); return; }
+      const tg = t.closest('[data-tg]'); if (tg) { tmS[tg.dataset.tg] = !tmS[tg.dataset.tg]; tg.classList.toggle('on', tmS[tg.dataset.tg]); tmSave(); if (tg.dataset.tg === 'sound' && tmS.sound) { tmAudio(); TM_SFX.go(); } return; }
       const qk = t.closest('[data-quick]'); if (qk) { tmS.countdown.time = Number(qk.dataset.quick); tmSave(); tmRefresh(); return; }
       if (t.closest('[data-tabata]')) { Object.assign(tmS.tabata, { work: 20, rest: 10, rounds: 8, sets: 1 }); tmSave(); tmDraw(); return; }
       const del = t.closest('[data-del]'); if (del) { tmS.presets = tmS.presets.filter(p => p.id !== del.dataset.del); tmSave(); tmDraw(); return; }
