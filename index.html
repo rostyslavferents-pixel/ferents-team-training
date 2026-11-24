@@ -876,6 +876,8 @@
     .rc-cta > span:nth-child(2) { flex: 1; min-width: 0; }
     .rc-cta strong { display: block; font-size: 15px; }
     .rc-cta small { color: var(--muted); font-size: 13px; }
+    .rc-cta.sl-low { background: #ef44441a; }
+    .rc-cta.sl-low .ic-box { color: #ef4444; background: #ef444422; }
     .rc-hero { display: flex; flex-direction: column; gap: 10px; }
     .rc-lv { font-size: 14px !important; letter-spacing: 0 !important; }
     .rv-tabs { display: grid; grid-template-columns: repeat(3, 1fr); }
@@ -4177,6 +4179,12 @@ notify pgrst, 'reload schema';`;
       <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="rd-fg" stroke="${z.c}" style="--c:${c.toFixed(1)};--o:${(c * (1 - score / 100)).toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/></svg>
       <div><b>${score}%</b><span style="color:${z.c}">${z.l}</span></div></div>`;
   }
+  // Мало сну 3 ночі поспіль (менше нижньої межі норми за віком) — бачить і сам спортсмен
+  function lowSleep3(rows, a, t) {
+    const lo = sleepNeed(ageOf(a))[0];
+    const rr = [shiftDate(t, -2), shiftDate(t, -1), t].map(d => (rows || []).find(r => r.date === d));
+    return rr.every(r => r && Number(r.sleep_h) < lo) ? sleepNeed(ageOf(a)) : null;
+  }
   async function readyCardHtml(a) {
     const t = today();
     const { data, error } = await db.from('readiness').select('*').eq('athlete_id', a.id).gte('date', shiftDate(t, -6)).order('date');
@@ -4189,12 +4197,13 @@ notify pgrst, 'reload schema';`;
       <p class="rd-tip">Як ти сьогодні? 10 секунд — і побачиш, наскільки відновився.</p>
       <button type="button" class="btn wide" data-checkin="${esc(a.id)}">Відмітити ранок</button>
       ${(data || []).length ? `<div class="rd-week">${bars}</div>` : ''}</div>`;
-    const z = readyZone(todayRow.score);
+    const z = readyZone(todayRow.score), ls = lowSleep3(data, a, t);
     const hh = Math.floor(todayRow.sleep_h), mm = Math.round((todayRow.sleep_h - hh) * 60);
     return `<div class="hero rd-card"><div class="rd-head"><span>ГОТОВНІСТЬ ДО ТРЕНУВАННЯ</span><button type="button" class="linkbtn" data-checkin="${esc(a.id)}">змінити</button></div>
       ${readyRing(todayRow.score)}
       <p class="rd-tip">${z.tip}</p>
       <div class="rd-stats"><div><b>${hh}:${String(mm).padStart(2, '0')}</b><span>сон</span></div><div><b>${todayRow.feel}/5</b><span>самопочуття</span></div><div><b>${['', 'ні', 'трохи', 'помірно', 'сильно', 'дуже'][todayRow.sore]}</b><span>болять мʼязи</span></div></div>
+      ${ls ? `<a class="rc-cta sl-low" href="#sleep/${encodeURIComponent(a.id)}"><span class="ic-box sm">${icon('alert')}</span><span><strong>3 ночі поспіль менше ${ls[0]} год сну</strong><small>Твоя норма — ${ls[0]}–${ls[1]} год щоночі</small></span><span class="chev">›</span></a>` : ''}
       ${todayRow.sore >= 3 ? `<a class="rc-cta" href="#recovery/${esc(todayRow.sore_zone || 'all')}"><span class="ic-box sm">${icon('play')}</span><span><strong>Болить ${RV_ZONE_IN[todayRow.sore_zone] || 'тіло'} — вправи на відновлення</strong><small>План і відео від сенсея</small></span><span class="chev">›</span></a>` : ''}
       <div class="rd-week">${bars}</div></div>`;
   }
@@ -4231,6 +4240,13 @@ notify pgrst, 'reload schema';`;
       const zone = st.sore >= 3 ? st.zone : null;
       const row = { athlete_id: a.id, date: today(), sleep_h: st.sleep, feel: st.feel, sore: st.sore, sore_zone: zone, score: readyScore(st.sleep, st.feel, st.sore, age) };
       try { await q(db.from('readiness').upsert(row)); dlg.close(); try { navigator.vibrate && navigator.vibrate(15); } catch (x) {}
+        // Мало сну 3 ночі поспіль — сповіщення спортсмену (раз на день)
+        if (!isCoach()) {
+          const { data: prev } = await db.from('readiness').select('date, sleep_h').eq('athlete_id', a.id).gte('date', shiftDate(today(), -2));
+          const ls = lowSleep3(prev, a, today()), key = 'ft_lowsleep_' + today();
+          let sent = false; try { sent = !!localStorage.getItem(key); } catch (x) {}
+          if (ls && !sent) { notify('sleep_low', { lo: ls[0], hi: ls[1] }); try { localStorage.setItem(key, '1'); } catch (x) {} }
+        }
         // Болять мʼязи (3–5): сповіщення (телефон + Telegram) і одразу екран з відео тренера
         if (zone && !isCoach()) { notify('recovery', { zone, sore: st.sore }); location.hash = '#recovery/' + zone; } else render(); } catch (err) {}
     };

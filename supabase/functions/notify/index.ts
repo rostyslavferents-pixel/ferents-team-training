@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     const b = await req.json();
     const kind = String(b.kind || "");
     const rpc = async (fn: string) => (await asUser.rpc(fn)).data === true;
-    const allowed = kind === "chat" || kind === "recovery" ? await rpc("is_athlete_member")
+    const allowed = kind === "chat" || kind === "recovery" || kind === "sleep_low" ? await rpc("is_athlete_member")
       : kind === "joined" ? await rpc("is_member")
       : kind === "request" ? await rpc("has_join_request")
       : ["announcement", "event", "event_join", "plan", "poll", "poll_close"].includes(kind) ? await rpc("is_coach")
@@ -58,8 +58,15 @@ Deno.serve(async (req) => {
       b.body = "Сенсей підготував вправи. Відкрий і подивись відео.";
       b.url = `./#recovery/${zone}`;
     }
+    // Мало сну 3 ночі поспіль — сповіщення лише самому спортсмену
+    if (kind === "sleep_low") {
+      const lo = Math.max(5, Math.min(12, Math.round(Number(b.lo) || 8))), hi = Math.max(lo, Math.min(13, Math.round(Number(b.hi) || 10)));
+      b.title = `Мало сну: 3 ночі поспіль менше ${lo} год`;
+      b.body = `Твоя норма — ${lo}–${hi} год щоночі.`;
+      b.url = "./#home";
+    }
     // Учасники події: лише акаунти, привʼязані до доданих спортсменів (спортсмени й батьки)
-    let joinEmails: string[] | null = kind === "recovery" ? [user.email.toLowerCase()] : null;
+    let joinEmails: string[] | null = kind === "recovery" || kind === "sleep_low" ? [user.email.toLowerCase()] : null;
     if (kind === "event_join") {
       const ids = (Array.isArray(b.athlete_ids) ? b.athlete_ids : []).map(String).slice(0, 300);
       const { data: links } = ids.length
