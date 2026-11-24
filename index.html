@@ -868,6 +868,34 @@
     .rd-scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
     .rd-scale .chip { min-height: 46px; font-size: 16px; font-weight: 800; }
     .rd-lohi { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; }
+    /* Відновлення мʼязів */
+    .rc-cta { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--gold) 12%, transparent); color: inherit; text-decoration: none; }
+    .rc-cta > span:nth-child(2) { flex: 1; min-width: 0; }
+    .rc-cta strong { display: block; font-size: 15px; }
+    .rc-cta small { color: var(--muted); font-size: 13px; }
+    .rc-hero { display: flex; flex-direction: column; gap: 12px; }
+    .rc-lv { font-size: 14px !important; letter-spacing: 0 !important; }
+    .rc-lvls { display: grid; grid-template-columns: repeat(3, 1fr); padding: 0; }
+    .rc-lvls .chip { justify-content: center; min-height: 42px; font-size: 16px; }
+    .rc-lbl { display: block; font-weight: 700; margin: 4px 4px 6px; }
+    .rc-go { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 14px; }
+    .rc-go .ic-svg { width: 18px; height: 18px; }
+    .rc-list .row { align-items: flex-start; }
+    .rc-num { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; background: var(--line); }
+    .rc-t { flex: none; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+    .rc-play { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+    .rc-ring { margin: 6px auto 0; }
+    .rc-ring b { font-variant-numeric: tabular-nums; font-size: 54px; }
+    .rc-fg { fill: none; stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+    .rc-name { margin: 4px 0 0; font-size: 22px; }
+    .rc-ctl { display: flex; gap: 14px; align-items: center; justify-content: center; }
+    .rc-ctl .btn.sq { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; padding: 0; }
+    .rc-ctl .rc-pp { width: 68px; height: 68px; }
+    .rc-ctl .ic-svg { width: 24px; height: 24px; }
+    .rc-next { margin: 0; }
+    .rc-done { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, #22c55e 15%, transparent); color: #22c55e; }
+    .rc-done .ic-svg { width: 40px; height: 40px; }
+    .rc-play .btn.wide { width: 100%; text-align: center; }
 
     /* ===== Пробна версія: стиль Monobank ===== */
     :root.mono { --bg: #000; --card: #15171b; --ink: #fff; --muted: #8e8e93; --line: #25272c; --border: #34363c; --head: #000;
@@ -1138,7 +1166,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.72';
+  const APP_VERSION = 'v3.73';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -1334,7 +1362,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи', sleep: 'Сон і готовність', timer: 'Таймер', trip: 'Памʼятка до виїзду'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи', sleep: 'Сон і готовність', recovery: 'Відновлення мʼязів', timer: 'Таймер', trip: 'Памʼятка до виїзду'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -3750,7 +3778,8 @@ notify pgrst, 'reload schema';`;
           : `<a class="stat" href="#rating"><b>${a.rating_place || '—'}</b><span>місце в рейтингу</span></a>`}
       </div>
       ${days.size ? `<h3>Відвідування у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</h3><div class="panel">${attCalendar(ym, new Set(att.map(x => x.date)), new Set([...days].map(Number)), t)}</div>` : ''}
-      ${canReady(a) && (coach || isAthleteM()) ? `<a class="card ncard" href="#sleep/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('moon')}</span><span><strong>Сон і готовність</strong><span>Графіки сну й готовності за весь час, середні по місяцях, перед змаганнями</span></span><span class="chev">›</span></a>` : ''}
+      ${canReady(a) && (coach || isAthleteM()) ? `<a class="card ncard" href="#sleep/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('moon')}</span><span><strong>Сон і готовність</strong><span>Графіки сну й готовності за весь час, середні по місяцях, перед змаганнями</span></span><span class="chev">›</span></a>
+        <a class="card ncard" href="#recovery"><span class="ic-box">${icon('hand')}</span><span><strong>Відновлення мʼязів</strong><span>Вправи й розтяжка, коли болять мʼязи — з таймером і підказками</span></span><span class="chev">›</span></a>` : ''}
       ${canNutri(a) ? `<a class="card ncard" href="#nutrition/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('drop')}</span><span><strong>Харчування і відновлення</strong><span>Білки, жири, вуглеводи на кожен день, рецепти, сон і поради з відновлення</span></span><span class="chev">›</span></a>` : ''}
       <h3>Відвідування за пів року</h3>
       <div class="panel">
@@ -4162,6 +4191,7 @@ notify pgrst, 'reload schema';`;
       ${readyRing(todayRow.score)}
       <p class="rd-tip">${z.tip}</p>
       <div class="rd-stats"><div><b>${hh}:${String(mm).padStart(2, '0')}</b><span>сон</span></div><div><b>${todayRow.feel}/5</b><span>самопочуття</span></div><div><b>${['', 'ні', 'трохи', 'помірно', 'сильно', 'дуже'][todayRow.sore]}</b><span>болять мʼязи</span></div></div>
+      ${todayRow.sore >= 3 ? `<a class="rc-cta" href="#recovery/${todayRow.sore}"><span class="ic-box sm">${icon('hand')}</span><span><strong>Мʼязи болять — зроби відновлення</strong><small>${rcMin(rcPlan(todayRow.sore, 'all'))} хв спокійних вправ, які допоможуть</small></span><span class="chev">›</span></a>` : ''}
       <div class="rd-week">${bars}</div></div>`;
   }
   function checkinForm(a) {
@@ -4189,7 +4219,9 @@ notify pgrst, 'reload schema';`;
     form.onsubmit = async e => {
       e.preventDefault();
       const row = { athlete_id: a.id, date: today(), sleep_h: st.sleep, feel: st.feel, sore: st.sore, score: readyScore(st.sleep, st.feel, st.sore, age) };
-      try { await q(db.from('readiness').upsert(row)); dlg.close(); try { navigator.vibrate && navigator.vibrate(15); } catch (x) {} render(); } catch (err) {}
+      try { await q(db.from('readiness').upsert(row)); dlg.close(); try { navigator.vibrate && navigator.vibrate(15); } catch (x) {}
+        // Болять мʼязи (3–5) — одразу відкриваємо вправи на відновлення
+        if (st.sore >= 3 && !isCoach()) location.hash = '#recovery/' + st.sore; else render(); } catch (err) {}
     };
     dlg.showModal(); drawSleep();
   }
@@ -4198,6 +4230,139 @@ notify pgrst, 'reload schema';`;
     const found = await q(db.from('athletes').select('*').eq('id', b.dataset.checkin)).catch(() => []);
     if (found[0]) checkinForm(found[0]);
   });
+  // ===================== ВІДНОВЛЕННЯ (коли болять мʼязи 3–5 з 5) =====================
+  // Вправи: t — секунди, side — «по черзі на кожен бік» (сигнал на половині)
+  const RC_EX = {
+    breath:  { n: 'Дихання животом', t: 60, d: 'Ляж на спину, руки на живіт. Вдих носом — живіт піднімається, повільний видих ротом. Розслаб плечі й щелепу.' },
+    joints:  { n: 'Розминка суглобів', t: 90, d: 'Повільні кола: шия, плечі, лікті, кисті, таз, коліна, стопи — по 5 у кожен бік. Без різких рухів.' },
+    walk:    { n: 'Ходьба на місці', t: 120, d: 'Спокійно, з махами руками. Кров розганяється по мʼязах — і вони швидше відновлюються.' },
+    ham:     { n: 'Задня поверхня стегна', t: 60, side: 1, d: 'Сидячи: одна нога пряма, друга зігнута. Тягнись грудьми до коліна прямої ноги, спина рівна.' },
+    hip:     { n: 'Випад на коліні', t: 60, side: 1, d: 'Стань на одне коліно, другу ногу вперед. Таз мʼяко вперед і вниз — тягне спереду стегна задньої ноги.' },
+    quad:    { n: 'Передня поверхня стегна', t: 60, side: 1, d: 'Стоячи біля стіни, візьми стопу рукою й підтягни до сідниці. Коліна разом.' },
+    glute:   { n: 'Сідниці лежачи', t: 60, side: 1, d: 'Лежачи на спині, поклади щиколотку на коліно іншої ноги («четвірка») і підтягни ногу до себе.' },
+    groin:   { n: 'Метелик', t: 60, d: 'Сидячи, стопи разом, коліна в сторони. Мʼяко тисни ліктями на коліна, спина рівна.' },
+    calf:    { n: 'Литки біля стіни', t: 60, side: 1, d: 'Руки на стіну, одна нога позаду пряма, пʼята на підлозі. Нахиляйся до стіни.' },
+    catcow:  { n: 'Кішка — корова', t: 60, d: 'На четвереньках. Вдих — прогнись, погляд уперед. Видих — округли спину. Повільно.' },
+    twist:   { n: 'Скрутка лежачи', t: 60, side: 1, d: 'Лежачи на спині, зігнуті коліна поклади вбік, руки в сторони, плечі на підлозі.' },
+    knees:   { n: 'Коліна до грудей', t: 45, d: 'Лежачи, обійми коліна й легенько погойдайся з боку в бік — розслабляє поперек.' },
+    child:   { n: 'Поза дитини', t: 60, d: 'Сідай на пʼяти, руки вперед, лоб на підлогу. Дихай спиною.' },
+    cross:   { n: 'Плече через груди', t: 60, side: 1, d: 'Пряму руку перед грудьми притисни іншою рукою до себе.' },
+    door:    { n: 'Груди в дверях', t: 45, d: 'Передпліччя на одвірки, крок уперед — тягне груди й передні частини плечей.' },
+    tri:     { n: 'Трицепс за головою', t: 60, side: 1, d: 'Руку зігни за головою, іншою рукою мʼяко тисни на лікоть.' },
+    wrist:   { n: 'Кисті й передпліччя', t: 45, d: 'Пряма рука долонею вперед — потягни пальці до себе. Потім долонею вниз. Після ударів дуже допомагає.' },
+    wall:    { n: 'Ноги на стіну', t: 120, d: 'Ляж біля стіни й поклади прямі ноги на неї. Відпочинь — ноги розвантажуються.' },
+    calm:    { n: 'Повільне дихання', t: 90, d: 'Лежачи: вдих на 4 рахунки, видих на 6. Тіло розслабляється й переходить у відновлення.' },
+  };
+  const RC_AREAS = [['all', 'Усе тіло'], ['legs', 'Ноги'], ['back', 'Спина'], ['arms', 'Руки й плечі']];
+  const RC_BY_AREA = {
+    all:  ['ham', 'hip', 'quad', 'glute', 'catcow', 'child', 'cross', 'wrist'],
+    legs: ['ham', 'hip', 'quad', 'glute', 'groin', 'calf'],
+    back: ['catcow', 'knees', 'twist', 'glute', 'child'],
+    arms: ['cross', 'door', 'tri', 'wrist', 'catcow'],
+  };
+  const RC_LEVEL = {
+    3: { l: 'Помірно', c: '#eab308', tip: 'Легкий рух і розтяжка розженуть кров — мʼязи відновляться швидше. Тренуватися можна, але без надриву.' },
+    4: { l: 'Сильно', c: '#f97316', tip: 'Тільки мʼяко: тягни до легкого натягу, не до болю. Скажи тренеру — сьогодні краще легше тренування.' },
+    5: { l: 'Дуже', c: '#ef4444', tip: 'Сьогодні — відпочинок. Лише спокійні вправи нижче, більше сну й води. Обовʼязково скажи тренеру.' },
+  };
+  function rcPlan(level, area) {
+    if (level >= 5) return ['breath', 'joints', 'knees', 'child', 'wall', 'calm'].map(k => ({ k, ...RC_EX[k], t: k === 'joints' ? 60 : RC_EX[k].t }));
+    const keys = ['breath', 'joints', ...(level === 3 ? ['walk'] : []), ...RC_BY_AREA[area] || RC_BY_AREA.all, ...(level === 4 ? ['wall'] : []), 'calm'];
+    return keys.map(k => ({ k, ...RC_EX[k] }));
+  }
+  const rcMin = plan => Math.round(plan.reduce((s, e) => s + e.t, 0) / 60);
+  const rcFmt = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  const rcSt = { level: 3, area: 'all' };
+  let rcRun = null;
+  function rcStop() { if (rcRun) { clearInterval(rcRun.iv); rcRun = null; tmWake(false); } }
+
+  async function recoveryView() {
+    setActions(''); rcStop();
+    const coach = isCoach();
+    // Рівень болю — з параметра або з сьогоднішньої відмітки спортсмена
+    let lv = Number(state.param);
+    if (!(lv >= 3 && lv <= 5) && !coach && (state.kidIds || []).length) {
+      const { data } = await db.from('readiness').select('sore').eq('athlete_id', state.kidIds[0]).eq('date', today());
+      if (data && data[0]) lv = data[0].sore;
+    }
+    rcSt.level = lv >= 3 && lv <= 5 ? lv : rcSt.level;
+    draw();
+    function draw() {
+      const L = RC_LEVEL[rcSt.level], plan = rcPlan(rcSt.level, rcSt.area);
+      $('#view').innerHTML = `
+        <div class="hero rc-hero">
+          <div class="rd-head"><span>БІЛЬ У МʼЯЗАХ</span><span class="rc-lv" style="color:${L.c}">${rcSt.level}/5 · ${L.l}</span></div>
+          <div class="chips seg rc-lvls">${[3, 4, 5].map(n => `<button type="button" class="chip ${n === rcSt.level ? 'on' : ''}" data-lv="${n}">${n}</button>`).join('')}</div>
+          <p class="rd-tip">${L.tip}</p>
+        </div>
+        ${rcSt.level < 5 ? `<label class="rc-lbl">Що болить найбільше?</label>
+        <div class="chips rc-areas">${RC_AREAS.map(([k, t]) => `<button type="button" class="chip ${k === rcSt.area ? 'on' : ''}" data-area="${k}">${t}</button>`).join('')}</div>` : ''}
+        <button type="button" class="btn wide rc-go" data-rc="start">${icon('play')}Почати · ${rcMin(plan)} хв</button>
+        <div class="list rc-list">${plan.map((e, i) => `<div class="row" style="cursor:default"><span class="rc-num">${i + 1}</span><div class="grow"><strong>${e.n}</strong><span>${e.d}</span></div><span class="rc-t">${e.side ? 'по ' + rcFmt(e.t / 2) : rcFmt(e.t)}</span></div>`).join('')}</div>
+        <div class="list sl-tips">
+          ${[['drop', 'Пий воду', 'Рівномірно протягом дня — мʼязам потрібна вода для відновлення.'],
+             ['moon', 'Спи довше', 'Саме уві сні мʼязи відновлюються найбільше. Сьогодні лягай раніше.'],
+             ['hand', 'Теплий душ', 'Тепла вода розслабляє мʼязи. Масаж валиком чи руками — мʼяко, без сильного тиску.'],
+             ['plans', 'Їж білок', 'Мʼясо, рибу, яйця, сир — після тренування і на вечерю.']]
+            .map(([ic, t, d]) => `<div class="row" style="cursor:default"><span class="ic-box sm">${icon(ic)}</span><div class="grow"><strong>${t}</strong><span>${d}</span></div></div>`).join('')}
+        </div>
+        <div class="info sl-warn"><b>${icon('alert')}Не роби вправ і скажи тренеру й батькам, якщо:</b> біль гострий або колючий, болить суглоб, є набряк чи синець, біль з одного боку після удару чи падіння, або не минає 3–4 дні. Це вже не звичайна втома мʼязів.</div>`;
+      $('#view').onclick = e => {
+        const lvB = e.target.closest('[data-lv]'); if (lvB) { rcSt.level = Number(lvB.dataset.lv); draw(); return; }
+        const ar = e.target.closest('[data-area]'); if (ar) { rcSt.area = ar.dataset.area; draw(); return; }
+        if (e.target.closest('[data-rc=start]')) { tmAudio(); play(plan); }
+      };
+    }
+    function play(plan) {
+      let i = 0, left = plan[0].t, paused = false;
+      tmWake(true);
+      const R = 112, C = 2 * Math.PI * R;
+      const paint = () => {
+        const e = plan[i], half = e.side && left <= e.t / 2;
+        $('#view').innerHTML = `<div class="hero rc-play">
+          <div class="rd-head"><span>ВПРАВА ${i + 1} З ${plan.length}</span><button type="button" class="linkbtn" data-rc="stop">завершити</button></div>
+          <div class="rd-ring rc-ring" style="width:260px;height:260px"><svg viewBox="0 0 260 260"><circle cx="130" cy="130" r="${R}" class="rd-bg"/>
+            <circle cx="130" cy="130" r="${R}" class="rc-fg" stroke="var(--gold)" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - left / e.t)).toFixed(1)}" transform="rotate(-90 130 130)"/></svg>
+            <div><b id="rcLeft">${rcFmt(left)}</b>${e.side ? `<span>${half ? 'другий бік' : 'перший бік'}</span>` : ''}</div></div>
+          <h3 class="rc-name">${e.n}</h3>
+          <p class="rd-tip">${e.d}</p>
+          <div class="rc-ctl"><button type="button" class="btn light sq" data-rc="prev" aria-label="Назад" ${i ? '' : 'disabled'}>${icon('restart')}</button>
+            <button type="button" class="btn sq rc-pp" data-rc="pause" aria-label="${paused ? 'Продовжити' : 'Пауза'}">${icon(paused ? 'play' : 'pause')}</button>
+            <button type="button" class="btn light sq" data-rc="next" aria-label="Далі">${icon('skip')}</button></div>
+          ${plan[i + 1] ? `<p class="muted small rc-next">Далі: ${plan[i + 1].n}</p>` : '<p class="muted small rc-next">Остання вправа</p>'}
+        </div>`;
+      };
+      const finish = () => {
+        rcStop(); tmFx('finish'); try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (x) {}
+        $('#view').innerHTML = `<div class="hero rc-play"><div class="rc-done">${icon('check')}</div><h3 class="rc-name">Готово!</h3>
+          <p class="rd-tip">Мʼязи подякують. Сьогодні — більше води й сну, а завтра відміть ранок ще раз.</p>
+          <a class="btn wide" href="#home">На головну</a><button type="button" class="btn light wide" data-rc="again">Ще раз</button></div>`;
+      };
+      const go = n => { i = n; left = plan[i].t; paused = false; tmFx('go'); paint(); };
+      $('#view').onclick = e => {
+        const b = e.target.closest('[data-rc]'); if (!b) return;
+        const a = b.dataset.rc;
+        if (a === 'stop') { rcStop(); draw(); }
+        else if (a === 'again') { tmWake(true); rcRun = { iv: setInterval(tick, 1000) }; go(0); }
+        else if (a === 'pause') { paused = !paused; paint(); }
+        else if (a === 'next') { i + 1 < plan.length ? go(i + 1) : finish(); }
+        else if (a === 'prev' && i) go(i - 1);
+      };
+      function tick() {
+        if (document.body.dataset.route !== 'recovery') { rcStop(); return; }
+        if (paused) return;
+        left--;
+        const e = plan[i];
+        if (left <= 0) { i + 1 < plan.length ? go(i + 1) : finish(); return; }
+        if (e.side && left === Math.ceil(e.t / 2)) { tmFx('rest'); paint(); return; }
+        if (left <= 3) tmFx('tick');
+        const el = $('#rcLeft'); if (el) el.textContent = rcFmt(left);
+        const fg = $('#view .rc-fg'); if (fg) fg.setAttribute('stroke-dashoffset', (C * (1 - left / e.t)).toFixed(1));
+      }
+      rcRun = { iv: setInterval(tick, 1000) };
+      tmFx('go'); paint();
+    }
+  }
   // Тренер: готовність старшої групи сьогодні
   async function readyCounts() {
     const { data } = await db.from('readiness').select('score').eq('date', today());
@@ -7731,12 +7896,12 @@ end $$;\n` });
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
-    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView, sleep: sleepView, timer: timerView, trip: tripView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView, sleep: sleepView, recovery: recoveryView, timer: timerView, trip: tripView,
   };
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
-  function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition', 'sleep', 'timer'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee), ...(canSee('events') ? ['trip'] : [])]; }
-  const PARENT_ROUTE = { trip: 'events', timer: 'training', readiness: 'home', sleep: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
+  function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition', 'sleep', 'timer', 'recovery'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee), ...(canSee('events') ? ['trip'] : [])]; }
+  const PARENT_ROUTE = { trip: 'events', timer: 'training', readiness: 'home', sleep: 'readiness', recovery: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
   const TAB_OF = { athlete: 'athletes', rating: 'athletes' };
