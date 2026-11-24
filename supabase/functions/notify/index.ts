@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     const b = await req.json();
     const kind = String(b.kind || "");
     const rpc = async (fn: string) => (await asUser.rpc(fn)).data === true;
-    const allowed = kind === "chat" ? await rpc("is_athlete_member")
+    const allowed = kind === "chat" || kind === "recovery" ? await rpc("is_athlete_member")
       : kind === "joined" ? await rpc("is_member")
       : kind === "request" ? await rpc("has_join_request")
       : ["announcement", "event", "event_join", "plan", "poll", "poll_close"].includes(kind) ? await rpc("is_coach")
@@ -50,8 +50,19 @@ Deno.serve(async (req) => {
       }
       return json({ stopped });
     }
+    // Відновлення: спортсмен відмітив біль у мʼязах 3–5 — сповіщення лише йому самому, текст складаємо тут
+    if (kind === "recovery") {
+      const zones: Record<string, string> = { upper: "верх тіла", lower: "низ тіла", all: "усе тіло" };
+      const zone = zones[String(b.zone)] ? String(b.zone) : "all";
+      const sore = Math.max(3, Math.min(5, Number(b.sore) || 3));
+      b.title = `Болить ${zones[zone]} — вправи на відновлення`;
+      b.body = sore >= 5 ? "Сьогодні відпочинок: тільки спокійні вправи з відео, більше сну й води. Скажи тренеру."
+        : sore === 4 ? "Подивись відео тренера й зроби вправи мʼяко — до легкого натягу, не до болю."
+        : "Подивись відео тренера й зроби вправи — мʼязи відновляться швидше.";
+      b.url = `./#recovery/${zone}`;
+    }
     // Учасники події: лише акаунти, привʼязані до доданих спортсменів (спортсмени й батьки)
-    let joinEmails: string[] | null = null;
+    let joinEmails: string[] | null = kind === "recovery" ? [user.email.toLowerCase()] : null;
     if (kind === "event_join") {
       const ids = (Array.isArray(b.athlete_ids) ? b.athlete_ids : []).map(String).slice(0, 300);
       const { data: links } = ids.length

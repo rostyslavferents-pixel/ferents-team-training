@@ -1021,3 +1021,25 @@ notify pgrst, 'reload schema';
 --     headers := jsonb_build_object('Content-Type','application/json','x-cron-key',(select v from public.private_keys where k='cron')),
 --     body := '{}'::jsonb, timeout_milliseconds := 30000); $c$);
 -- Налаштування: team_settings key 'reminders' (вмикає тренер у застосунку).
+
+
+-- =====================================================================
+-- Відновлення мʼязів: що болить у ранковій відмітці + відео вправ від тренера
+alter table public.readiness add column if not exists sore_zone text check (sore_zone in ('upper', 'lower', 'all'));
+create table if not exists public.recovery_videos (
+  id          uuid primary key default gen_random_uuid(),
+  zone        text not null check (zone in ('upper', 'lower')),
+  title       text not null,
+  url         text not null,
+  note        text,
+  sort        integer not null default 1,
+  created_at  timestamptz not null default now()
+);
+alter table public.recovery_videos enable row level security;
+drop policy if exists coach_all on public.recovery_videos;
+drop policy if exists athlete_read on public.recovery_videos;
+create policy coach_all on public.recovery_videos for all to authenticated using (public.is_coach()) with check (public.is_coach());
+create policy athlete_read on public.recovery_videos for select to authenticated using (public.is_athlete_member());
+revoke all on public.recovery_videos from anon;
+grant select, insert, update, delete on public.recovery_videos to authenticated;
+notify pgrst, 'reload schema';
