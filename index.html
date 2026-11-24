@@ -888,6 +888,17 @@
     .rv-body { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; }
     .rv-body strong { display: block; }
     .rv-body span:not(.rc-num) { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; line-height: 1.45; }
+    .rv-today { margin: 0 4px 10px; }
+    .rv-plan { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--card); border: 0; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 2px 8px #0000000d; }
+    button.rv-plan { cursor: pointer; }
+    .rv-plan.blank { background: transparent; border: 2px dashed var(--line); box-shadow: none; }
+    .rv-plan-h { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .rv-plan-h .ic-svg { width: 14px; height: 14px; }
+    .rv-plan-t { display: block; margin-top: 6px; white-space: pre-line; line-height: 1.5; }
+    .rv-plan.blank .rv-plan-t { color: var(--muted); }
+    .rv-slot { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px; margin-bottom: 10px; border: 2px dashed var(--line); border-radius: 16px; background: transparent; font: inherit; color: var(--muted); cursor: pointer; text-align: left; }
+    .rv-slot > span:nth-child(2) { flex: 1; }
+    .rv-plus { font-size: 22px; font-weight: 700; line-height: 1; }
     .rc-num { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; background: var(--line); }
 
     /* ===== Пробна версія: стиль Monobank ===== */
@@ -3772,7 +3783,7 @@ notify pgrst, 'reload schema';`;
       </div>
       ${days.size ? `<h3>Відвідування у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</h3><div class="panel">${attCalendar(ym, new Set(att.map(x => x.date)), new Set([...days].map(Number)), t)}</div>` : ''}
       ${canReady(a) && (coach || isAthleteM()) ? `<a class="card ncard" href="#sleep/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('moon')}</span><span><strong>Сон і готовність</strong><span>Графіки сну й готовності за весь час, середні по місяцях, перед змаганнями</span></span><span class="chev">›</span></a>
-        <a class="card ncard" href="#recovery"><span class="ic-box">${icon('play')}</span><span><strong>Відновлення мʼязів</strong><span>Відео вправ від тренера, коли болить верх чи низ тіла</span></span><span class="chev">›</span></a>` : ''}
+        <a class="card ncard" href="#recovery"><span class="ic-box">${icon('play')}</span><span><strong>Відновлення мʼязів</strong><span>План і відео від тренера, коли болить верх чи низ тіла</span></span><span class="chev">›</span></a>` : ''}
       ${canNutri(a) ? `<a class="card ncard" href="#nutrition/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('drop')}</span><span><strong>Харчування і відновлення</strong><span>Білки, жири, вуглеводи на кожен день, рецепти, сон і поради з відновлення</span></span><span class="chev">›</span></a>` : ''}
       <h3>Відвідування за пів року</h3>
       <div class="panel">
@@ -4184,7 +4195,7 @@ notify pgrst, 'reload schema';`;
       ${readyRing(todayRow.score)}
       <p class="rd-tip">${z.tip}</p>
       <div class="rd-stats"><div><b>${hh}:${String(mm).padStart(2, '0')}</b><span>сон</span></div><div><b>${todayRow.feel}/5</b><span>самопочуття</span></div><div><b>${['', 'ні', 'трохи', 'помірно', 'сильно', 'дуже'][todayRow.sore]}</b><span>болять мʼязи</span></div></div>
-      ${todayRow.sore >= 3 ? `<a class="rc-cta" href="#recovery/${esc(todayRow.sore_zone || 'all')}"><span class="ic-box sm">${icon('play')}</span><span><strong>Болить ${RV_ZONE_IN[todayRow.sore_zone] || 'тіло'} — вправи на відновлення</strong><small>Відео від тренера, з чим сьогодні працювати</small></span><span class="chev">›</span></a>` : ''}
+      ${todayRow.sore >= 3 ? `<a class="rc-cta" href="#recovery/${esc(todayRow.sore_zone || 'all')}"><span class="ic-box sm">${icon('play')}</span><span><strong>Болить ${RV_ZONE_IN[todayRow.sore_zone] || 'тіло'} — вправи на відновлення</strong><small>План і відео від тренера</small></span><span class="chev">›</span></a>` : ''}
       <div class="rd-week">${bars}</div></div>`;
   }
   function checkinForm(a) {
@@ -4230,22 +4241,18 @@ notify pgrst, 'reload schema';`;
     const found = await q(db.from('athletes').select('*').eq('id', b.dataset.checkin)).catch(() => []);
     if (found[0]) checkinForm(found[0]);
   });
-  // ===================== ВІДНОВЛЕННЯ (біль у мʼязах 3–5 з 5): відео від тренера =====================
+  // ===================== ВІДНОВЛЕННЯ (біль у мʼязах 3–5 з 5): план і відео від тренера =====================
+  // Увесь зміст пише тренер: план для зони + вправи з відео. Застосунок нічого не підказує від себе.
   const RV_ZONES = { upper: 'Верх тіла', lower: 'Низ тіла', all: 'Усе тіло' };
   const RV_ZONE_IN = { upper: 'верх тіла', lower: 'низ тіла', all: 'усе тіло' };
-  const RV_LEVEL = {
-    3: { l: 'Помірно', c: '#eab308', tip: 'Зроби вправи від тренера — мʼязи відновляться швидше. Тренуватися можна, але без надриву.' },
-    4: { l: 'Сильно', c: '#f97316', tip: 'Роби вправи мʼяко: до легкого натягу, не до болю. Скажи тренеру — сьогодні краще легше тренування.' },
-    5: { l: 'Дуже', c: '#ef4444', tip: 'Сьогодні — відпочинок. Вправи тільки дуже спокійно, більше сну й води. Обовʼязково скажи тренеру.' },
-  };
+  const RV_SLOTS = 5; // скільки порожніх місць показати тренеру, поки вправ мало
   function ytId(url) {
     const m = String(url || '').match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([\w-]{11})/);
     return m ? m[1] : null;
   }
   async function recoveryView() {
     const coach = isCoach();
-    setActions(coach ? '<button class="btn" id="addBtn">+ Додати відео</button>' : '');
-    if (coach) $('#addBtn').onclick = () => rvForm();
+    setActions('');
     $('#backLink').href = coach ? '#readiness' : '#home';
     let zone = RV_ZONES[state.param] ? state.param : null, sore = null;
     if (!coach && (state.kidIds || []).length) {
@@ -4253,40 +4260,47 @@ notify pgrst, 'reload schema';`;
       if (data && data[0]) { sore = data[0].sore; zone = zone || data[0].sore_zone; }
     }
     zone = zone || (coach ? 'upper' : 'all');
-    const vids = await q(db.from('recovery_videos').select('*').order('sort').order('created_at'));
-    const L = sore >= 3 ? RV_LEVEL[Math.min(5, sore)] : null;
+    const [vids, plans] = await Promise.all([
+      q(db.from('recovery_videos').select('*').order('sort').order('created_at')),
+      q(db.from('recovery_plans').select('*')),
+    ]);
+    const planOf = z => (plans.find(p => p.zone === z) || {}).text || '';
     const card = (v, i) => { const id = ytId(v.url);
       return `<div class="rv-card">
-        ${id ? `<button type="button" class="rv-thumb" data-yt="${esc(id)}" aria-label="Дивитися: ${esc(v.title)}"><img src="https://i.ytimg.com/vi/${esc(id)}/hqdefault.jpg" alt="" loading="lazy"><span class="rv-play">${icon('play')}</span></button>`
-          : `<a class="rv-thumb rv-nothumb" href="${esc(v.url)}" target="_blank" rel="noopener"><span class="rv-play">${icon('play')}</span></a>`}
+        ${id ? `<button type="button" class="rv-thumb" data-yt="${esc(id)}" aria-label="Дивитися: ${esc(v.title)}"><img src="https://i.ytimg.com/vi/${esc(id)}/hqdefault.jpg" alt="" loading="lazy"><span class="rv-play">${icon('play')}</span></button>` : ''}
         <div class="rv-body"><span class="rc-num">${i + 1}</span><div class="grow"><strong>${esc(v.title)}</strong>${v.note ? `<span>${esc(v.note)}</span>` : ''}</div>
           ${coach ? `<button type="button" class="btn light" data-edit="${esc(v.id)}">Змінити</button>` : ''}</div></div>`; };
-    const block = z => { const list = vids.filter(v => v.zone === z);
-      return `<h3>${RV_ZONES[z]}</h3>${list.length ? list.map(card).join('')
-        : `<div class="list"><div class="empty">${coach ? 'Додайте відео вправ для цієї зони — кнопка «+ Додати відео» вгорі.' : 'Тренер ще готує відео для цієї зони.'}</div></div>`}`; };
+    const slot = (z, n) => `<button type="button" class="rv-slot" data-add="${z}" data-n="${n}"><span class="rc-num">${n}</span><span>Вправа ${n} — додати відео</span><span class="rv-plus">+</span></button>`;
+    const block = z => { const list = vids.filter(v => v.zone === z), plan = planOf(z);
+      const planHtml = coach
+        ? `<button type="button" class="rv-plan ${plan ? '' : 'blank'}" data-plan="${z}"><span class="rv-plan-h">План відновлення ${icon('pen')}</span>${plan ? `<span class="rv-plan-t">${esc(plan)}</span>` : '<span class="rv-plan-t">Натисніть, щоб написати план для цієї зони</span>'}</button>`
+        : plan ? `<div class="rv-plan"><span class="rv-plan-h">План відновлення</span><span class="rv-plan-t">${esc(plan)}</span></div>` : '';
+      const slots = coach ? Array.from({ length: Math.max(1, RV_SLOTS - list.length) }, (_, k) => slot(z, list.length + k + 1)).join('') : '';
+      const empty = !coach && !plan && !list.length ? '<div class="list"><div class="empty">Тренер ще готує план для цієї зони.</div></div>' : '';
+      return `<h3>${RV_ZONES[z]}</h3>${planHtml}${list.map(card).join('')}${slots}${empty}`; };
     const tab = (z, t) => `<button type="button" class="chip ${zone === z ? 'on' : ''}" data-zone="${z}">${t}</button>`;
     $('#view').innerHTML = `
-      ${L ? `<div class="hero rc-hero"><div class="rd-head"><span>БІЛЬ У МʼЯЗАХ СЬОГОДНІ</span><span class="rc-lv" style="color:${L.c}">${sore}/5 · ${RV_ZONE_IN[zone] || ''}</span></div>
-        <p class="rd-tip" style="text-align:left">${L.tip}</p></div>` : ''}
-      <div class="chips seg rv-tabs">${tab('upper', 'Верх тіла')}${tab('lower', 'Низ тіла')}${tab('all', 'Усе тіло')}</div>
-      ${zone === 'all' ? block('upper') + block('lower') : block(zone)}
-      <div class="info sl-warn"><b>${icon('alert')}Не роби вправ і скажи тренеру й батькам, якщо:</b> біль гострий або колючий, болить суглоб, є набряк чи синець, біль після удару чи падіння, або не минає 3–4 дні.</div>`;
+      ${sore >= 3 ? `<p class="muted small rv-today">Сьогодні ти відмітив: мʼязи ${sore}/5 · ${RV_ZONE_IN[zone] || ''}</p>` : ''}
+      <div class="chips seg rv-tabs">${tab('upper', 'Верх тіла')}${tab('lower', 'Низ тіла')}${coach ? '' : tab('all', 'Усе тіло')}</div>
+      ${zone === 'all' ? block('upper') + block('lower') : block(zone)}`;
     $('#view').onclick = e => {
       const z = e.target.closest('[data-zone]'); if (z) { location.hash = '#recovery/' + z.dataset.zone; return; }
       const y = e.target.closest('[data-yt]');
       if (y) { y.outerHTML = `<div class="rv-thumb"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(y.dataset.yt)}?autoplay=1&rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="Відео"></iframe></div>`; return; }
-      const ed = e.target.closest('[data-edit]'); if (ed) rvForm(vids.find(v => String(v.id) === ed.dataset.edit));
+      const ed = e.target.closest('[data-edit]'); if (ed) { rvForm(vids.find(v => String(v.id) === ed.dataset.edit)); return; }
+      const ad = e.target.closest('[data-add]'); if (ad) { rvForm(null, ad.dataset.add, Number(ad.dataset.n)); return; }
+      const pl = e.target.closest('button[data-plan]'); if (pl) rvPlanForm(pl.dataset.plan, planOf(pl.dataset.plan));
     };
   }
-  function rvForm(v) {
+  function rvForm(v, zone, n) {
     openForm({
-      title: v ? 'Змінити відео' : 'Нове відео для відновлення',
-      values: v || { zone: state.param === 'lower' ? 'lower' : 'upper', sort: 1 },
+      title: v ? 'Змінити вправу' : `${RV_ZONES[zone]} · вправа ${n}`,
+      values: v || { zone, sort: n },
       fields: [
-        { name: 'zone', label: 'Що болить', type: 'select', required: true, options: [['upper', 'Верх тіла'], ['lower', 'Низ тіла']] },
+        { name: 'zone', label: 'Зона', type: 'select', required: true, options: [['upper', 'Верх тіла'], ['lower', 'Низ тіла']] },
         { name: 'title', label: 'Назва вправи', required: true },
         { name: 'url', label: 'Посилання на YouTube', type: 'url', required: true, attrs: 'placeholder="https://youtu.be/…"' },
-        { name: 'note', label: 'Підказка (скільки разів, на що звернути увагу)', type: 'textarea', rows: 2 },
+        { name: 'note', label: 'Підказка спортсмену', type: 'textarea', rows: 2 },
         { name: 'sort', label: 'Номер у списку', type: 'number', attrs: 'min="1" max="99"' },
       ],
       onSave: obj => {
@@ -4295,6 +4309,14 @@ notify pgrst, 'reload schema';`;
         return v ? q(db.from('recovery_videos').update(obj).eq('id', v.id)) : q(db.from('recovery_videos').insert(obj));
       },
       onDelete: v ? () => q(db.from('recovery_videos').delete().eq('id', v.id)) : null,
+    });
+  }
+  function rvPlanForm(zone, text) {
+    openForm({
+      title: 'План відновлення · ' + RV_ZONES[zone].toLowerCase(),
+      values: { text },
+      fields: [{ name: 'text', label: 'Що робити спортсмену (бачить над відео)', type: 'textarea', rows: 8 }],
+      onSave: obj => q(db.from('recovery_plans').upsert({ zone, text: String(obj.text || '').trim(), updated_at: new Date().toISOString() })),
     });
   }
   // Тренер: готовність старшої групи сьогодні
@@ -4336,7 +4358,7 @@ notify pgrst, 'reload schema';`;
       return { a, n: rr.length, s: avgOf(rr, 'sleep_h'), sc: avgOf(rr, 'score'), low: rr.filter(r => Number(r.sleep_h) < lo).length }; })
       .sort((x, y) => (x.sc ?? 101) - (y.sc ?? 101));
     const mBtn = (m, l) => `<button type="button" class="chip ${mSel === m ? 'on' : ''}" data-rdm="${m}">${l}</button>`;
-    $('#view').innerHTML = `<a class="card ncard" href="#recovery" style="margin-bottom:12px"><span class="ic-box">${icon('play')}</span><span><strong>Відео для відновлення</strong><span>Вправи, які отримує спортсмен, коли болить верх чи низ тіла</span></span><span class="chev">›</span></a>
+    $('#view').innerHTML = `<a class="card ncard" href="#recovery" style="margin-bottom:12px"><span class="ic-box">${icon('play')}</span><span><strong>План відновлення</strong><span>Ваш план і відео вправ, які отримує спортсмен, коли болить верх чи низ тіла</span></span><span class="chev">›</span></a>
       <p class="muted small" style="margin:0 2px 10px">Старша група · ${fmtDate(t, { weekday: 'long', day: 'numeric', month: 'long' })}. Зверху — ті, кому сьогодні важче.</p>
       ${warned.length ? `<h3 style="color:#ef4444">Звернути увагу (${warned.length})</h3><div class="list">${warned.map(row).join('')}</div>` : ''}
       <div class="list">${done.filter(a => !warn.has(String(a.id))).map(row).join('') || (warned.length ? '' : '<div class="empty">Сьогодні ще ніхто не відмітився</div>')}</div>

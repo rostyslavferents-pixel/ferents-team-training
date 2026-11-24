@@ -1042,4 +1042,16 @@ create policy coach_all on public.recovery_videos for all to authenticated using
 create policy athlete_read on public.recovery_videos for select to authenticated using (public.is_athlete_member());
 revoke all on public.recovery_videos from anon;
 grant select, insert, update, delete on public.recovery_videos to authenticated;
+create table if not exists public.recovery_plans (
+  zone        text primary key check (zone in ('upper', 'lower')),
+  text        text not null default '',
+  updated_at  timestamptz not null default now()
+);
+alter table public.recovery_plans enable row level security;
+drop policy if exists coach_all on public.recovery_plans;
+drop policy if exists athlete_read on public.recovery_plans;
+create policy coach_all on public.recovery_plans for all to authenticated using (public.is_coach()) with check (public.is_coach());
+create policy athlete_read on public.recovery_plans for select to authenticated using (public.is_athlete_member());
+revoke all on public.recovery_plans from anon;
+grant select, insert, update, delete on public.recovery_plans to authenticated;
 notify pgrst, 'reload schema';
