@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       const zones: Record<string, string> = { upper: "верх тіла", lower: "низ тіла", all: "усе тіло" };
       const zone = zones[String(b.zone)] ? String(b.zone) : "all";
       b.title = `Болить ${zones[zone]} — план відновлення`;
-      b.body = "Тренер підготував вправи. Відкрий і подивись відео.";
+      b.body = "Сенсей підготував вправи. Відкрий і подивись відео.";
       b.url = `./#recovery/${zone}`;
     }
     // Учасники події: лише акаунти, привʼязані до доданих спортсменів (спортсмени й батьки)

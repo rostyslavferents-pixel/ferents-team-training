@@ -362,7 +362,7 @@
     .chips.seg { padding-bottom: 4px; }
     .chips.seg .chip { font-weight: 600; }
     .chips.seg .chip.on { background: var(--gold); color: #111827; }
-    /* Статистика (тренер) */
+    /* Статистика (сенсей) */
     .st-lock { font-size: 12px; color: var(--muted); margin: 0 2px 8px; }
     .st-kpi { grid-template-columns: repeat(2, 1fr); }
     .st-kpi .stat b { font-size: 22px; }
@@ -868,7 +868,7 @@
     .rd-scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
     .rd-scale .chip { min-height: 46px; font-size: 16px; font-weight: 800; }
     .rd-lohi { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; }
-    /* Відновлення мʼязів: відео тренера */
+    /* Відновлення мʼязів: відео сенсея */
     .rd-zones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
     .rd-zones .chip { justify-content: center; min-height: 44px; font-weight: 700; }
     .rd-need { margin: 6px 0 0; font-size: 13px; color: #ef4444; }
@@ -1125,7 +1125,7 @@
     <section id="loginSection" hidden>
       <form id="loginForm" class="login">
         <h2 id="loginTitle">Вхід</h2>
-        <p class="muted small" id="loginHint">Для тренерів, батьків і спортсменів команди.</p>
+        <p class="muted small" id="loginHint">Для сенсеїв, батьків і спортсменів команди.</p>
         <label>Email<input id="loginEmail" type="email" autocomplete="username" required></label>
         <label id="email2Label" hidden>Повторіть email<input id="loginEmail2" type="email" autocomplete="off"></label>
         <label id="pwLabel">Пароль<input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required></label>
@@ -1230,7 +1230,7 @@
   const ACCESS_IC = { rating: 'trophy', events: 'calendar', news: 'megaphone', schedule: 'clock', plans: 'note', links: 'film', chat: 'chatb' };
   const TEAM_DEFAULTS = {
     brand: 'FERENTS TEAM', title: 'Training', motto: 'Дисципліна. Праця. Результат.',
-    welcome: 'Вкажіть, хто ви, і прізвище та імʼя дитини. Застосунок сам знайде дитину в команді, тренер лише підтвердить — і ви її побачите.',
+    welcome: 'Вкажіть, хто ви, і прізвище та імʼя дитини. Застосунок сам знайде дитину в команді, сенсей лише підтвердить — і ви її побачите.',
     sections: [...SECTIONS], groups: [...GROUPS], belts: [...BELTS], amount: '',
     access: {
       parent: { rating: true, events: true, news: true, schedule: false, plans: false, links: false, chat: false },
@@ -1374,7 +1374,7 @@
   function isCoach() { return state.role === 'coach'; }
   // Спортсмен бачить більше, ніж батьки: розклад групи, завдання, відео, чат
   function isAthleteM() { return state.role === 'member' && state.memberRole === 'athlete'; }
-  const ROLES = { coach: 'Тренер', parent: 'Батьки', athlete: 'Спортсмен' };
+  const ROLES = { coach: 'Сенсей', parent: 'Батьки', athlete: 'Спортсмен' };
 
   // ===== Допоміжні функції =====
   function $(sel) { return document.querySelector(sel); }
@@ -1488,7 +1488,7 @@ $$;
 revoke execute on function public.team_rating() from anon;
 notify pgrst, 'reload schema';`;
   // Оголошення + сповіщення
-  const NEWS_SQL = `-- Оголошення від тренера + сповіщення на телефон
+  const NEWS_SQL = `-- Оголошення від сенсея + сповіщення на телефон
 create table if not exists public.announcements (
   id          bigint generated always as identity primary key,
   created_at  timestamptz not null default now(),
@@ -1995,7 +1995,7 @@ async function onUpdate(u: any) {
     await tg("sendMessage", { chat_id: chat, parse_mode: "HTML", ...openBtn(app),
       text: "✅ <b>Telegram підключено!</b>\\n\\n" +
         (who ? \`Сповіщення про: <b>\${esc(who)}</b>\\n\\n\` : "") +
-        "Сюди приходитимуть оголошення тренера, нові події та інші важливі новини.\\n\\nВідключити: /stop" });
+        "Сюди приходитимуть оголошення сенсея, нові події та інші важливі новини.\\n\\nВідключити: /stop" });
     return;
   }
 
@@ -2100,7 +2100,7 @@ Deno.serve(async (req) => {
   }
 });
 `;
-  const TELEGRAM_SQL = `-- Telegram-бот: сповіщення батькам, спортсменам і тренеру в Telegram
+  const TELEGRAM_SQL = `-- Telegram-бот: сповіщення батькам, спортсменам і сенсею в Telegram
 -- Підключені чати (один акаунт може мати кілька телефонів — мама й тато)
 create table if not exists public.telegram_links (
   chat_id     bigint primary key,
@@ -2204,7 +2204,7 @@ grant execute on function public.coach_tg_links() to authenticated;
 
 notify pgrst, 'reload schema';`;
 
-  const STATUS_SQL = `-- Тренер бачить, хто підключив Telegram
+  const STATUS_SQL = `-- Сенсей бачить, хто підключив Telegram
 create or replace function public.coach_tg_links()
 returns table (email text, connected_at timestamptz)
 language sql stable security definer set search_path = public as $$
@@ -2503,7 +2503,7 @@ notify pgrst, 'reload schema';`;
     } catch (e) {
       const m = (e && e.message) || '';
       toast(/function|not_mine|row-level|policy|Bucket|not found/i.test(m)
-        ? 'Завантаження фото ще не увімкнено. Напишіть тренеру.' : isNetErr(e) ? 'Немає інтернету' : 'Не вдалося: ' + m, true);
+        ? 'Завантаження фото ще не увімкнено. Напишіть сенсею.' : isNetErr(e) ? 'Немає інтернету' : 'Не вдалося: ' + m, true);
     }
   }
   function inSection(a) { return !state.hasSection || state.section === 'Усі' || a.section === state.section; }
@@ -3023,7 +3023,7 @@ notify pgrst, 'reload schema';`;
           <span>${icon('check')}${visits}${planned ? ' з ' + planned : ''} тренувань у ${MONTHS_IN[Number(ym.slice(5)) - 1]}${place ? ` · ${trophy()} ${place} місце в рейтингу` : ''}</span></div>
         <span class="chev">›</span></a>`;
     };
-    const noKids = `<div class="info">Тренер ще не привʼязав ваш акаунт до спортсмена. Коли це буде зроблено,
+    const noKids = `<div class="info">Сенсей ще не привʼязав ваш акаунт до спортсмена. Коли це буде зроблено,
       тут зʼявляться його відвідування, пояси та найближчі тренування.</div>`;
 
     const going = e => (Array.isArray(e.participants) ? e.participants.map(String) : []).filter(id => state.kidIds.includes(id));
@@ -3783,7 +3783,7 @@ notify pgrst, 'reload schema';`;
       </div>
       ${days.size ? `<h3>Відвідування у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</h3><div class="panel">${attCalendar(ym, new Set(att.map(x => x.date)), new Set([...days].map(Number)), t)}</div>` : ''}
       ${canReady(a) && (coach || isAthleteM()) ? `<a class="card ncard" href="#sleep/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('moon')}</span><span><strong>Сон і готовність</strong><span>Графіки сну й готовності за весь час, середні по місяцях, перед змаганнями</span></span><span class="chev">›</span></a>
-        <a class="card ncard" href="#recovery"><span class="ic-box">${icon('play')}</span><span><strong>Відновлення мʼязів</strong><span>План і відео від тренера, коли болить верх чи низ тіла</span></span><span class="chev">›</span></a>` : ''}
+        <a class="card ncard" href="#recovery"><span class="ic-box">${icon('play')}</span><span><strong>Відновлення мʼязів</strong><span>План і відео від сенсея, коли болить верх чи низ тіла</span></span><span class="chev">›</span></a>` : ''}
       ${canNutri(a) ? `<a class="card ncard" href="#nutrition/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('drop')}</span><span><strong>Харчування і відновлення</strong><span>Білки, жири, вуглеводи на кожен день, рецепти, сон і поради з відновлення</span></span><span class="chev">›</span></a>` : ''}
       <h3>Відвідування за пів року</h3>
       <div class="panel">
@@ -4097,14 +4097,14 @@ notify pgrst, 'reload schema';`;
     const dlg = $('#dlg');
     let tag = 'Перекус';
     dlg.innerHTML = `<form class="rcp"><h3>${coach ? 'Новий рецепт' : 'Запропонувати рецепт'}</h3>
-      ${coach ? '' : '<p class="muted small" style="margin:4px 0 0">Тренер перегляне — і рецепт побачить уся старша група з підписом автора.</p>'}
+      ${coach ? '' : '<p class="muted small" style="margin:4px 0 0">Сенсей перегляне — і рецепт побачить уся старша група з підписом автора.</p>'}
       <label>Назва<input id="rT" maxlength="80" required placeholder="напр. Рис з куркою і овочами"></label>
       <label>Коли їсти</label><div class="chips" id="rTag">${RECIPE_TAGS.map(t => `<button type="button" class="chip ${t === tag ? 'on' : ''}" data-t="${t}">${t}</button>`).join('')}</div>
       <label>Склад — кожен продукт з нового рядка, з вагою<textarea id="rI" rows="5" maxlength="1500" required placeholder="рис 200 г\nкуряче філе 120 г\nперець, морква 150 г\nолія 1 ст. л."></textarea></label>
       <div id="rCalc" class="rcalc"></div>
       <label>Як готувати<textarea id="rH" rows="3" maxlength="1500" placeholder="Коротко: що з чим і скільки хвилин"></textarea></label>
       <div class="dlg-actions"><span class="spacer"></span><button type="button" class="btn light" data-act="cancel">Скасувати</button>
-        <button type="submit" class="btn">${coach ? 'Додати' : 'Надіслати тренеру'}</button></div></form>`;
+        <button type="submit" class="btn">${coach ? 'Додати' : 'Надіслати сенсею'}</button></div></form>`;
     const form = dlg.querySelector('form');
     const draw = () => {
       const { items, tot } = calcIngredients($('#rI').value);
@@ -4125,7 +4125,7 @@ notify pgrst, 'reload schema';`;
       const btn = form.querySelector('[type=submit]'); btn.disabled = true;
       try {
         await q(db.from('recipes').insert(row)); dlg.close();
-        toast(coach ? 'Рецепт додано' : 'Надіслано тренеру — дякуємо!');
+        toast(coach ? 'Рецепт додано' : 'Надіслано сенсею — дякуємо!');
         render();
       } catch (err) { btn.disabled = false; }
     };
@@ -4149,7 +4149,7 @@ notify pgrst, 'reload schema';`;
     $('#view').innerHTML = `${pend.length ? `<h3>Чекають перевірки (${pend.length})</h3><div class="list">${pend.map(r => recipeItem(r, tools(r))).join('')}</div>` : ''}
       <h3>Рецепти команди</h3><div class="list">${ok.map(r => recipeItem(r, tools(r))).join('') || '<div class="empty">Ще немає рецептів від команди</div>'}</div>
       <p class="muted small" style="margin:12px 4px 0">Білки, жири й вуглеводи пораховано автоматично за складом — приблизно. Перед схваленням гляньте, чи все впізнано правильно.</p>`;
-    if ($('#addR')) $('#addR').onclick = () => recipeForm('Тренер');
+    if ($('#addR')) $('#addR').onclick = () => recipeForm('Сенсей');
     $('#view').onclick = async e => {
       const okB = e.target.closest('[data-ok]'), del = e.target.closest('[data-del]');
       if (okB) { await q(db.from('recipes').update({ status: 'approved' }).eq('id', okB.dataset.ok)); toast('Схвалено — тепер рецепт бачать усі'); render(); }
@@ -4168,7 +4168,7 @@ notify pgrst, 'reload schema';`;
   function readyZone(s) {
     if (s >= 67) return { c: '#22c55e', l: 'Готовий', tip: 'Добре відновився — сьогодні можна тренуватися на повну.' };
     if (s >= 34) return { c: '#eab308', l: 'Помірно', tip: 'Тренуйся, але без надриву. Увечері — раніше спати.' };
-    return { c: '#ef4444', l: 'Треба відпочити', tip: 'Організм втомлений. Скажи тренеру — краще легке тренування. Сьогодні — більше сну.' };
+    return { c: '#ef4444', l: 'Треба відпочити', tip: 'Організм втомлений. Скажи сенсею — краще легке тренування. Сьогодні — більше сну.' };
   }
   function readyRing(score, size = 176) {
     const r = size / 2 - 12, c = 2 * Math.PI * r, z = readyZone(score);
@@ -4195,7 +4195,7 @@ notify pgrst, 'reload schema';`;
       ${readyRing(todayRow.score)}
       <p class="rd-tip">${z.tip}</p>
       <div class="rd-stats"><div><b>${hh}:${String(mm).padStart(2, '0')}</b><span>сон</span></div><div><b>${todayRow.feel}/5</b><span>самопочуття</span></div><div><b>${['', 'ні', 'трохи', 'помірно', 'сильно', 'дуже'][todayRow.sore]}</b><span>болять мʼязи</span></div></div>
-      ${todayRow.sore >= 3 ? `<a class="rc-cta" href="#recovery/${esc(todayRow.sore_zone || 'all')}"><span class="ic-box sm">${icon('play')}</span><span><strong>Болить ${RV_ZONE_IN[todayRow.sore_zone] || 'тіло'} — вправи на відновлення</strong><small>План і відео від тренера</small></span><span class="chev">›</span></a>` : ''}
+      ${todayRow.sore >= 3 ? `<a class="rc-cta" href="#recovery/${esc(todayRow.sore_zone || 'all')}"><span class="ic-box sm">${icon('play')}</span><span><strong>Болить ${RV_ZONE_IN[todayRow.sore_zone] || 'тіло'} — вправи на відновлення</strong><small>План і відео від сенсея</small></span><span class="chev">›</span></a>` : ''}
       <div class="rd-week">${bars}</div></div>`;
   }
   function checkinForm(a) {
@@ -4276,7 +4276,7 @@ notify pgrst, 'reload schema';`;
         ? `<button type="button" class="rv-plan ${plan ? '' : 'blank'}" data-plan="${z}"><span class="rv-plan-h">План відновлення ${icon('pen')}</span>${plan ? `<span class="rv-plan-t">${esc(plan)}</span>` : '<span class="rv-plan-t">Натисніть, щоб написати план для цієї зони</span>'}</button>`
         : plan ? `<div class="rv-plan"><span class="rv-plan-h">План відновлення</span><span class="rv-plan-t">${esc(plan)}</span></div>` : '';
       const slots = coach ? Array.from({ length: Math.max(1, RV_SLOTS - list.length) }, (_, k) => slot(z, list.length + k + 1)).join('') : '';
-      const empty = !coach && !plan && !list.length ? '<div class="list"><div class="empty">Тренер ще готує план для цієї зони.</div></div>' : '';
+      const empty = !coach && !plan && !list.length ? '<div class="list"><div class="empty">Сенсей ще готує план для цієї зони.</div></div>' : '';
       return `<h3>${RV_ZONES[z]}</h3>${planHtml}${list.map(card).join('')}${slots}${empty}`; };
     const tab = (z, t) => `<button type="button" class="chip ${zone === z ? 'on' : ''}" data-zone="${z}">${t}</button>`;
     $('#view').innerHTML = `
@@ -4369,7 +4369,7 @@ notify pgrst, 'reload schema';`;
         return `<a class="row" href="#sleep/${encodeURIComponent(x.a.id)}"><div class="grow"><strong>${esc(x.a.full_name)}</strong>
           <span>${x.n ? `${x.n} з ${mDays} днів · сон ${hm(x.s)} · менше норми ${x.low}` : 'відміток немає'}</span></div>
           ${z ? `<span class="badge" style="background:${z.c}22;color:${z.c}">${Math.round(x.sc)}%</span>` : '<span class="chev">›</span>'}</a>`; }).join('') || '<div class="empty">У старшій групі немає спортсменів</div>'}</div>
-      <p class="muted small" style="margin:12px 4px 0">Натисни на спортсмена в таблиці — відкриються графіки сну й готовності за весь час. Цифра рахується з того, що спортсмен вписав зранку: сон (45%), самопочуття (30%) і біль у мʼязах (25%). Це підказка для тренера, а не медичний показник.</p>`;
+      <p class="muted small" style="margin:12px 4px 0">Натисни на спортсмена в таблиці — відкриються графіки сну й готовності за весь час. Цифра рахується з того, що спортсмен вписав зранку: сон (45%), самопочуття (30%) і біль у мʼязах (25%). Це підказка для сенсея, а не медичний показник.</p>`;
     $('#view').onclick = e => { const b = e.target.closest('[data-rdm]'); if (b) { state.rdMonth = b.dataset.rdm; render(); } };
   }
 
@@ -4415,7 +4415,7 @@ notify pgrst, 'reload schema';`;
     setActions('');
     const a = (await q(db.from('athletes').select('*').eq('id', state.param)))[0];
     $('#backLink').href = '#athlete/' + encodeURIComponent(state.param || '');
-    if (!a || !canReady(a) || !(isCoach() || isAthleteM())) { $('#view').innerHTML = '<div class="empty">Історія сну доступна спортсменам старшої групи і тренеру</div>'; return; }
+    if (!a || !canReady(a) || !(isCoach() || isAthleteM())) { $('#view').innerHTML = '<div class="empty">Історія сну доступна спортсменам старшої групи і сенсею</div>'; return; }
     const [all, evs] = await Promise.all([
       qAll(() => db.from('readiness').select('date, sleep_h, feel, sore, score').eq('athlete_id', a.id).order('date')),
       db.from('events').select('id, title, date, participants').order('date').then(r => r.data || [], () => []),
@@ -4439,7 +4439,7 @@ notify pgrst, 'reload schema';`;
     const maxS = Math.max(hi + 1, ...rows.map(r => Math.ceil(Number(r.sleep_h))));
     const minS = Math.min(5, ...rows.map(r => Math.floor(Number(r.sleep_h))));
     $('#view').innerHTML = `
-      <p class="muted small" style="margin:0 2px 10px">${esc(a.full_name)} · норма сну ${lo}–${hi} год${isCoach() ? '' : ' · бачиш тільки ти і тренер'}</p>
+      <p class="muted small" style="margin:0 2px 10px">${esc(a.full_name)} · норма сну ${lo}–${hi} год${isCoach() ? '' : ' · бачиш тільки ти і сенсей'}</p>
       <div class="chips seg">${RD_PERIODS.map(([v, l]) => `<button type="button" class="chip ${per === v ? 'on' : ''}" data-rdper="${v}">${l}</button>`).join('')}</div>
       ${!all.length ? '<div class="empty">Ще немає жодної ранкової відмітки</div>' : `
       <div class="stats">
@@ -4514,7 +4514,7 @@ notify pgrst, 'reload schema';`;
           ['trophy', 'Перед змаганнями', 'Важливо добре спати 2–3 ночі перед стартом. Якщо в ніч перед змаганням не спиться від хвилювання — це нормально, головне, щоб попередні ночі були повноцінні.'],
         ].map(([ic, t, d]) => `<div class="row" style="cursor:default"><span class="ic-box sm">${icon(ic)}</span><div class="grow"><strong>${t}</strong><span>${d}</span></div></div>`).join('')}
       </div>
-      <div class="info sl-warn"><b>${icon('alert')}Скажи тренеру, якщо довго помічаєш:</b> постійну втому навіть після вихідних, результати гіршають, дратівливість, часто хворієш, біль не минає, погано спиш або пропав апетит. Це може бути перевтома — тоді треба змінити навантаження. Якщо часто не можеш заснути або сильно хропеш — варто сказати батькам і лікарю.</div>`;
+      <div class="info sl-warn"><b>${icon('alert')}Скажи сенсею, якщо довго помічаєш:</b> постійну втому навіть після вихідних, результати гіршають, дратівливість, часто хворієш, біль не минає, погано спиш або пропав апетит. Це може бути перевтома — тоді треба змінити навантаження. Якщо часто не можеш заснути або сильно хропеш — варто сказати батькам і лікарю.</div>`;
   }
   function wireRecovery() {
     const inp = $('#slWake'); if (!inp) return;
@@ -5439,7 +5439,7 @@ notify pgrst, 'reload schema';`;
     } catch (e) {
       const m = String(e.message || e);
       toast(/push_subscriptions|does not exist|schema cache/i.test(m)
-        ? 'Не вдалося: у базі ще немає таблиці для сповіщень — тренеру треба запустити SQL з розділу «Оголошення»'
+        ? 'Не вдалося: у базі ще немає таблиці для сповіщень — сенсею треба запустити SQL з розділу «Оголошення»'
         : 'Не вдалося увімкнути: ' + m, true);
       return false;
     }
@@ -5464,7 +5464,7 @@ notify pgrst, 'reload schema';`;
     if (tg.st === 'on') return '';
     if (tg.st === 'off' && !tgHidden) return `<div class="install" id="tgCard">
       <span class="ic-box">${icon('send')}</span>
-      <div><b>Сповіщення в Telegram</b>Оголошення тренера й нові події — одразу в Telegram</div>
+      <div><b>Сповіщення в Telegram</b>Оголошення сенсея й нові події — одразу в Telegram</div>
       <button type="button" class="btn sm" id="tgOn">Підключити</button>
       <button type="button" class="x" id="tgHide" aria-label="Сховати">✕</button>
     </div>`;
@@ -5510,7 +5510,7 @@ notify pgrst, 'reload schema';`;
   }
   async function linkTelegram() {
     const cfg = await tgConfig().catch(() => null);
-    if (!cfg) { toast('Тренер ще не підключив Telegram-бота', true); return false; }
+    if (!cfg) { toast('Сенсей ще не підключив Telegram-бота', true); return false; }
     const { data: code, error } = await db.rpc('telegram_link_code');
     if (error) { toast(isNetErr(error) ? 'Немає інтернету' : 'Не вдалося: ' + error.message, true); return false; }
     const url = 'https://t.me/' + encodeURIComponent(cfg.username) + '?start=' + encodeURIComponent(code);
@@ -5539,7 +5539,7 @@ notify pgrst, 'reload schema';`;
         throw new Error({
           no_token: 'додайте секрет TELEGRAM_BOT_TOKEN (крок 3)',
           bad_token: 'токен бота неправильний — скопіюйте його з @BotFather ще раз',
-          forbidden: 'це може зробити лише тренер',
+          forbidden: 'це може зробити лише сенсей',
         }[code] || (code || (/not found|404|Failed to send/i.test(error.message) ? 'функцію «telegram» ще не створено (крок 4)' : error.message)));
       }
       await tgConfig(true);
@@ -5571,7 +5571,7 @@ notify pgrst, 'reload schema';`;
           <button type="button" class="btn sm light" id="tgNotify">5. Код notify</button>
           <button type="button" class="btn sm" id="tgSetup">6. Підключити бота</button></div>`;
     } else if (st === 'nosql' || st === 'none') {
-      html = 'Тренер ще не підключив Telegram-бота.';
+      html = 'Сенсей ще не підключив Telegram-бота.';
     } else if (st === 'off') {
       html = `<p style="margin:0 0 8px">Оголошення й події — одразу в Telegram. Працює на будь-якому телефоні.</p>
         <button type="button" class="btn sm" id="tgOn2">${icon('send')}Підключити Telegram</button>`;
@@ -5882,7 +5882,7 @@ notify pgrst, 'reload schema';`;
       ['🔁 Перенесення', 'Тренування переноситься', 'Тренування в [день] переноситься на [час]. Зал — як завжди.', true],
       ['💳 Оплата', `Оплата за ${m} — до 10 числа`, `Нагадую: оплату за ${m} прохання внести до 10 числа на рахунок ФОП. Дякую!`, false],
       ['🥋 Атестація', 'Атестація на пояси — [дата]', 'Початок о [час], зал [адреса]. Внесок [сума] грн до [дата]. Форма — чисте кімоно і пояс.', true],
-      ['🏆 Змагання', 'Змагання: [назва]', 'Дата: [дата]\nМісце: [місто, зал]\nВнесок: [сума] грн\nХто бере участь — повідомте тренеру до [дата].', false],
+      ['🏆 Змагання', 'Змагання: [назва]', 'Дата: [дата]\nМісце: [місто, зал]\nВнесок: [сума] грн\nХто бере участь — повідомте сенсею до [дата].', false],
       ['🌴 Канікули', 'Канікули: тренувань не буде', 'Тренувань не буде з [дата] по [дата]. Відпочивайте — і до зустрічі в залі! 🥋', false],
     ];
   }
@@ -6062,7 +6062,7 @@ notify pgrst, 'reload schema';`;
         { name: 'price', label: 'Вартість', attrs: 'placeholder="Внесок 40 €, дорога 75 €"' },
         { name: 'plan', label: 'Розклад (кожен пункт з нового рядка)', type: 'textarea', rows: 6, attrs: 'placeholder="5.12 22:00 — збір\n6.12 08:00 — зважування\n6.12 10:00 — старт"' },
         { name: 'bag', label: 'Що взяти (кожна річ з нового рядка)', type: 'textarea', rows: 8 },
-        { name: 'phone', label: 'Телефон тренера', type: 'tel' },
+        { name: 'phone', label: 'Телефон сенсея', type: 'tel' },
         { name: 'note', label: 'Важливо знати', type: 'textarea', rows: 3 },
       ],
       onSave: obj => {
@@ -6136,7 +6136,7 @@ notify pgrst, 'reload schema';`;
       ${t.note ? `<h3>Важливо знати</h3><div class="panel tasks" style="margin-top:0">${linkify(t.note)}</div>` : ''}
       ${bag.length ? `<div class="sec" style="margin-top:20px"><h3 style="margin:0">Що взяти</h3><span class="muted small" id="bagN"></span></div>
         <div class="panel tr-bag">${bag.map((b, i) => `<label><input type="checkbox" data-b="${i}" ${ck[i] ? 'checked' : ''}><span>${esc(b)}</span></label>`).join('')}</div>` : ''}
-      ${t.phone ? `<a class="btn wide" href="tel:${esc(String(t.phone).replace(/[^\d+]/g, ''))}" style="margin-top:14px">${icon('call')}Тренер: ${esc(t.phone)}</a>` : ''}
+      ${t.phone ? `<a class="btn wide" href="tel:${esc(String(t.phone).replace(/[^\d+]/g, ''))}" style="margin-top:14px">${icon('call')}Сенсей: ${esc(t.phone)}</a>` : ''}
       ${isCoach() ? `<button type="button" class="btn light wide" id="trEd">${icon('pen')}Змінити памʼятку</button>` : ''}`;
     const cnt = () => { const n = $('#bagN'); if (n) n.textContent = `зібрано ${bag.filter((_, i) => ck[i]).length} з ${bag.length}`; };
     cnt();
@@ -6377,7 +6377,7 @@ notify pgrst, 'reload schema';`;
       db.from('chat_messages').select('author_name, body').order('created_at', { ascending: false }).limit(1),
     ]);
     const lm = (last.data || [])[0];
-    const preview = lm ? `${lm.author_name || ''}: ${lm.body.length > 60 ? lm.body.slice(0, 60) + '…' : lm.body}` : 'Спілкування тренерів, батьків і спортсменів';
+    const preview = lm ? `${lm.author_name || ''}: ${lm.body.length > 60 ? lm.body.slice(0, 60) + '…' : lm.body}` : 'Спілкування сенсеїв, батьків і спортсменів';
     $('#view').innerHTML = `
       <a class="card" href="#links"><strong>${icon('film')}Відео та посилання</strong><span>${mats.length} матеріалів · ката, техніка, правила</span></a>
       <a class="card" href="#chat"><strong>${icon('chatb')}Чат команди</strong><span>${esc(preview)}</span></a>`;
@@ -6496,15 +6496,15 @@ notify pgrst, 'reload schema';`;
     const { data: mine, error } = await db.from('join_requests').select('child_name, created_at').order('created_at');
     if (error && !member) {
       $('#view').innerHTML = `<div class="info">Ваш email <b>${esc(state.email)}</b> ще не додано до команди.
-        Попросіть у тренера посилання-запрошення і відкрийте його.</div>`;
+        Попросіть у сенсея посилання-запрошення і відкрийте його.</div>`;
       return;
     }
     const pend = mine || [];
     const role0 = member ? state.memberRole : 'parent';
     $('#view').innerHTML = `
-      ${pend.length ? `<div class="info"><b>⏳ Запит надіслано тренеру</b><br>
+      ${pend.length ? `<div class="info"><b>⏳ Запит надіслано сенсею</b><br>
         ${pend.map(r => esc(r.child_name)).join(', ')}<br>
-        Щойно тренер підтвердить — ${member ? 'дитина зʼявиться на головній' : 'ви побачите свою дитину'}.
+        Щойно сенсей підтвердить — ${member ? 'дитина зʼявиться на головній' : 'ви побачите свою дитину'}.
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn light sm" id="jRefresh">Оновити</button>
           ${member ? '' : '<button type="button" class="btn light sm" id="jMore">+ Ще одна дитина</button>'}</div></div>` : ''}
       ${!member && !pend.length ? `<div class="info"><b>Ласкаво просимо в Ferents Team</b><br>
@@ -6517,7 +6517,7 @@ notify pgrst, 'reload schema';`;
         <label>Ваше імʼя<input name="name" required maxlength="60" placeholder="напр. Олена, мама Івана" value="${esc(state.name || '')}"></label>`}
         <label><span id="jChildLbl">Прізвище та імʼя дитини</span><input name="child" required maxlength="80" placeholder="напр. Петренко Іван" autocomplete="off"></label>
         <p class="err small" id="jErr"></p>
-        <button type="submit" class="btn wide">Надіслати тренеру</button>
+        <button type="submit" class="btn wide">Надіслати сенсею</button>
       </form>`;
     const form = $('#jForm');
     const relabel = () => {
@@ -6531,7 +6531,7 @@ notify pgrst, 'reload schema';`;
     const refresh = $('#jRefresh');
     if (refresh) refresh.onclick = async () => {
       state.role = await detectRole();
-      if (state.role && !member) toast('Готово! Тренер підтвердив доступ');
+      if (state.role && !member) toast('Готово! Сенсей підтвердив доступ');
       location.hash === '#home' ? render() : (location.hash = '#home');
     };
     form.onsubmit = async e => {
@@ -6545,11 +6545,11 @@ notify pgrst, 'reload schema';`;
       btn.disabled = false;
       if (err) {
         const m = err.message || '';
-        $('#jErr').textContent = /too_many/.test(m) ? 'Забагато запитів. Зачекайте, поки тренер їх розгляне.'
+        $('#jErr').textContent = /too_many/.test(m) ? 'Забагато запитів. Зачекайте, поки сенсей їх розгляне.'
           : /bad_input/.test(m) ? 'Перевірте прізвище та імʼя.' : isNetErr(err) ? 'Немає інтернету' : 'Не вдалося: ' + m;
         return;
       }
-      toast('Запит надіслано тренеру');
+      toast('Запит надіслано сенсею');
       notify('request', { title: '🙋 Новий запит на доступ',
         body: `${(form.name ? form.name.value : state.name) || state.email} → ${form.child.value.trim()}`, url: './#members' });
       render();
@@ -6827,7 +6827,7 @@ notify pgrst, 'reload schema';`;
           <button type="button" class="btn light sm" id="reqFnBtn">2. Скопіювати код функції</button></div></div>` : ''}
       ${linksOk && photoRes.error && /function|schema cache/i.test(photoRes.error.message || '') ? sqlCard('Фото від батьків і спортсменів', MEMBER_PHOTO_SQL) : ''}
       <div class="info"><b>Хто що бачить:</b>
-        <b>батьки</b> — свою дитину (відвідування, пояси, вагу), рейтинг і події; <b>спортсмени</b> — ще розклад і завдання своєї групи, відео та чат. Тренери бачать усе.<br>
+        <b>батьки</b> — свою дитину (відвідування, пояси, вагу), рейтинг і події; <b>спортсмени</b> — ще розклад і завдання своєї групи, відео та чат. Сенсеї бачать усе.<br>
         Можна й окремо: картка спортсмена → «Запросити батьків», або «+ Додати» тут з email людини.</div>
       <div class="list">${list.map(m => {
         const kids = kidsOf(m.email).map(id => nameOf.get(id)).filter(Boolean);
@@ -6841,7 +6841,7 @@ notify pgrst, 'reload schema';`;
     $('#view').onclick = e => {
       if (e.target.closest('#teamLinkBtn')) { copyText(teamUrl, 'Посилання скопійовано — надішліть його в чат'); return; }
       if (e.target.closest('#teamShareBtn')) {
-        const text = 'Застосунок карате-команди Ferents Team: відвідування, рейтинг і події вашої дитини. Зареєструйтесь за посиланням і вкажіть прізвище та імʼя дитини — тренер підтвердить доступ: ';
+        const text = 'Застосунок карате-команди Ferents Team: відвідування, рейтинг і події вашої дитини. Зареєструйтесь за посиланням і вкажіть прізвище та імʼя дитини — сенсей підтвердить доступ: ';
         (async () => {
           if (navigator.share) { try { await navigator.share({ title: 'Ferents Team', text, url: teamUrl }); return; } catch (err) { if (err && err.name === 'AbortError') return; } }
           copyText(text + teamUrl, 'Текст із посиланням скопійовано');
@@ -7226,7 +7226,7 @@ notify pgrst, 'reload schema';`;
      (Project Settings → API):  const SUPABASE_URL = '…';  const SUPABASE_KEY = '…';
      Завантажте вміст app/ у репозиторій GitHub → Settings → Pages → гілка main.
   7. Authentication → URL Configuration → Site URL: адреса вашого сайту.
-  8. Увійдіть у додаток з тією ж поштою, що й раніше (тренер — та, що в таблиці coaches).
+  8. Увійдіть у додаток з тією ж поштою, що й раніше (сенсей — та, що в таблиці coaches).
   9. Налаштування → Сповіщення в Telegram → підключіть бота заново.
 
 ЩО НЕ ПЕРЕНОСИТЬСЯ (і що з цим робити)
@@ -7319,7 +7319,7 @@ end $$;\n` });
     const m = $('#menu');
     m.innerHTML = `
       <div class="menu-head">
-        <div><b>${esc(state.name && state.name !== 'Тренер' ? state.name : state.email)}</b><span>${state.role === 'coach' ? 'Тренер' : state.role === 'member' ? (isAthleteM() ? 'Спортсмен' : 'Батьки') : 'Без доступу'}</span></div>
+        <div><b>${esc(state.name && state.name !== 'Сенсей' ? state.name : state.email)}</b><span>${state.role === 'coach' ? 'Сенсей' : state.role === 'member' ? (isAthleteM() ? 'Спортсмен' : 'Батьки') : 'Без доступу'}</span></div>
         <button type="button" class="menu-close" aria-label="Закрити">${svgI('close', 1.8)}</button>
       </div>
       <nav class="menu-list">
@@ -7619,7 +7619,7 @@ end $$;\n` });
   // ----- Екран налаштувань -----
   function timerView() {
     setActions('');
-    if (!(isCoach() || isAthleteM())) { $('#view').innerHTML = '<div class="empty">Таймер доступний спортсменам і тренеру</div>'; return; }
+    if (!(isCoach() || isAthleteM())) { $('#view').innerHTML = '<div class="empty">Таймер доступний спортсменам і сенсею</div>'; return; }
     tmDraw();
   }
   function tmDraw() {
@@ -8022,7 +8022,7 @@ end $$;\n` });
     return new Promise(resolve => {
       const dlg = $('#dlg');
       dlg.innerHTML = `<form><h3>Ласкаво просимо в Ferents Team</h3>
-        <p class="muted small" style="margin:4px 0 10px">Вас запросив тренер. Як вас звати?</p>
+        <p class="muted small" style="margin:4px 0 10px">Вас запросив сенсей. Як вас звати?</p>
         <label>Імʼя<input name="name" required maxlength="60" placeholder="напр. Олена, мама Івана" value="${esc(state.name || '')}"></label>
         <p class="err small" id="joinErr"></p>
         <div class="dlg-actions"><span class="spacer"></span>
@@ -8038,8 +8038,8 @@ end $$;\n` });
         if (error) {
           btn.disabled = false;
           const m = error.message || '';
-          $('#joinErr').textContent = /expired/.test(m) ? 'Посилання вже не діє. Попросіть тренера надіслати нове.'
-            : /not_found/.test(m) ? 'Посилання неправильне. Попросіть тренера надіслати нове.' : 'Не вдалося: ' + m;
+          $('#joinErr').textContent = /expired/.test(m) ? 'Посилання вже не діє. Попросіть сенсея надіслати нове.'
+            : /not_found/.test(m) ? 'Посилання неправильне. Попросіть сенсея надіслати нове.' : 'Не вдалося: ' + m;
           if (/expired|not_found/.test(m)) setJoin('');
           return;
         }
@@ -8058,8 +8058,8 @@ end $$;\n` });
   let codeType = 'signup'; // для якого листа чекаємо код: реєстрація чи новий пароль
   function setLoginMode(mode) {
     loginMode = mode;
-    const t = { login: ['Вхід', 'Увійти', 'Для тренерів, батьків і спортсменів команди.'],
-                signup: ['Реєстрація', 'Зареєструватися', 'Використайте email, який ви дали тренеру. Пароль — мінімум 6 символів.'],
+    const t = { login: ['Вхід', 'Увійти', 'Для сенсеїв, батьків і спортсменів команди.'],
+                signup: ['Реєстрація', 'Зареєструватися', 'Використайте email, який ви дали сенсею. Пароль — мінімум 6 символів.'],
                 reset: ['Відновлення пароля', 'Надіслати лист', 'Ми надішлемо на пошту посилання для нового пароля.'],
                 code: ['Код із пошти', 'Підтвердити', 'Ми надіслали лист із кодом. Введіть код нижче (якщо листа немає — гляньте в «Спам»).'] }[mode];
     $('#loginTitle').textContent = t[0];
@@ -8131,10 +8131,10 @@ end $$;\n` });
 
   if (pendingJoin()) {
     setLoginMode('signup');
-    $('#loginHint').textContent = 'Вас запросив тренер. Введіть свою пошту (двічі, щоб не помилитися) й придумайте пароль (мінімум 6 символів). Якщо акаунт уже є — натисніть «Назад до входу».';
+    $('#loginHint').textContent = 'Вас запросив сенсей. Введіть свою пошту (двічі, щоб не помилитися) й придумайте пароль (мінімум 6 символів). Якщо акаунт уже є — натисніть «Назад до входу».';
   } else if (teamLink) {
     setLoginMode('signup');
-    $('#loginHint').textContent = 'Ласкаво просимо в Ferents Team! Введіть свою пошту (двічі, щоб не помилитися) й придумайте пароль (мінімум 6 символів). Далі вкажете свою дитину — і тренер підтвердить. Якщо акаунт уже є — натисніть «Назад до входу».';
+    $('#loginHint').textContent = 'Ласкаво просимо в Ferents Team! Введіть свою пошту (двічі, щоб не помилитися) й придумайте пароль (мінімум 6 символів). Далі вкажете свою дитину — і сенсей підтвердить. Якщо акаунт уже є — натисніть «Назад до входу».';
   }
   applyTeam();
   (async function boot() {

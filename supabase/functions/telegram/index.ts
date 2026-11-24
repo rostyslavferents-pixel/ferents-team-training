@@ -106,7 +106,7 @@ async function onUpdate(u: any) {
     await tg("sendMessage", { chat_id: chat, parse_mode: "HTML", ...openBtn(app),
       text: "✅ <b>Telegram підключено!</b>\n\n" +
         (who ? `Сповіщення про: <b>${esc(who)}</b>\n\n` : "") +
-        "Сюди приходитимуть оголошення тренера, нові події та інші важливі новини.\n\nВідключити: /stop" });
+        "Сюди приходитимуть оголошення сенсея, нові події та інші важливі новини.\n\nВідключити: /stop" });
     return;
   }
 
