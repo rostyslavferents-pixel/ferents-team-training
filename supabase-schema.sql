@@ -1055,3 +1055,52 @@ create policy athlete_read on public.recovery_plans for select to authenticated 
 revoke all on public.recovery_plans from anon;
 grant select, insert, update, delete on public.recovery_plans to authenticated;
 notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+-- Перегляди завдань на тренування (бачить лише сенсей)
+create table if not exists public.plan_views (
+  plan_id    bigint not null references public.training_plans(id) on delete cascade,
+  email      text   not null,
+  viewed_at  timestamptz not null default now(),
+  primary key (plan_id, email)
+);
+alter table public.plan_views enable row level security;
+drop policy if exists coach_read on public.plan_views;
+create policy coach_read on public.plan_views for select to authenticated using (public.is_coach());
+revoke all on public.plan_views from anon;
+
+-- спортсмен відкрив розділ «Завдання» — позначаємо показані завдання як переглянуті
+create or replace function public.mark_plans_viewed(ids bigint[])
+returns void language sql security definer set search_path = public as $$
+  insert into public.plan_views (plan_id, email)
+  select p.id, lower(auth.jwt() ->> 'email')
+  from public.training_plans p
+  where p.id = any(ids)
+    and not public.is_coach()
+    and exists (select 1 from public.members m where m.email = lower(auth.jwt() ->> 'email') and m.role = 'athlete')
+    and public.is_my_group(p.group_name, null)
+  on conflict do nothing;
+$$;
+revoke all on function public.mark_plans_viewed(bigint[]) from anon, public;
+grant execute on function public.mark_plans_viewed(bigint[]) to authenticated;
+
+-- для сенсея: хто переглянув кожне завдання і скільки спортсменів мали б його бачити
+create or replace function public.plan_views_stats()
+returns table (plan_id bigint, total int, viewers jsonb)
+language sql stable security definer set search_path = public as $$
+  select p.id,
+    (select count(distinct m.email)::int from public.members m
+       join public.member_athletes ma on ma.email = m.email
+       join public.athletes a on a.id = ma.athlete_id
+      where m.role = 'athlete' and a.active is not false
+        and (p.group_name is null or a.group_name = p.group_name)),
+    coalesce((select jsonb_agg(jsonb_build_object('name', coalesce(m.full_name, v.email), 'at', v.viewed_at) order by v.viewed_at)
+       from public.plan_views v left join public.members m on m.email = v.email
+      where v.plan_id = p.id), '[]'::jsonb)
+  from public.training_plans p
+  where public.is_coach();
+$$;
+revoke all on function public.plan_views_stats() from anon, public;
+grant execute on function public.plan_views_stats() to authenticated;
+notify pgrst, 'reload schema';

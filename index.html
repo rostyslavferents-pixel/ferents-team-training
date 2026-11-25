@@ -150,6 +150,9 @@
     .row.tick input { width: 26px; height: 26px; flex: none; accent-color: var(--ok); }
     .chev { color: var(--muted); font-size: 22px; }
     .row.plan { align-items: flex-start; }
+    .pv { display: inline-flex; align-items: center; gap: 2px; margin-top: 8px; padding: 4px 10px; border: 1px solid var(--line, rgba(127,127,127,.25));
+      border-radius: 999px; background: transparent; color: var(--muted, inherit); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .pv .ic-svg { width: 15px; height: 15px; margin-right: 3px; }
     .tasks { white-space: pre-line; font-size: 14px; color: var(--ink); margin-top: 8px; line-height: 1.5; overflow-wrap: anywhere; }
     .tasks a { color: var(--gold-ink, var(--gold)); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
     .row input.kg { width: 92px; flex: none; text-align: center; }
@@ -1172,7 +1175,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.73';
+  const APP_VERSION = 'v3.74';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -5369,17 +5372,32 @@ notify pgrst, 'reload schema';`;
     const coach = isCoach();
     setActions(coach ? '<button class="btn" id="addBtn">+ Додати</button>' : '');
     if (coach) $('#addBtn').onclick = () => planForm();
-    const all = await q(db.from('training_plans').select('*').order('date'));
+    const [all, vs] = await Promise.all([
+      q(db.from('training_plans').select('*').order('date')),
+      coach ? db.rpc('plan_views_stats').then(r => r.data || []) : [],
+    ]);
+    const views = new Map(vs.map(v => [String(v.plan_id), v]));
     const rows = coach ? all.filter(p => state.group === 'Усі' || !p.group_name || p.group_name === state.group) : all;
     const t = today();
     const upcoming = rows.filter(p => p.date >= t);
     const past = rows.filter(p => p.date < t).reverse().slice(0, 15);
+    // Спортсмен відкрив розділ — позначаємо показані завдання як переглянуті (бачить лише сенсей)
+    if (isAthleteM()) {
+      const ids = [...upcoming, ...past].map(p => Number(p.id));
+      if (ids.length) db.rpc('mark_plans_viewed', { ids }).then(() => {}, () => {});
+    }
+    const viewsBadge = p => {
+      const v = views.get(String(p.id)); if (!coach || !v) return '';
+      const n = (v.viewers || []).length;
+      return `<button type="button" class="pv" data-views="${esc(p.id)}">${icon('eye')}${n}${v.total ? ' з ' + v.total : ''}</button>`;
+    };
 
     const item = p => `<div class="row plan" data-id="${esc(p.id)}"${coach ? ' role="button" tabindex="0"' : ' style="cursor:default"'}>
         <div style="min-width:0">
           <strong>${esc(p.title)}</strong>
           <span>${fmtDate(p.date, { weekday: 'short', day: 'numeric', month: 'long' })} · ${esc(p.group_name || 'Всі групи')}</span>
           ${p.tasks ? `<div class="tasks">${linkify(p.tasks)}</div>` : ''}
+          ${viewsBadge(p)}
         </div>
         ${p.date === t ? '<span class="badge gold">сьогодні</span>' : ''}
       </div>`;
@@ -5389,9 +5407,27 @@ notify pgrst, 'reload schema';`;
       ${past.length ? `<h3>Минулі</h3><div class="list">${past.map(item).join('')}</div>` : ''}`;
     $('#view').onclick = e => {
       if (e.target.closest('a')) return; // натиснули на посилання — просто відкриваємо його
+      const vb = e.target.closest('[data-views]');
+      if (vb) return planViewers(all.find(x => String(x.id) === vb.dataset.views), views.get(vb.dataset.views));
       const r = e.target.closest('.row[data-id]');
       if (r && coach) planForm(all.find(x => String(x.id) === r.dataset.id));
     };
+  }
+
+  // Хто переглянув завдання (лише для сенсея)
+  function planViewers(p, v) {
+    const list = (v && v.viewers) || [];
+    const when = iso => { const d = new Date(iso);
+      return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' }); };
+    const dlg = $('#dlg');
+    dlg.innerHTML = `<form method="dialog">
+        <h3>${icon('eye')}Переглянули · ${list.length}${v && v.total ? ' з ' + v.total : ''}</h3>
+        <p class="muted" style="margin:-4px 0 12px">${esc(p.title)} · ${fmtDate(p.date, { weekday: 'short', day: 'numeric', month: 'long' })}</p>
+        <div class="list">${list.map(x => `<div class="row" style="cursor:default"><strong>${esc(x.name)}</strong><span class="muted">${when(x.at)}</span></div>`).join('')
+          || '<div class="empty">Ще ніхто не переглядав.</div>'}</div>
+        <div class="dlg-actions"><span class="spacer"></span><button class="btn light" value="close">Закрити</button></div>
+      </form>`;
+    dlg.showModal();
   }
 
   function planForm(p) {
