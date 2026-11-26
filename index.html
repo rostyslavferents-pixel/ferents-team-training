@@ -1016,6 +1016,10 @@
     .tr-bag label:first-child { border-top: 0; }
     .tr-bag input { width: 22px; height: 22px; flex: none; accent-color: var(--gold); margin: 0; }
     .tr-bag input:checked + span { color: var(--muted); text-decoration: line-through; }
+    .ew-row { gap: 10px; cursor: default; }
+    .ew-link { flex: 1; min-width: 0; color: inherit; text-decoration: none; }
+    .ew-in { flex: none; width: 74px; height: 40px; text-align: center; font: inherit; font-size: 16px; font-weight: 600; padding: 0 6px; border-radius: 10px; }
+    .ew-in.ok { outline: 2px solid var(--ok); border-color: transparent; }
     .tr-tag { display: inline-block; font-size: 12px; font-weight: 600; color: var(--gold-ink); background: var(--gold-soft); padding: 1px 7px; border-radius: 6px; margin-left: 4px; }
     /* ===== Таймер ===== */
     .tile[href="#timer"] .ic { --ic: #e11d48; }
@@ -6109,11 +6113,13 @@ notify pgrst, 'reload schema';`;
   // ----- Сторінка події з учасниками -----
   async function eventView() {
     setActions('');
-    const [found, ath, weights] = await Promise.all([
+    const [found, ath, weights, evW] = await Promise.all([
       q(db.from('events').select('*').eq('id', state.param)),
       q(db.from('athletes').select('*').order('full_name')),
       lastWeights(),
+      db.from('event_weights').select('athlete_id, weight').eq('event_id', state.param).then(r => r.data || [], () => []),
     ]);
+    const ew = new Map(evW.map(r => [String(r.athlete_id), Number(r.weight)]));
     noteSection(ath);
     const ev = found[0];
     if (!ev) { $('#view').innerHTML = '<div class="empty">Подію не знайдено. <a class="link" href="#events">До календаря</a></div>'; return; }
@@ -6129,7 +6135,7 @@ notify pgrst, 'reload schema';`;
 
     // Рядок для заявки на змагання: ПІБ — дата народження — пояс — вага — секція/група
     const line = a => {
-      const w = weights.get(String(a.id));
+      const e = ew.get(String(a.id)), w = e ? { weight: e } : weights.get(String(a.id));
       return [a.full_name, a.birth_date ? fmtDate(a.birth_date, { day: '2-digit', month: '2-digit', year: 'numeric' }) : (a.birth_year ? a.birth_year + ' р.н.' : ''),
               beltShort(a.belt), w ? fmtKg(w.weight) : '', [a.section, a.group_name].filter(Boolean).join(' · ')].filter(Boolean).join(' — ');
     };
@@ -6148,12 +6154,11 @@ notify pgrst, 'reload schema';`;
         <div class="list">${people.map(a => {
             const rs = resultsOf(ev, a.id);
             const tr = tripOf(ev), rm = (tr.rooms || {})[String(a.id)], st = (tr.seats || {})[String(a.id)];
-            const wt = weights.get(String(a.id));
-            return `<a class="row" href="#athlete/${encodeURIComponent(a.id)}">
-            <div><strong>${beltTag(a.belt)}${esc(a.full_name)}${wt ? `<span class="tr-tag wt-tag">${fmtKg(wt.weight)}</span>` : ''}${rs.length ? ' ' + rs.map(x => placeIcon(x.p)).join('') : ''}${rm ? `<span class="tr-tag">к. ${esc(rm)}</span>` : ''}${st ? `<span class="tr-tag">місце ${esc(st)}</span>` : ''}</strong><span>${esc(rs.length ? rs.map(placeText).join('; ') : line(a).split(' — ').slice(1).filter(x => !(wt && x === fmtKg(wt.weight))).join(' · '))}</span></div>
-            <span class="chev">›</span></a>`; }).join('') || '<div class="empty">Учасників ще не вибрано</div>'}</div>
+            const ev0 = ew.get(String(a.id));
+            return `<div class="row ew-row"><a class="ew-link" href="#athlete/${encodeURIComponent(a.id)}">
+            <div><strong>${beltTag(a.belt)}${esc(a.full_name)}${rs.length ? ' ' + rs.map(x => placeIcon(x.p)).join('') : ''}${rm ? `<span class="tr-tag">к. ${esc(rm)}</span>` : ''}${st ? `<span class="tr-tag">місце ${esc(st)}</span>` : ''}</strong><span>${esc(rs.length ? rs.map(placeText).join('; ') : line(a).split(' — ').slice(1).join(' · '))}</span></div></a>
+            <input class="ew-in" data-ew="${esc(String(a.id))}" value="${ev0 ? esc(String(ev0).replace('.', ',')) : ''}" placeholder="кг" inputmode="decimal" aria-label="Вага на змагання, кг"></div>`; }).join('') || '<div class="empty">Учасників ще не вибрано</div>'}</div>
         ${people.length ? `<button type="button" class="btn wide" id="resBtn" style="margin-bottom:8px">${icon('medal')} ${people.some(a => resultsOf(ev, a.id).length) ? 'Змінити результати' : 'Внести результати'}</button>
-          <button type="button" class="btn light wide" id="wtBtn" style="margin-bottom:8px">${icon('scale')}Зважування</button>
           <button type="button" class="btn light wide" id="copyBtn">${icon('copy')}Скопіювати список для заявки</button>` : ''}
         <div class="sec"><h3>Виїзд</h3>${tripOn(ev) ? `<a class="btn sm light" href="#trip/${encodeURIComponent(ev.id)}">Як бачать учасники</a>` : ''}</div>
         <div class="list">
@@ -6173,7 +6178,21 @@ notify pgrst, 'reload schema';`;
       if (!('results' in ev)) { copyText(RESULTS_SQL, 'Спершу виконайте цей SQL у Supabase → SQL Editor (скопійовано)'); return; }
       resultsDialog(ev, people);
     };
-    const wtb = $('#wtBtn'); if (wtb) wtb.onclick = () => weighDialog(people, weights);
+    // Вага на ці змагання: вписується праворуч у рядку, зберігається одразу
+    $('#view').querySelectorAll('[data-ew]').forEach(inp => {
+      inp.onchange = async () => {
+        const id = inp.dataset.ew, raw = inp.value.trim().replace(',', '.');
+        try {
+          if (!raw) { await q(db.from('event_weights').delete().eq('event_id', ev.id).eq('athlete_id', id)); ew.delete(id); inp.classList.remove('ok'); return; }
+          const v = Math.round(Number(raw) * 10) / 10;
+          if (!(v >= 10 && v <= 200)) { toast('Перевірте вагу: ' + inp.value, true); inp.focus(); return; }
+          await q(db.from('event_weights').upsert({ event_id: ev.id, athlete_id: id, weight: v, updated_at: new Date().toISOString() }));
+          ew.set(id, v); inp.value = String(v).replace('.', ',');
+          inp.classList.add('ok'); setTimeout(() => inp.classList.remove('ok'), 1200);
+        } catch (e) {}
+      };
+      inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); };
+    });
     const trb = $('#trBtn'); if (trb) trb.onclick = () => tripForm(ev);
     const rmb = $('#rmBtn'); if (rmb) rmb.onclick = () => tripRoomsDialog(ev, people);
     const cb = $('#copyBtn');
@@ -6216,38 +6235,6 @@ notify pgrst, 'reload schema';`;
         return q(db.from('events').update({ trip }).eq('id', ev.id));
       },
     });
-  }
-  // Зважування учасників події: вага записується в історію ваги спортсмена (weights) на сьогоднішню дату
-  function weighDialog(people, weights) {
-    const dlg = $('#dlg'), t = today();
-    dlg.innerHTML = `<form><h3>${icon('scale')} Зважування</h3>
-      <p class="muted small" style="margin:4px 0 10px">Вага зберігається на сьогоднішню дату. Порожні поля не змінюються.</p>
-      <div class="list">${people.map(a => { const id = String(a.id), w = weights.get(id), now = w && w.date === t;
-        return `<div class="row" style="cursor:default;gap:8px">
-        <div style="min-width:0;flex:1"><strong>${esc(a.full_name)}</strong>${w && !now ? `<span>було ${fmtKg(w.weight)} · ${fmtDate(w.date, { day: 'numeric', month: 'short' })}</span>` : ''}</div>
-        <input data-id="${esc(id)}" value="${now ? esc(String(Number(w.weight))) : ''}" placeholder="кг" inputmode="decimal" aria-label="Вага, кг" style="width:76px;flex:none;text-align:center"></div>`; }).join('')}</div>
-      <div class="dlg-actions"><span class="spacer"></span>
-        <button type="button" class="btn light" data-act="cancel">Скасувати</button><button type="submit" class="btn">Зберегти</button></div></form>`;
-    const form = dlg.querySelector('form');
-    form.querySelector('[data-act=cancel]').onclick = () => dlg.close();
-    form.onsubmit = async e => {
-      e.preventDefault();
-      const rows = [];
-      for (const i of form.querySelectorAll('[data-id]')) {
-        const raw = i.value.trim().replace(',', '.');
-        if (!raw) continue;
-        const v = Math.round(Number(raw) * 10) / 10;
-        if (!(v >= 10 && v <= 200)) { toast('Перевірте вагу: ' + i.value, true); i.focus(); return; }
-        const w = weights.get(i.dataset.id);
-        if (w && w.date === t && Number(w.weight) === v) continue;
-        rows.push({ athlete_id: i.dataset.id, date: t, weight: v });
-      }
-      if (!rows.length) { dlg.close(); return; }
-      const btn = form.querySelector('[type=submit]'); btn.disabled = true;
-      try { await write('weights', 'upsert', rows); dlg.close(); toast('Збережено'); render(); }
-      catch (err) { btn.disabled = false; }
-    };
-    dlg.showModal();
   }
   function tripRoomsDialog(ev, people) {
     const dlg = $('#dlg'), t = tripOf(ev), rooms = { ...(t.rooms || {}) }, seats = { ...(t.seats || {}) };
