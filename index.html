@@ -1175,7 +1175,7 @@
   const SUPABASE_URL = 'https://ntmtqkioqcfjxvaxyjge.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_wv9UNSUZvcVT7_orJkec3A_475LADpx';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const APP_VERSION = 'v3.74';
+  const APP_VERSION = 'v3.75';
   // Пробна версія: адреса …/beta/ — новий вигляд (стиль Monobank) і «Готовність»
   const BETA = /\/beta(\/|$)/.test(location.pathname);
   if (BETA) document.documentElement.classList.add('mono');
@@ -1371,7 +1371,7 @@
   const WEEKDAYS = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'];
   const TITLES = {
     home: 'Особистий кабінет', athletes: 'Мої спортсмени', attendance: 'Відвідування',
-    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи', sleep: 'Сон і готовність', recovery: 'Відновлення мʼязів', timer: 'Таймер', trip: 'Памʼятка до виїзду'
+    athlete: 'Спортсмен', rating: 'Мої спортсмени', event: 'Подія', payments: 'Оплати', links: 'Відео та посилання', chat: 'Чат команди', members: 'Учасники та доступ', settings: 'Налаштування', manage: 'Керування командою', training: 'Тренування', plans: 'Завдання', tests: 'Тестування', schedule: 'Розклад тренувань', events: 'Календар подій', materials: 'Матеріали', news: 'Оголошення', join: 'Додати дитину', applications: 'Заяви від батьків', connections: 'Хто підключився', stats: 'Статистика', nutrition: 'Харчування і відновлення', recipes: 'Рецепти команди', readiness: 'Готовність старшої групи', sleep: 'Сон і готовність', recovery: 'Відновлення мʼязів', timer: 'Таймер', trip: 'Памʼятка до виїзду', messages: 'Особисто від сенсея'
   };
 
   // Стан фільтрів (зберігається між екранами)
@@ -2980,6 +2980,7 @@ notify pgrst, 'reload schema';`;
         .order('created_at', { ascending: false }).limit(3).then(r => r.data || []),
       pushCard(),
     ]);
+    const pmNew = await db.from('coach_messages').select('id, body').is('read_at', null).order('created_at', { ascending: false }).limit(20).then(r => r.data || [], () => []);
     const pollsNow = canSee('news') ? ((await loadPolls(10).catch(() => null)) || []).filter(p => !p.closed && !p.mine) : [];
     const kids = kids0.filter(isActive).length ? kids0.filter(isActive) : kids0;
     state.kidIds = kids.map(a => String(a.id));
@@ -3090,6 +3091,8 @@ notify pgrst, 'reload schema';`;
       ${readyHtml}
       ${installCard()}
       ${pushC}
+      ${pmNew.length ? `<a class="now" href="#messages"><i class="dot"></i>
+        <div><b>${icon('chat')}Особисто від сенсея${pmNew.length > 1 ? ' (' + pmNew.length + ')' : ''}</b><span>${esc(pmNew[0].body.length > 90 ? pmNew[0].body.slice(0, 90) + '…' : pmNew[0].body)}</span></div><i class="go">›</i></a>` : ''}
       ${myEvBlock}
       ${nextBlock}
       ${monoFeed}
@@ -3106,6 +3109,7 @@ notify pgrst, 'reload schema';`;
         ${canSee('rating') ? tile('rating', 'events', 'Рейтинг', 'Місця та заслуги') : ''}
         ${isAthleteM() ? tile('timer', 'timer', 'Таймер', 'Табата, EMOM, секундомір') : ''}
         ${canSee('news') ? tile('news', 'news', 'Оголошення', 'Усі новини') : ''}
+        ${tile('messages', 'chat', 'Від сенсея', 'Особисті повідомлення')}
         ${kids.filter(canNutri).slice(0, 1).map(a => tile('nutrition/' + encodeURIComponent(a.id), 'drop', 'Харчування і сон', 'БЖВ, рецепти, відновлення')).join('')}
       </div>`;
   }
@@ -3690,6 +3694,7 @@ notify pgrst, 'reload schema';`;
       q(db.from('weights').select('athlete_id, date, weight').eq('athlete_id', a.id).order('date', { ascending: false }).limit(20)),
       q(db.from('schedule').select('weekday, group_name')),
     ]);
+    const pms = coach ? await db.from('coach_messages').select('*').eq('athlete_id', a.id).order('created_at', { ascending: false }).limit(5).then(r => r.data || [], () => []) : [];
     // Для батьків місце в рейтингу беремо із загального рейтингу
     if (!coach && !a.rating_place) {
       const r = await db.rpc('team_rating');
@@ -3779,6 +3784,7 @@ notify pgrst, 'reload schema';`;
                <button type="button" class="linkbtn" id="rateOut" style="margin-left:8px">Прибрати з рейтингу</button>`
             : `<button type="button" class="btn light sm" id="rateIn">${trophy()} Додати до рейтингу</button>`}</div>` : ''}
         ${coach && phone ? `<a class="btn light wide" href="tel:${esc(phone)}">${icon('call')}Подзвонити${a.parent_name ? ' батькам' : ''}</a>` : ''}
+        ${coach ? `<button type="button" class="btn light wide" id="pmBtn">${icon('chat')}Написати особисто</button>` : ''}
       </div>
       <div class="stats">
         <div class="stat"><b>${visits}</b><span>тренувань у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</span></div>
@@ -3786,6 +3792,8 @@ notify pgrst, 'reload schema';`;
         ${coach ? `<a class="stat ${paidNow ? '' : 'warn'}" href="#payments" data-month="${ym}"><b>${paidNow ? '✓' : '✗'}</b><span>${paidNow ? 'оплачено' : 'не оплачено'} за місяць</span></a>`
           : `<a class="stat" href="#rating"><b>${a.rating_place || '—'}</b><span>місце в рейтингу</span></a>`}
       </div>
+      ${coach && pms.length ? `<div class="sec"><h3>Особисті повідомлення</h3><button type="button" class="linkbtn" id="pmMore">+ написати</button></div>
+        <div class="list">${pms.map(m => pmItem(m, true)).join('')}</div>` : ''}
       ${days.size ? `<h3>Відвідування у ${MONTHS_IN[Number(ym.slice(5)) - 1]}</h3><div class="panel">${attCalendar(ym, new Set(att.map(x => x.date)), new Set([...days].map(Number)), t)}</div>` : ''}
       ${canReady(a) && (coach || isAthleteM()) ? `<a class="card ncard" href="#sleep/${encodeURIComponent(a.id)}"><span class="ic-box">${icon('moon')}</span><span><strong>Сон і готовність</strong><span>Графіки сну й готовності за весь час, середні по місяцях, перед змаганнями</span></span><span class="chev">›</span></a>
         <a class="card ncard" href="#recovery"><span class="ic-box">${icon('play')}</span><span><strong>Відновлення мʼязів</strong><span>План і відео від сенсея, коли болить верх чи низ тіла</span></span><span class="chev">›</span></a>` : ''}
@@ -3838,6 +3846,8 @@ notify pgrst, 'reload schema';`;
       return;
     }
     $('#addW').onclick = () => weightForm(a);
+    $('#pmBtn').onclick = () => personalMsgDialog(a);
+    if ($('#pmMore')) $('#pmMore').onclick = () => personalMsgDialog(a);
     drawAccess(a);
     const rIn = $('#rateIn'), rOut = $('#rateOut');
     if (rIn) rIn.onclick = async () => {
@@ -5897,6 +5907,86 @@ notify pgrst, 'reload schema';`;
         <span>${annDate(n)}${isCoach() ? ' · ' + esc(annWho(n)) : ''}</span></div>
     </div>`;
   }
+  // ===== Особисті повідомлення від сенсея одному спортсмену =====
+  // Сенсей пише з профілю спортсмена → у застосунок (#messages) і в Telegram спортсмену та/або батькам
+  function pmItem(m, coach, names) {
+    const to = [m.to_athlete ? 'спортсмену' : '', m.to_parents ? 'батькам' : ''].filter(Boolean).join(' і ');
+    const st = coach ? [to, m.tg_sent ? icon('send') + 'Telegram ✓' : 'лише в застосунку',
+      m.read_at ? '<span style="color:var(--ok)">прочитано</span>' : 'ще не відкрили'].join(' · ') : annDate(m);
+    return `<div class="row" style="cursor:default${!coach && !m.read_at ? ';box-shadow:inset 3px 0 0 var(--gold)' : ''}">
+      <div style="min-width:0">${names ? `<strong>${esc(names.get(String(m.athlete_id)) || '')}</strong>` : ''}
+        <div class="tasks" style="white-space:pre-wrap;margin-top:${names ? 4 : 0}px">${linkify(m.body)}</div>
+        <span>${coach ? annDate(m) + ' · ' + st : st}</span></div></div>`;
+  }
+  function personalMsgDialog(a, prefill = '') {
+    const dlg = $('#dlg');
+    dlg.innerHTML = `<form><h3>${icon('chat')} Особисто: ${esc(firstNameOf(a.full_name))}</h3>
+      <p class="muted small" style="margin:4px 0 10px">Бачить лише той, кому ви пишете: у застосунку й у Telegram. Інші спортсмени не бачать.</p>
+      <label>Кому</label>
+      <div class="chips seg" id="pmTo">
+        <button type="button" class="chip on" data-to="a">Спортсмену</button>
+        <button type="button" class="chip" data-to="p">Батькам</button>
+        <button type="button" class="chip" data-to="b">Обом</button></div>
+      <div class="muted small" id="pmInfo" style="margin:2px 0 10px">Перевіряю, хто підключений…</div>
+      <label for="pmText">Повідомлення</label>
+      <textarea id="pmText" rows="6" maxlength="2000" required placeholder="Наприклад: Андрію, на куміте тримай руки вище й частіше працюй першим. Удома — 3 × 20 віджимань щодня.">${esc(prefill)}</textarea>
+      <div class="dlg-actions"><span class="spacer"></span>
+        <button type="button" class="btn light" data-act="cancel">Скасувати</button>
+        <button type="submit" class="btn">${icon('send')}Надіслати</button></div></form>`;
+    const form = dlg.querySelector('form'), info = form.querySelector('#pmInfo');
+    let to = 'a', who = null;
+    const word = (n, acc) => !acc ? 'немає акаунта' : n ? 'Telegram ✓' : 'лише застосунок (Telegram не підключено)';
+    const drawInfo = () => {
+      if (!who) return;
+      const lines = [];
+      if (to !== 'p') lines.push('Спортсмен: ' + word(who.athlete.tg, who.athlete.acc));
+      if (to !== 'a') lines.push('Батьки: ' + word(who.parents.tg, who.parents.acc));
+      const none = (to === 'a' && !who.athlete.acc) || (to === 'p' && !who.parents.acc) || (to === 'b' && !who.athlete.acc && !who.parents.acc);
+      info.innerHTML = esc(lines.join(' · ')) + (none ? '<br><span style="color:var(--bad)">Цей отримувач ще не зареєстрований — повідомлення ніхто не побачить.</span>' : '');
+    };
+    form.querySelectorAll('#pmTo .chip').forEach(c => c.onclick = () => {
+      to = c.dataset.to; form.querySelectorAll('#pmTo .chip').forEach(x => x.classList.toggle('on', x === c)); drawInfo();
+    });
+    db.functions.invoke('telegram', { body: { action: 'personal', dry: true, athlete_id: a.id } }).then(({ data }) => {
+      if (!data || data.error) { info.textContent = ''; return; }
+      who = data;
+      // Немає власного акаунта спортсмена (малі діти) — одразу пропонуємо батьків
+      if (!who.athlete.acc && who.parents.acc) form.querySelector('#pmTo [data-to=p]').click(); else drawInfo();
+    }).catch(() => { info.textContent = ''; });
+    form.querySelector('[data-act=cancel]').onclick = () => dlg.close();
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const text = form.querySelector('#pmText').value.trim();
+      if (!text) return;
+      const btn = form.querySelector('[type=submit]'); btn.disabled = true;
+      const { data, error } = await db.functions.invoke('telegram', { body: { action: 'personal', athlete_id: a.id, text,
+        to_athlete: to !== 'p', to_parents: to !== 'a' } }).catch(err => ({ error: err }));
+      if (error || !data || data.error) { btn.disabled = false; toast('Не вдалося надіслати' + (data && data.error ? ': ' + data.error : ''), true); return; }
+      dlg.close();
+      toast(data.telegram ? `Надіслано · Telegram: ${data.telegram}` : 'Надіслано в застосунок (Telegram не підключено)');
+      render();
+    };
+    dlg.showModal();
+    setTimeout(() => form.querySelector('#pmText').focus(), 50);
+  }
+  // Для спортсмена й батьків: усі особисті повідомлення від сенсея
+  async function messagesView() {
+    setActions('');
+    const [list, kids] = await Promise.all([
+      db.from('coach_messages').select('*').order('created_at', { ascending: false }).limit(100).then(r => r.data || []),
+      q(db.from('athletes').select('id, full_name')),
+    ]);
+    const coach = isCoach();
+    const names = coach || kids.length > 1 ? new Map(kids.map(k => [String(k.id), k.full_name])) : null;
+    $('#view').innerHTML = list.length
+      ? `<p class="muted small" style="margin:0 0 10px">${coach ? 'Усі особисті повідомлення, які ви надіслали. Написати нове — у профілі спортсмена.'
+           : `Ці повідомлення сенсей написав особисто ${isAthleteM() ? 'тобі' : 'вам'}. Інші їх не бачать.`}</p>
+         <div class="list">${list.map(m => pmItem(m, coach, names)).join('')}</div>`
+      : '<div class="empty">Особистих повідомлень від сенсея поки немає</div>';
+    const unread = list.filter(m => !m.read_at).map(m => m.id);
+    if (unread.length && !coach) db.rpc('mark_coach_messages_read', { ids: unread }).then(() => {}, () => {});
+  }
+
   async function newsView() {
     const coach = isCoach();
     setActions(coach ? '<button class="btn light" id="pollBtn">'+icon('chart')+'Опитування</button> <button class="btn" id="addBtn">+ Нове</button>' : '');
@@ -7905,11 +7995,11 @@ end $$;\n` });
     home: homeView, athletes: athletesView, rating: ratingView, athlete: athleteView, event: eventView, attendance: attendanceView, payments: paymentsView,
     training: trainingView, plans: plansView, tests: testsView,
     schedule: scheduleView, events: eventsView, materials: materialsView,
-    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView, sleep: sleepView, recovery: recoveryView, timer: timerView, trip: tripView,
+    links: linksView, chat: chatView, members: membersView, settings: settingsView, news: newsView, join: joinView, manage: teamView, applications: applicationsView, connections: connectionsView, stats: statsView, nutrition: nutritionView, recipes: recipesView, readiness: readinessView, sleep: sleepView, recovery: recoveryView, timer: timerView, trip: tripView, messages: messagesView,
   };
   // Що бачать батьки і спортсмени
   // Завжди доступні; решта — за перемикачами в «Керування командою»
-  function memberRoutes() { return ['home', 'athlete', 'settings', 'join', ...(isAthleteM() ? ['nutrition', 'sleep', 'timer', 'recovery'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee), ...(canSee('events') ? ['trip'] : [])]; }
+  function memberRoutes() { return ['home', 'athlete', 'settings', 'join', 'messages', ...(isAthleteM() ? ['nutrition', 'sleep', 'timer', 'recovery'] : []), ...ACCESS_PARTS.map(([p]) => p).filter(canSee), ...(canSee('events') ? ['trip'] : [])]; }
   const PARENT_ROUTE = { trip: 'events', timer: 'training', readiness: 'home', sleep: 'readiness', recovery: 'readiness', recipes: 'home', stats: 'home', connections: 'home', manage: 'home', athlete: 'athletes', event: 'events', schedule: 'training', plans: 'training', tests: 'training', materials: 'home' };
   // Нижня панель для тренера: вкладка → які екрани до неї належать
   const TABS = [['home', 'Головна'], ['attendance', 'Відмітки'], ['payments', 'Оплати'], ['athletes', 'Спортсмени'], ['chat', 'Чат']];
@@ -7924,7 +8014,7 @@ end $$;\n` });
       .filter(([r]) => canSee(r)).slice(0, 3);
     return [['home', 'Головна', 'home'], [kid, isAthleteM() ? 'Я' : ids.length > 1 ? 'Діти' : 'Дитина', 'kid'], ...extra];
   }
-  const MEMBER_TAB_OF = { trip: 'home', rating: 'home', schedule: 'home', links: 'home', join: 'home', settings: 'home', plans: 'home', chat: 'home', events: 'home', news: 'home' };
+  const MEMBER_TAB_OF = { messages: 'home', trip: 'home', rating: 'home', schedule: 'home', links: 'home', join: 'home', settings: 'home', plans: 'home', chat: 'home', events: 'home', news: 'home' };
   function tabsNow() { return isCoach() ? TABS.map(([r, l]) => [r, l, r]) : state.role === 'member' ? memberTabs() : null; }
   function drawTabbar(route) {
     const bar = $('#tabbar'), tabs = tabsNow(), on = !!tabs;

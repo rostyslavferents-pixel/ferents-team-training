@@ -193,6 +193,57 @@ async function onRemind(req: Request, b: any) {
   return json({ with: withTg, sent, reached });
 }
 
+// Сенсей пише особисте повідомлення одному спортсмену (і/або його батькам).
+// { athlete_id, text, to_athlete, to_parents }; dry: true — лише дізнатись, хто має акаунт і Telegram.
+async function onPersonal(req: Request, b: any) {
+  const asUser = createClient(URL_, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+  });
+  if ((await asUser.rpc("is_coach")).data !== true) return json({ error: "forbidden" }, 403);
+  const id = String(b.athlete_id || "");
+  if (!id) return json({ error: "no_athlete" }, 400);
+
+  // Хто привʼязаний до спортсмена: його власний акаунт і акаунти батьків
+  const { data: links } = await admin.from("member_athletes").select("email").eq("athlete_id", id);
+  const emails = [...new Set((links ?? []).map((l: any) => String(l.email).toLowerCase()))];
+  const { data: mem } = emails.length ? await admin.from("members").select("email, role").in("email", emails) : { data: [] as any[] };
+  const { data: tl } = emails.length ? await admin.from("telegram_links").select("chat_id, email").in("email", emails) : { data: [] as any[] };
+  const byRole = (r: string) => (mem ?? []).filter((m: any) => m.role === r).map((m: any) => String(m.email).toLowerCase());
+  const tgOf = (list: string[]) => (tl ?? []).filter((t: any) => list.includes(String(t.email).toLowerCase())).map((t: any) => Number(t.chat_id));
+  const ath = byRole("athlete"), par = byRole("parent");
+  const info = { athlete: { acc: ath.length, tg: tgOf(ath).length }, parents: { acc: par.length, tg: tgOf(par).length } };
+  if (b.dry) return json(info);
+
+  const text = String(b.text || "").trim().slice(0, 2000);
+  const toA = !!b.to_athlete, toP = !!b.to_parents;
+  if (!text) return json({ error: "empty" }, 400);
+  if (!toA && !toP) return json({ error: "no_recipient" }, 400);
+
+  const { data: row, error } = await admin.from("coach_messages")
+    .insert({ athlete_id: id, body: text, to_athlete: toA, to_parents: toP }).select("id").single();
+  if (error) return json({ error: error.message }, 500);
+
+  const chats = [...new Set([...(toA ? tgOf(ath) : []), ...(toP ? tgOf(par) : [])])];
+  let sent = 0;
+  if (TOKEN && chats.length) {
+    const app = await appUrl();
+    const link = app ? new URL("./#messages", app).href : "";
+    const blocked: number[] = [];
+    for (const chat of chats) {
+      const r = await tg("sendMessage", {
+        chat_id: chat, parse_mode: "HTML", disable_web_page_preview: true,
+        text: "🥋 <b>Особисто від сенсея</b>\n\n" + esc(text), ...openBtn(link),
+      }).catch(() => null);
+      if (r?.ok) sent++;
+      else if (r?.error_code === 403 || r?.error_code === 400 && /chat not found/i.test(r?.description || "")) blocked.push(chat);
+      await new Promise((res) => setTimeout(res, 40));
+    }
+    if (blocked.length) await admin.from("telegram_links").delete().in("chat_id", blocked);
+    await admin.from("coach_messages").update({ tg_sent: sent }).eq("id", row.id);
+  }
+  return json({ ...info, id: row.id, telegram: sent, telegram_targets: chats.length, no_token: !TOKEN || undefined });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -205,6 +256,7 @@ Deno.serve(async (req) => {
     const b = await req.json().catch(() => ({}));
     if (b.action === "setup") return await setup(req, b);
     if (b.action === "remind") return await onRemind(req, b);
+    if (b.action === "personal") return await onPersonal(req, b);
     return json({ error: "unknown" }, 400);
   } catch (e) {
     return json({ error: String(e) }, 500);

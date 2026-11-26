@@ -1104,3 +1104,41 @@ $$;
 revoke all on function public.plan_views_stats() from anon, public;
 grant execute on function public.plan_views_stats() to authenticated;
 notify pgrst, 'reload schema';
+
+-- ===== Особисті повідомлення від сенсея одному спортсмену (і/або його батькам) =====
+create table if not exists public.coach_messages (
+  id          bigint generated always as identity primary key,
+  athlete_id  uuid not null references public.athletes(id) on delete cascade,
+  body        text not null check (length(btrim(body)) between 1 and 2000),
+  to_athlete  boolean not null default true,
+  to_parents  boolean not null default false,
+  tg_sent     int not null default 0,
+  created_at  timestamptz not null default now(),
+  read_at     timestamptz
+);
+create index if not exists coach_messages_athlete on public.coach_messages (athlete_id, created_at desc);
+alter table public.coach_messages enable row level security;
+drop policy if exists coach_all on public.coach_messages;
+drop policy if exists recipient_read on public.coach_messages;
+create policy coach_all on public.coach_messages for all to authenticated
+  using (public.is_coach()) with check (public.is_coach());
+-- отримувач бачить лише повідомлення своєму спортсмену і лише адресовані його ролі
+create policy recipient_read on public.coach_messages for select to authenticated using (
+  exists (select 1 from public.member_athletes ma join public.members m on m.email = ma.email
+           where ma.email = lower(auth.jwt() ->> 'email') and ma.athlete_id = coach_messages.athlete_id
+             and ((m.role = 'athlete' and coach_messages.to_athlete) or (m.role = 'parent' and coach_messages.to_parents))));
+revoke all on public.coach_messages from anon;
+grant select, insert, update, delete on public.coach_messages to authenticated;
+
+-- отримувач відкрив повідомлення — сенсей бачить «прочитано»
+create or replace function public.mark_coach_messages_read(ids bigint[])
+returns void language sql security definer set search_path = public as $$
+  update public.coach_messages c set read_at = now()
+  where c.id = any(ids) and c.read_at is null and not public.is_coach()
+    and exists (select 1 from public.member_athletes ma join public.members m on m.email = ma.email
+                 where ma.email = lower(auth.jwt() ->> 'email') and ma.athlete_id = c.athlete_id
+                   and ((m.role = 'athlete' and c.to_athlete) or (m.role = 'parent' and c.to_parents)));
+$$;
+revoke all on function public.mark_coach_messages_read(bigint[]) from anon, public;
+grant execute on function public.mark_coach_messages_read(bigint[]) to authenticated;
+notify pgrst, 'reload schema';
